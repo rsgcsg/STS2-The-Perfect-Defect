@@ -1,0 +1,29 @@
+# Current Context
+
+## Phase
+
+P0 project-system and contract initialization, while preserving the H1 integration smoke as
+a regression/qualification lane.
+
+## Current truths
+
+- The existing linear-Q and transfer code is real and useful, but not the final v0 model.
+- STPD owns research/data/model/training/evaluation, not game truth or legality.
+- v0 core uses frozen Qwen3-0.6B-Base and Standard input.
+- ResearchState/ModelState/ModelAction/ResearchTransition are not yet frozen.
+- No Scheme 1, S2-Simple, S2-SDT, Human Gold, or B0-B7 production pipeline exists yet.
+
+## Immediate priorities
+
+1. Review and freeze the v0 research interfaces and schemas.
+2. Implement B0 dataset-contract/leakage checks.
+3. Implement the pinned frozen-Qwen backend.
+4. Implement the smallest pretrained/random Scheme 1 baseline.
+5. Keep current smoke tests and real environment qualification usable.
+
+## Do not do yet
+
+- move the smoke modules for cosmetic reasons;
+- fine-tune Qwen before the frozen pretraining-value gate;
+- put reward/model/tensor semantics in Headless or Connector;
+- scale data/model complexity before B0 and contract freeze.
