@@ -2,6 +2,7 @@ import random
 import unittest
 
 from stpd.linear_q import LinearQ, combat_reward, features
+from stpd.training_smoke import learning_verdict
 
 
 def snapshot(enemy_hp=20, player_hp=30, kind="combat_turn", victory=False):
@@ -37,6 +38,29 @@ class LinearQTest(unittest.TestCase):
         self.assertGreater(model.score(snapshot(), ACTION), before)
         self.assertIn("verb:play", features(snapshot(), ACTION))
         self.assertEqual(model.choose(snapshot(), [ACTION], random.Random(1), 0), ACTION)
+
+    def test_learning_verdict_fails_closed_on_regression_or_incomplete_terminal(self):
+        baseline = {
+            "episodes": 4,
+            "terminal_episodes": 4,
+            "mean_floor": 3.0,
+            "mean_shaped_return": 1.0,
+        }
+        passing = {
+            "episodes": 4,
+            "terminal_episodes": 4,
+            "mean_floor": 4.0,
+            "mean_shaped_return": 2.0,
+        }
+        self.assertEqual(learning_verdict(baseline, passing)["status"], "learning_smoke_pass")
+        self.assertEqual(
+            learning_verdict(baseline, {**passing, "mean_floor": 2.0})["status"],
+            "learning_smoke_failed",
+        )
+        self.assertEqual(
+            learning_verdict(baseline, {**passing, "terminal_episodes": 3})["status"],
+            "learning_smoke_failed",
+        )
 
 
 if __name__ == "__main__":

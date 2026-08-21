@@ -94,6 +94,7 @@ def run_episode(
 def summarize(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "episodes": len(episodes),
+        "terminal_episodes": sum(episode["terminal"] == "game_over" for episode in episodes),
         "victories": sum(episode["victory"] for episode in episodes),
         "mean_floor": sum(episode["floor"] for episode in episodes) / len(episodes),
         "mean_shaped_return": sum(episode["shaped_return"] for episode in episodes) / len(episodes),
@@ -104,6 +105,25 @@ def summarize(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         ) / max(1, sum(episode["mean_td_loss"] is not None for episode in episodes)),
         "inference_seconds": sum(episode["inference_seconds"] for episode in episodes),
         "host_step_wait_seconds": sum(episode["step_seconds"] for episode in episodes),
+    }
+
+
+def learning_verdict(
+    baseline: Mapping[str, Any], trained: Mapping[str, Any]
+) -> dict[str, Any]:
+    terminal_complete = (
+        baseline["terminal_episodes"] == baseline["episodes"]
+        and trained["terminal_episodes"] == trained["episodes"]
+    )
+    improved_floor = trained["mean_floor"] > baseline["mean_floor"]
+    improved_return = trained["mean_shaped_return"] > baseline["mean_shaped_return"]
+    return {
+        "status": "learning_smoke_pass"
+        if terminal_complete and improved_floor and improved_return
+        else "learning_smoke_failed",
+        "terminal_complete": terminal_complete,
+        "improved_mean_floor": improved_floor,
+        "improved_mean_shaped_return": improved_return,
     }
 
 
@@ -168,11 +188,12 @@ def main() -> None:
     training_summary = summarize(training)
     baseline_summary = summarize(baseline)
     trained_summary = summarize(trained)
+    verdict = learning_verdict(baseline_summary, trained_summary)
     total_samples = training_summary["delivered"] + baseline_summary["delivered"] + trained_summary["delivered"]
     report = {
         "schema": "stpd/real-learner-smoke-1",
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "status": "learning_smoke_measured",
+        "status": verdict["status"],
         "stpd": source_identity(root),
         "headless": provenance.get("headless"),
         "candidate_build": provenance.get("candidate_build"),
@@ -184,8 +205,7 @@ def main() -> None:
             "fixed_seeds": evaluation_seeds,
             "random_initial": {"summary": baseline_summary, "episodes": baseline},
             "trained_frozen": {"summary": trained_summary, "episodes": trained},
-            "improved_mean_floor": trained_summary["mean_floor"] > baseline_summary["mean_floor"],
-            "improved_mean_shaped_return": trained_summary["mean_shaped_return"] > baseline_summary["mean_shaped_return"],
+            "verdict": verdict,
         },
         "pipeline": {
             "topology": "synchronous_external_python_actor_learner",
@@ -223,6 +243,8 @@ def main() -> None:
         "trained": trained_summary,
         "pipeline": report["pipeline"],
     }, indent=2))
+    if report["status"] != "learning_smoke_pass":
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":
