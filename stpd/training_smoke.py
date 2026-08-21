@@ -32,6 +32,46 @@ def _snapshot_marker(snapshot: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _same_session(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
+    left_session = left.get("session", {})
+    right_session = right.get("session", {})
+    return all(
+        left_session.get(key) == right_session.get(key)
+        for key in ("runtime_instance_id", "environment_fingerprint")
+    )
+
+
+def _observe_until_stable(
+    environment: Any,
+    snapshot: Mapping[str, Any],
+    *,
+    timeout_seconds: float = 20.0,
+) -> tuple[Mapping[str, Any], int]:
+    current = snapshot
+    advances = 0
+    deadline = time.monotonic() + timeout_seconds
+    while current.get("status") == "settling":
+        if time.monotonic() >= deadline:
+            raise EpisodeExecutionError(
+                "Environment did not leave settling within the bounded supervision window.",
+                {"last_observation": _snapshot_marker(current)},
+            )
+        time.sleep(0.02)
+        observed = environment.observe()
+        if not _same_session(current, observed):
+            raise EpisodeExecutionError(
+                "Environment identity changed while supervising settling.",
+                {
+                    "before": _snapshot_marker(current),
+                    "observed": _snapshot_marker(observed),
+                },
+            )
+        if observed.get("snapshot_id") != current.get("snapshot_id"):
+            advances += 1
+        current = observed
+    return current, advances
+
+
 def source_identity(root: Path) -> dict[str, Any]:
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
     status = subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip()
@@ -161,7 +201,14 @@ def run_episode(
     step_seconds = 0.0
     steps: list[dict[str, Any]] = []
     termination_reason = "action_limit"
-    for _ in range(max_actions):
+    stale_refusals = 0
+    successor_advances = 0
+    supervision_attempts = 0
+    while delivered < max_actions:
+        supervision_attempts += 1
+        if supervision_attempts > max_actions * 4 + 100:
+            termination_reason = "supervision_limit"
+            break
         if snapshot.get("interaction", {}).get("kind") == "game_over":
             termination_reason = "game_over"
             break
@@ -180,7 +227,19 @@ def run_episode(
             selected["bound_action_id"], snapshot["snapshot_id"], mutation_request_id
         )
         step_seconds += time.perf_counter() - step_started
-        if receipt.get("delivery") != "delivered" or receipt.get("successor") is None:
+        if receipt.get("delivery") != "delivered":
+            retry = receipt.get("retry", {})
+            fresh = receipt.get("successor")
+            if (
+                receipt.get("delivery") == "not_delivered"
+                and receipt.get("reason_code") == "stale_snapshot"
+                and retry.get("allowed") is True
+                and isinstance(fresh, Mapping)
+            ):
+                stale_refusals += 1
+                snapshot, advances = _observe_until_stable(environment, fresh)
+                successor_advances += advances
+                continue
             raise EpisodeExecutionError(
                 f"Environment delivery failed: {receipt.get('delivery')}:{receipt.get('reason_code')}",
                 {
@@ -189,6 +248,11 @@ def run_episode(
                     "mutation_request_id": mutation_request_id,
                     "receipt": receipt,
                 },
+            )
+        if receipt.get("successor") is None:
+            raise EpisodeExecutionError(
+                "Delivered action did not include a successor observation.",
+                {"before": _snapshot_marker(snapshot), "receipt": receipt},
             )
         if receipt.get("request_id") != mutation_request_id:
             raise EpisodeExecutionError(
@@ -212,9 +276,9 @@ def run_episode(
             )
         if verify_successor:
             observed = environment.observe()
-            if observed.get("snapshot_id") != successor.get("snapshot_id"):
+            if not _same_session(successor, observed):
                 raise EpisodeExecutionError(
-                    "Receipt successor does not match an independent observation.",
+                    "Receipt successor and independent observation have different environment identity.",
                     {
                         "before": _snapshot_marker(snapshot),
                         "action": action_descriptor(snapshot, selected),
@@ -226,6 +290,21 @@ def run_episode(
                         "independent_observation": _snapshot_marker(observed),
                     },
                 )
+            successor_sequence = int(successor.get("sequence", -1))
+            observed_sequence = int(observed.get("sequence", -1))
+            if observed_sequence < successor_sequence:
+                raise EpisodeExecutionError(
+                    "Independent observation moved backwards from the receipt successor.",
+                    {
+                        "receipt_successor": _snapshot_marker(successor),
+                        "independent_observation": _snapshot_marker(observed),
+                    },
+                )
+            if observed.get("snapshot_id") != successor.get("snapshot_id"):
+                successor_advances += 1
+                successor = observed
+        successor, advances = _observe_until_stable(environment, successor)
+        successor_advances += advances
         if record_steps:
             steps.append({
                 "index": delivered,
@@ -262,6 +341,9 @@ def run_episode(
         "floor": persistent.get("run", {}).get("floor", 0),
         "hp": persistent.get("player", {}).get("hp", 0),
         "delivered": delivered,
+        "stale_refusals": stale_refusals,
+        "successor_advances": successor_advances,
+        "supervision_attempts": supervision_attempts,
         "combat_decisions": combat_decisions,
         "shaped_return": total_reward,
         "mean_td_loss": sum(losses) / len(losses) if losses else None,
@@ -281,6 +363,8 @@ def summarize(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_floor": sum(episode["floor"] for episode in episodes) / len(episodes),
         "mean_shaped_return": sum(episode["shaped_return"] for episode in episodes) / len(episodes),
         "delivered": sum(episode["delivered"] for episode in episodes),
+        "stale_refusals": sum(episode.get("stale_refusals", 0) for episode in episodes),
+        "successor_advances": sum(episode.get("successor_advances", 0) for episode in episodes),
         "combat_decisions": sum(episode["combat_decisions"] for episode in episodes),
         "mean_td_loss": sum(
             episode["mean_td_loss"] for episode in episodes if episode["mean_td_loss"] is not None

@@ -11,7 +11,12 @@ from stpd.contention_smoke import (
     run_contention,
     validate_ready_identities,
 )
-from stpd.training_smoke import action_list, choose_noncombat_action, learning_verdict
+from stpd.training_smoke import (
+    action_list,
+    choose_noncombat_action,
+    learning_verdict,
+    run_episode,
+)
 from stpd.multi_seed_learning import multi_seed_verdict
 from stpd.reference_transfer import transfer_verdict
 
@@ -102,6 +107,34 @@ class NonTerminalFakeEnvironment(FakeEnvironment):
             "bound_actions": {"status": "complete", "actions": [ACTION]},
         }
         return {"delivery": "delivered", "successor": self._snapshot}
+
+
+class StaleThenTerminalEnvironment(FakeEnvironment):
+    def step(self, action_id, snapshot_id, request_id):
+        return {
+            "delivery": "not_delivered",
+            "reason_code": "stale_snapshot",
+            "retry": {"allowed": True},
+            "successor": {
+                "snapshot_id": "settling",
+                "sequence": 2,
+                "status": "settling",
+                "session": {"runtime_instance_id": "runtime", "environment_fingerprint": "environment"},
+                "interaction": {"kind": "event_option"},
+                "bound_actions": {"status": "complete", "actions": []},
+            },
+        }
+
+    def observe(self):
+        return {
+            "snapshot_id": "terminal",
+            "sequence": 3,
+            "status": "observed",
+            "session": {"runtime_instance_id": "runtime", "environment_fingerprint": "environment"},
+            "persistent": {"content": {"player": {"hp": 10}, "run": {"floor": 2}}},
+            "interaction": {"kind": "game_over", "content": {"surface": {"victory": False}}},
+            "bound_actions": {"status": "complete", "actions": []},
+        }
 
 
 class FakeVector:
@@ -254,6 +287,29 @@ class LinearQTest(unittest.TestCase):
             choose_noncombat_action(reward_claim, [proceed, claim])["bound_action_id"],
             "claim",
         )
+
+    def test_episode_supervision_recovers_stale_without_retrying_the_old_action(self):
+        environment = StaleThenTerminalEnvironment(0)
+        initial = environment.reset("seed")
+        initial.update({
+            "sequence": 1,
+            "status": "interactive",
+            "session": {"runtime_instance_id": "runtime", "environment_fingerprint": "environment"},
+        })
+        episode = run_episode(
+            environment,
+            "seed",
+            LinearQ(),
+            random.Random(1),
+            train=False,
+            epsilon=0.0,
+            max_actions=2,
+            verify_successor=True,
+        )
+        self.assertEqual(episode["termination_reason"], "game_over")
+        self.assertEqual(episode["delivered"], 0)
+        self.assertEqual(episode["stale_refusals"], 1)
+        self.assertEqual(episode["successor_advances"], 1)
 
     def test_runtime_identity_requires_shared_game_and_unique_instances(self):
         ready = [
