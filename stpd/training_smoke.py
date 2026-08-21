@@ -15,6 +15,23 @@ from .game_seed import derive_game_seed
 from .linear_q import LinearQ, combat_reward
 
 
+class EpisodeExecutionError(RuntimeError):
+    def __init__(self, message: str, details: Mapping[str, Any]):
+        super().__init__(message)
+        self.details = dict(details)
+
+
+def _snapshot_marker(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "snapshot_id": snapshot.get("snapshot_id"),
+        "sequence": snapshot.get("sequence"),
+        "status": snapshot.get("status"),
+        "interaction_kind": snapshot.get("interaction", {}).get("kind"),
+        "interaction_stage": snapshot.get("interaction", {}).get("stage"),
+        "bound_action_count": len(snapshot.get("bound_actions", {}).get("actions", [])),
+    }
+
+
 def source_identity(root: Path) -> dict[str, Any]:
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
     status = subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip()
@@ -164,18 +181,51 @@ def run_episode(
         )
         step_seconds += time.perf_counter() - step_started
         if receipt.get("delivery") != "delivered" or receipt.get("successor") is None:
-            raise RuntimeError(f"Environment delivery failed: {receipt.get('delivery')}:{receipt.get('reason_code')}")
+            raise EpisodeExecutionError(
+                f"Environment delivery failed: {receipt.get('delivery')}:{receipt.get('reason_code')}",
+                {
+                    "before": _snapshot_marker(snapshot),
+                    "action": action_descriptor(snapshot, selected),
+                    "mutation_request_id": mutation_request_id,
+                    "receipt": receipt,
+                },
+            )
         if receipt.get("request_id") != mutation_request_id:
-            raise RuntimeError("Environment receipt request identity mismatch.")
+            raise EpisodeExecutionError(
+                "Environment receipt request identity mismatch.",
+                {"mutation_request_id": mutation_request_id, "receipt": receipt},
+            )
         if receipt.get("action", {}).get("bound_action_id") != selected["bound_action_id"]:
-            raise RuntimeError("Environment receipt action identity mismatch.")
+            raise EpisodeExecutionError(
+                "Environment receipt action identity mismatch.",
+                {"selected": selected, "receipt": receipt},
+            )
         successor = receipt["successor"]
         if successor.get("snapshot_id") == snapshot.get("snapshot_id"):
-            raise RuntimeError("Delivered action did not produce a distinct successor snapshot.")
+            raise EpisodeExecutionError(
+                "Delivered action did not produce a distinct successor snapshot.",
+                {
+                    "before": _snapshot_marker(snapshot),
+                    "action": action_descriptor(snapshot, selected),
+                    "successor": _snapshot_marker(successor),
+                },
+            )
         if verify_successor:
             observed = environment.observe()
             if observed.get("snapshot_id") != successor.get("snapshot_id"):
-                raise RuntimeError("Receipt successor does not match an independent observation.")
+                raise EpisodeExecutionError(
+                    "Receipt successor does not match an independent observation.",
+                    {
+                        "before": _snapshot_marker(snapshot),
+                        "action": action_descriptor(snapshot, selected),
+                        "available_actions": [
+                            action_descriptor(snapshot, action) for action in actions
+                        ],
+                        "mutation_request_id": mutation_request_id,
+                        "receipt_successor": _snapshot_marker(successor),
+                        "independent_observation": _snapshot_marker(observed),
+                    },
+                )
         if record_steps:
             steps.append({
                 "index": delivered,

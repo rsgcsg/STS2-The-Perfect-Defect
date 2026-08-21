@@ -139,7 +139,7 @@ def main() -> None:
     reference_ready: Mapping[str, Any] | None = None
     candidate_episodes: list[dict[str, Any]] = []
     reference_episodes: list[dict[str, Any]] = []
-    failure: dict[str, str] | None = None
+    failure: dict[str, Any] | None = None
     stage = "managed"
     try:
         with ManagedPlayerEnvironment(driver_command(headless, candidate_path)) as environment:
@@ -160,6 +160,9 @@ def main() -> None:
             "type": type(error).__name__,
             "message": str(error),
         }
+        details = getattr(error, "details", None)
+        if isinstance(details, Mapping):
+            failure["details"] = dict(details)
 
     verdict = transfer_verdict(candidate_episodes, reference_episodes)
     if failure is not None:
