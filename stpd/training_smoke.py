@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
@@ -10,8 +9,6 @@ import random
 import subprocess
 import time
 from typing import Any, Mapping
-
-from sts2_headless import FiniteActionView, ManagedPlayerEnvironment
 
 from .linear_q import LinearQ, combat_reward
 
@@ -27,7 +24,16 @@ def driver_command(headless: Path, candidate: Path) -> list[str]:
 
 
 def action_list(snapshot: Mapping[str, Any]) -> list[Mapping[str, Any]]:
-    return list(FiniteActionView.from_snapshot(snapshot).actions)
+    catalog = snapshot.get("bound_actions")
+    if not isinstance(catalog, Mapping) or catalog.get("status") != "complete":
+        raise RuntimeError("Snapshot does not contain a complete finite BoundAction projection.")
+    actions = catalog.get("actions")
+    if not isinstance(actions, list):
+        raise RuntimeError("Snapshot BoundActions must be a list.")
+    ids = [str(action.get("bound_action_id")) for action in actions]
+    if any(identifier in {"None", ""} for identifier in ids) or len(ids) != len(set(ids)):
+        raise RuntimeError("Snapshot contains invalid or duplicate BoundAction identities.")
+    return list(actions)
 
 
 def run_episode(
@@ -140,6 +146,8 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     headless = Path(args.headless).resolve()
     candidate = Path(args.candidate).resolve()
+    from sts2_headless import ManagedPlayerEnvironment
+
     model = LinearQ()
     rng = random.Random(731_2026)
     wall_started = time.perf_counter()
