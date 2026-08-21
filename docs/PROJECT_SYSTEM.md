@@ -78,6 +78,21 @@ Each run records:
 - Final Gold-test and fixed live suite remain sealed until architecture/input/hyperparameters
   are frozen.
 - A failed hypothesis is retained as a result; do not tune the gate until it passes.
+- Pull requests use `.github/pull_request_template.md` and the pure-Python CI must pass.
+- Runtime/GPU experiments remain separate from CI and require exact local evidence.
+
+## Continuous integration
+
+GitHub Actions runs the pure suite on Python 3.9 and 3.11:
+
+```text
+editable install
+-> unittest discovery
+-> compileall
+```
+
+CI intentionally does not download STS2, Headless/Connector artifacts, Qwen weights, external
+data, or GPU dependencies. A green CI run proves only the public source/test contract.
 
 ## Release states
 
