@@ -82,6 +82,18 @@ def _identity_value(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
 
 
+def _shared_runtime_identity(value: Any) -> Any:
+    """Return the immutable runtime build identity shared by isolated workers."""
+
+    if not isinstance(value, Mapping):
+        return value
+    return {
+        key: item
+        for key, item in value.items()
+        if key != "process_id"
+    }
+
+
 def validate_ready_identities(readies: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """Validate exact runtime identity without pretending missing fields are safe."""
 
@@ -97,25 +109,39 @@ def validate_ready_identities(readies: Sequence[Mapping[str, Any]]) -> dict[str,
             "consistent": False,
             "runtime_instances_unique": False,
         }
-    comparable_fields = ("headless", "candidate_build", "runtime_identity")
+    comparable_fields = ("headless", "candidate_build")
     comparable = [
-        tuple(_identity_value(ready[field]) for field in comparable_fields)
+        tuple(
+            [*(_identity_value(ready[field]) for field in comparable_fields),
+             _identity_value(_shared_runtime_identity(ready["runtime_identity"]))]
+        )
         for ready in readies
     ]
     instances = [str(ready["adapter_runtime_instance_id"]) for ready in readies]
+    process_ids = [
+        ready["runtime_identity"].get("process_id")
+        for ready in readies
+        if isinstance(ready["runtime_identity"], Mapping)
+    ]
     consistent = len(set(comparable)) == 1
     unique_instances = len(instances) == len(set(instances))
+    unique_processes = (
+        not process_ids
+        or (len(process_ids) == len(readies) and len(process_ids) == len(set(process_ids)))
+    )
     return {
-        "status": "valid" if consistent and unique_instances else "invalid",
+        "status": "valid" if consistent and unique_instances and unique_processes else "invalid",
         "missing_fields": {},
         "consistent": consistent,
         "runtime_instances_unique": unique_instances,
+        "runtime_processes_unique": unique_processes,
         "workers": len(readies),
         "shared": {
-            field: readies[0][field]
-            for field in comparable_fields
+            **{field: readies[0][field] for field in comparable_fields},
+            "runtime_identity": _shared_runtime_identity(readies[0]["runtime_identity"]),
         },
         "runtime_instance_ids": instances,
+        "runtime_process_ids": process_ids,
     }
 
 

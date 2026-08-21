@@ -177,6 +177,48 @@ class LinearQTest(unittest.TestCase):
         self.assertEqual(validate_ready_identities([{**ready[0], "runtime_identity": "other"}, ready[1]])["status"], "invalid")
         self.assertEqual(validate_ready_identities([{**ready[0], "adapter_runtime_instance_id": "instance-2"}, ready[1]])["status"], "invalid")
 
+    def test_runtime_identity_separates_shared_build_from_worker_process(self):
+        runtime = {
+            "type": "runtime_identity",
+            "host_assembly_sha256": "host-sha",
+            "host_module_mvid": "host-mvid",
+            "sts2_assembly_sha256": "game-sha",
+            "sts2_module_mvid": "game-mvid",
+        }
+        ready = [
+            {
+                "headless": "headless-a",
+                "candidate_build": "candidate-a",
+                "runtime_identity": {**runtime, "process_id": 101},
+                "adapter_runtime_instance_id": "instance-1",
+            },
+            {
+                "headless": "headless-a",
+                "candidate_build": "candidate-a",
+                "runtime_identity": {**runtime, "process_id": 102},
+                "adapter_runtime_instance_id": "instance-2",
+            },
+        ]
+        identity = validate_ready_identities(ready)
+        self.assertEqual(identity["status"], "valid")
+        self.assertTrue(identity["runtime_processes_unique"])
+        self.assertEqual(identity["runtime_process_ids"], [101, 102])
+        self.assertNotIn("process_id", identity["shared"]["runtime_identity"])
+        self.assertEqual(
+            validate_ready_identities([
+                ready[0],
+                {**ready[1], "runtime_identity": {**runtime, "process_id": 101}},
+            ])["status"],
+            "invalid",
+        )
+        self.assertEqual(
+            validate_ready_identities([
+                ready[0],
+                {**ready[1], "runtime_identity": {**runtime, "host_assembly_sha256": "other", "process_id": 102}},
+            ])["status"],
+            "invalid",
+        )
+
     def test_contention_verdict_fails_closed_on_missing_seed_worker_or_terminal(self):
         config = ContentionConfig(("seed-a", "seed-b"), workers=2, episodes_per_seed=1)
         identity = {"status": "valid"}
