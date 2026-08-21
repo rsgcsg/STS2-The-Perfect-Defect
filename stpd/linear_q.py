@@ -126,3 +126,15 @@ class LinearQ:
             "updates": self.updates,
             "weights": dict(sorted(self.weights.items())),
         }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "LinearQ":
+        if value.get("algorithm") != "linear_q_learning":
+            raise ValueError("Unsupported frozen policy algorithm.")
+        weights = value.get("weights")
+        if not isinstance(weights, Mapping):
+            raise ValueError("Frozen policy weights must be an object.")
+        model = cls(alpha=float(value["alpha"]), gamma=float(value["gamma"]))
+        model.weights = {str(name): float(weight) for name, weight in weights.items()}
+        model.updates = int(value.get("updates", 0))
+        return model

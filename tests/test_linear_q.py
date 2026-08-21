@@ -11,6 +11,8 @@ from stpd.contention_smoke import (
     validate_ready_identities,
 )
 from stpd.training_smoke import action_list, learning_verdict
+from stpd.multi_seed_learning import multi_seed_verdict
+from stpd.reference_transfer import transfer_verdict
 
 
 def snapshot(enemy_hp=20, player_hp=30, kind="combat_turn", victory=False):
@@ -135,6 +137,15 @@ class LinearQTest(unittest.TestCase):
         self.assertIn("verb:play", features(snapshot(), ACTION))
         self.assertEqual(model.choose(snapshot(), [ACTION], random.Random(1), 0), ACTION)
 
+    def test_frozen_policy_round_trip(self):
+        model = LinearQ(alpha=0.1, gamma=0.8)
+        model.weights = {"bias": 1.25, "verb:play": -0.5}
+        model.updates = 17
+        restored = LinearQ.from_dict(model.to_dict())
+        self.assertEqual(restored.to_dict(), model.to_dict())
+        with self.assertRaises(ValueError):
+            LinearQ.from_dict({"algorithm": "other", "weights": {}})
+
     def test_learning_verdict_fails_closed_on_regression_or_incomplete_terminal(self):
         baseline = {
             "episodes": 4,
@@ -156,6 +167,36 @@ class LinearQTest(unittest.TestCase):
         self.assertEqual(
             learning_verdict(baseline, {**passing, "terminal_episodes": 3})["status"],
             "learning_smoke_failed",
+        )
+
+    def test_multi_seed_learning_requires_every_trial_and_provenance(self):
+        trial = {
+            "verdict": {"status": "learning_smoke_pass", "terminal_complete": True},
+            "provenance_pass": True,
+        }
+        self.assertEqual(
+            multi_seed_verdict([trial, trial])["status"],
+            "multi_seed_learning_pass",
+        )
+        self.assertEqual(
+            multi_seed_verdict([trial, {**trial, "provenance_pass": False}])["status"],
+            "multi_seed_learning_failed",
+        )
+
+    def test_reference_transfer_separates_execution_from_exact_outcome_parity(self):
+        identity = {"episode_provenance": {"verdict": "provenance_pass"}}
+        candidate = [{
+            "seed": "SEED1", "terminal": "game_over", "victory": False,
+            "floor": 5, "hp": 0, "delivered": 10, "episode_identity": identity,
+        }]
+        reference = [{**candidate[0], "floor": 6}]
+        verdict = transfer_verdict(candidate, reference)
+        self.assertEqual(verdict["status"], "reference_transfer_execution_pass")
+        self.assertFalse(verdict["exact_terminal_outcomes_match"])
+        self.assertEqual(verdict["semantic_parity_claim"], "not_claimed")
+        self.assertEqual(
+            transfer_verdict(candidate, [{**reference[0], "terminal": "combat_turn"}])["status"],
+            "reference_transfer_failed",
         )
 
     def test_action_list_rejects_incomplete_or_duplicate_projection(self):

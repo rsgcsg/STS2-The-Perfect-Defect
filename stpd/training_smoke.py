@@ -9,6 +9,7 @@ import random
 import subprocess
 import time
 from typing import Any, Mapping
+from uuid import uuid4
 
 from .linear_q import LinearQ, combat_reward
 
@@ -36,8 +37,60 @@ def action_list(snapshot: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     return list(actions)
 
 
+def _referent_descriptor(snapshot: Mapping[str, Any], referent_id: Any) -> Mapping[str, Any] | None:
+    if referent_id is None:
+        return None
+    referent = next(
+        (item for item in snapshot.get("referents", []) if item.get("referent_id") == referent_id),
+        None,
+    )
+    if not isinstance(referent, Mapping):
+        return {"missing_referent": True}
+    properties = referent.get("properties", {})
+    stable_properties = {
+        key: properties[key]
+        for key in (
+            "definition_id", "name", "type", "cost", "rarity", "is_upgraded",
+            "target_type", "point_type", "row", "col", "option_id",
+        )
+        if isinstance(properties, Mapping) and key in properties
+    }
+    return {
+        "role": referent.get("role"),
+        "kind": referent.get("kind"),
+        "label": referent.get("label"),
+        "properties": stable_properties,
+    }
+
+
+def action_descriptor(snapshot: Mapping[str, Any], action: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "verb": action.get("verb"),
+        "label": action.get("label"),
+        "subject": _referent_descriptor(snapshot, action.get("subject_referent_id")),
+        "arguments": [
+            {
+                "role": argument.get("role"),
+                "referent": _referent_descriptor(snapshot, argument.get("referent_id")),
+            }
+            for argument in action.get("arguments", [])
+        ],
+    }
+
+
+def _ordered_actions(
+    snapshot: Mapping[str, Any], actions: list[Mapping[str, Any]]
+) -> list[Mapping[str, Any]]:
+    return sorted(
+        actions,
+        key=lambda action: json.dumps(
+            action_descriptor(snapshot, action), sort_keys=True, separators=(",", ":")
+        ),
+    )
+
+
 def run_episode(
-    environment: ManagedPlayerEnvironment,
+    environment: Any,
     seed: str,
     model: LinearQ,
     rng: random.Random,
@@ -45,19 +98,26 @@ def run_episode(
     train: bool,
     epsilon: float,
     max_actions: int,
+    record_steps: bool = False,
+    verify_successor: bool = False,
 ) -> dict[str, Any]:
     snapshot = environment.reset(seed)
+    identity_after_reset = environment.episode_identity()
     total_reward = 0.0
     losses = []
     combat_decisions = 0
     delivered = 0
     inference_seconds = 0.0
     step_seconds = 0.0
+    steps: list[dict[str, Any]] = []
+    termination_reason = "action_limit"
     for _ in range(max_actions):
         if snapshot.get("interaction", {}).get("kind") == "game_over":
+            termination_reason = "game_over"
             break
-        actions = action_list(snapshot)
+        actions = _ordered_actions(snapshot, action_list(snapshot))
         if not actions:
+            termination_reason = "no_actions"
             break
         combat = snapshot.get("interaction", {}).get("kind") == "combat_turn"
         inference_started = time.perf_counter()
@@ -65,11 +125,36 @@ def run_episode(
             if combat else actions[0]
         inference_seconds += time.perf_counter() - inference_started
         step_started = time.perf_counter()
-        receipt = environment.step(selected["bound_action_id"], snapshot["snapshot_id"])
+        mutation_request_id = uuid4().hex
+        receipt = environment.step(
+            selected["bound_action_id"], snapshot["snapshot_id"], mutation_request_id
+        )
         step_seconds += time.perf_counter() - step_started
         if receipt.get("delivery") != "delivered" or receipt.get("successor") is None:
             raise RuntimeError(f"Environment delivery failed: {receipt.get('delivery')}:{receipt.get('reason_code')}")
+        if receipt.get("request_id") != mutation_request_id:
+            raise RuntimeError("Environment receipt request identity mismatch.")
+        if receipt.get("action", {}).get("bound_action_id") != selected["bound_action_id"]:
+            raise RuntimeError("Environment receipt action identity mismatch.")
         successor = receipt["successor"]
+        if successor.get("snapshot_id") == snapshot.get("snapshot_id"):
+            raise RuntimeError("Delivered action did not produce a distinct successor snapshot.")
+        if verify_successor:
+            observed = environment.observe()
+            if observed.get("snapshot_id") != successor.get("snapshot_id"):
+                raise RuntimeError("Receipt successor does not match an independent observation.")
+        if record_steps:
+            steps.append({
+                "index": delivered,
+                "before_snapshot_id": snapshot.get("snapshot_id"),
+                "before_interaction_kind": snapshot.get("interaction", {}).get("kind"),
+                "bound_action_id": selected.get("bound_action_id"),
+                "action": action_descriptor(snapshot, selected),
+                "mutation_request_id": mutation_request_id,
+                "delivery": receipt.get("delivery"),
+                "successor_snapshot_id": successor.get("snapshot_id"),
+                "successor_interaction_kind": successor.get("interaction", {}).get("kind"),
+            })
         delivered += 1
         if combat:
             combat_decisions += 1
@@ -82,9 +167,11 @@ def run_episode(
         snapshot = successor
     persistent = snapshot.get("persistent", {}).get("content", {})
     surface = snapshot.get("interaction", {}).get("content", {}).get("surface", {})
+    episode_identity = environment.episode_identity()
     return {
         "seed": seed,
         "terminal": snapshot.get("interaction", {}).get("kind"),
+        "termination_reason": termination_reason,
         "victory": surface.get("victory") is True,
         "floor": persistent.get("run", {}).get("floor", 0),
         "hp": persistent.get("player", {}).get("hp", 0),
@@ -94,6 +181,9 @@ def run_episode(
         "mean_td_loss": sum(losses) / len(losses) if losses else None,
         "inference_seconds": inference_seconds,
         "step_seconds": step_seconds,
+        "episode_identity": episode_identity,
+        "identity_after_reset": identity_after_reset,
+        "steps": steps if record_steps else None,
     }
 
 
@@ -141,6 +231,9 @@ def main() -> None:
     parser.add_argument("--eval-episodes", type=int, default=8)
     parser.add_argument("--max-actions", type=int, default=600)
     parser.add_argument("--epsilon", type=float, default=0.25)
+    parser.add_argument("--learner-seed", type=int, default=731_2026)
+    parser.add_argument("--training-seed-prefix", default="STPDTRAIN")
+    parser.add_argument("--evaluation-seed-prefix", default="STPDEVAL")
     parser.add_argument("--output", default=".local/evidence/training-smoke/report.json")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
@@ -149,7 +242,7 @@ def main() -> None:
     from sts2_headless import ManagedPlayerEnvironment
 
     model = LinearQ()
-    rng = random.Random(731_2026)
+    rng = random.Random(args.learner_seed)
     wall_started = time.perf_counter()
     cpu_started = time.process_time()
     with ManagedPlayerEnvironment(driver_command(headless, candidate)) as environment:
@@ -157,7 +250,7 @@ def main() -> None:
         training = [
             run_episode(
                 environment,
-                f"STPDTRAIN{index + 1:04d}",
+                f"{args.training_seed_prefix}{index + 1:04d}",
                 model,
                 rng,
                 train=True,
@@ -166,7 +259,10 @@ def main() -> None:
             )
             for index in range(args.train_episodes)
         ]
-        evaluation_seeds = [f"STPDEVAL{index + 1:04d}" for index in range(args.eval_episodes)]
+        evaluation_seeds = [
+            f"{args.evaluation_seed_prefix}{index + 1:04d}"
+            for index in range(args.eval_episodes)
+        ]
         baseline = [
             run_episode(
                 environment,
@@ -208,6 +304,7 @@ def main() -> None:
         "runtime_identity": provenance.get("runtime_identity"),
         "adapter_runtime_instance_id": provenance.get("adapter_runtime_instance_id"),
         "algorithm": model.to_dict(),
+        "learner_seed": args.learner_seed,
         "training": {"summary": training_summary, "episodes": training},
         "evaluation": {
             "fixed_seeds": evaluation_seeds,
