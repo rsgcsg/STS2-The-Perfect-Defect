@@ -5,7 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stpd-training-smoke"
 version = "0.1.0"
-description = "Independent STS2 Player Environment learner smoke"
+description = "Pre-alpha STPD research system; current package provides H1 integration and learning smoke gates"
+readme = "README.md"
 requires-python = ">=3.9"
 
 [tool.setuptools.packages.find]

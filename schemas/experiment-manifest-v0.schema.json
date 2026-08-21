@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/schemas/experiment-manifest-v0.schema.json",
+  "title": "STPD Experiment Manifest v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "experiment_id",
+    "created_at",
+    "source_revision",
+    "plan_version",
+    "architecture_id",
+    "input_profile",
+    "random_seed",
+    "model",
+    "data_manifests",
+    "environment",
+    "training",
+    "benchmarks",
+    "outputs",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "stpd/experiment-manifest-v0"},
+    "experiment_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "source_revision": {"type": "string", "minLength": 1},
+    "plan_version": {"type": "string", "minLength": 1},
+    "architecture_id": {"type": "string", "minLength": 1},
+    "input_profile": {
+      "enum": [
+        "stpd-combat-v0-lite",
+        "stpd-combat-v0-standard",
+        "stpd-combat-v0-full"
+      ]
+    },
+    "random_seed": {"type": "integer"},
+    "model": {"type": "object"},
+    "data_manifests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}
+        }
+      }
+    },
+    "environment": {"type": "object"},
+    "training": {"type": "object"},
+    "benchmarks": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "outputs": {"type": "object"},
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

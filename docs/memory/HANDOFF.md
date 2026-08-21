@@ -15,15 +15,19 @@ Pre-initialization remote baseline:
 - canonical status, roadmap, architecture, interfaces, data, Qwen, v0, and workflow docs;
 - shared Markdown memory and ADR system;
 - contributor and agent rules;
-- machine-readable schema and typed-port insertion points in the follow-up contract commit.
+- draft JSON schemas and typed Python ports for environment, projection, serialization,
+  Qwen, and scoring boundaries;
+- structure tests that keep canonical docs and schemas discoverable.
 
 ## Next action
 
-Review/freeze ResearchState, ResearchAction, ModelState profiles, and ResearchTransition
-before collecting or converting a large dataset.
+Review the draft contracts against several real combat transitions, then freeze
+ResearchState, ResearchAction, ModelState profiles, and ResearchTransition before collecting
+or converting a large dataset.
 
 ## Risks
 
 - Current smoke evidence must not be confused with v0 model evidence.
-- Interface over-design before real data examples could create brittle abstractions.
+- Draft interfaces may need revision when confronted with real duplicate-action and Read
+  examples.
 - Existing local runtime reports are not automatically evidence for this new source revision.

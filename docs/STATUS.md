@@ -18,8 +18,8 @@ H1 environment/consumer qualification
 ```
 
 The predecessor code baseline was `1b4039fe3933b408e31dd92e9fbe1454bdd7672e`.
-This project-system initialization establishes the canonical documents and future module
-boundaries; runtime claims remain bound to the exact reports that produced them.
+This initialization adds canonical documentation, draft machine-readable contracts, and
+typed insertion points; runtime claims remain bound to the exact reports that produced them.
 
 ## Implemented
 
@@ -31,12 +31,13 @@ boundaries; runtime claims remain bound to the exact reports that produced them.
 - model freeze/load path for the smoke learner;
 - Managed-to-shipped-Reference execution harness;
 - seed derivation, exact Host provenance, temporal settling/stale supervision;
-- pure unit tests for the current smoke lane.
+- pure unit tests for the current smoke lane;
+- project document map, memory/ADR workflow, draft schemas, and typed ports.
 
 ## Not yet implemented
 
 - frozen Qwen backend and random frozen control;
-- canonical ResearchState, ModelState Lite/Standard/Full, and ModelAction v0;
+- frozen canonical ResearchState, ModelState Lite/Standard/Full, and ModelAction v0;
 - dataset ingestion, eligibility, split, deduplication, and manifest pipeline;
 - Scheme 1 Direct Joint Scoring;
 - S2-Simple and S2-SDT;
@@ -50,6 +51,7 @@ boundaries; runtime claims remain bound to the exact reports that produced them.
 
 - The linear-Q model is not the planned STPD model.
 - Its shaped reward is not the final project objective or a calibrated win-probability Q.
+- Draft schemas are not a frozen v0 data contract.
 - A successful smoke does not prove broad semantic parity, policy quality, or H1 admission.
 - No Qwen representation, Scheme 1/Scheme 2 hypothesis, Human Gold result, or v0 benchmark
   has been measured by this repository yet.
@@ -58,7 +60,7 @@ boundaries; runtime claims remain bound to the exact reports that produced them.
 
 ## Immediate priorities
 
-1. Freeze ResearchState/ModelState/ModelAction/ResearchTransition v0 contracts.
+1. Review and freeze the v0 research interfaces and schemas with real examples.
 2. Establish B0 dataset-contract and leakage checks.
 3. Implement a pinned frozen-Qwen backend with pretrained and random controls.
 4. Build the smallest Scheme 1 baseline before adding Scheme 2.
