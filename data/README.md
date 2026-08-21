@@ -7,7 +7,7 @@ Expected tracked paths:
 
 ```text
 data/manifests/     dataset, split, provenance and license manifests
-\data/gold/          redistributable annotation manifests and schemas
+data/gold/          redistributable annotation manifests and schemas
 ```
 
 Never commit raw Headless traces, saves, proprietary game content, private identifiers, or
