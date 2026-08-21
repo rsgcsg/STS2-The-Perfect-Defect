@@ -43,8 +43,10 @@ class FakeEnvironment:
             "adapter_runtime_instance_id": f"fake-instance-{worker_id}",
         }
         self._snapshot = None
+        self._seed = None
 
     def reset(self, seed):
+        self._seed = seed
         self._snapshot = {
             "snapshot_id": f"{seed}:snapshot",
             "persistent": {"content": {"player": {"hp": 30}, "run": {"floor": 1}}},
@@ -68,6 +70,16 @@ class FakeEnvironment:
             },
         }
         return {"delivery": "delivered", "successor": self._snapshot}
+
+    def episode_identity(self):
+        return {
+            "adapter_runtime_instance_id": self.ready["adapter_runtime_instance_id"],
+            "episode_provenance": {
+                "verdict": "provenance_pass",
+                "requested_seed": self._seed,
+                "actual_seed": self._seed,
+            },
+        }
 
     def close(self):
         return None
@@ -171,8 +183,8 @@ class LinearQTest(unittest.TestCase):
         complete = [{
             "seed": seed,
             "episodes": [
-                {"worker_id": 0, "terminal": "game_over", "delivered": 2, "combat_decisions": 1, "floor": 1, "shaped_return": 0},
-                {"worker_id": 1, "terminal": "game_over", "delivered": 2, "combat_decisions": 1, "floor": 1, "shaped_return": 0},
+                {"worker_id": 0, "terminal": "game_over", "delivered": 2, "combat_decisions": 1, "floor": 1, "shaped_return": 0, "episode_identity": {"episode_provenance": {"verdict": "provenance_pass"}}},
+                {"worker_id": 1, "terminal": "game_over", "delivered": 2, "combat_decisions": 1, "floor": 1, "shaped_return": 0, "episode_identity": {"episode_provenance": {"verdict": "provenance_pass"}}},
             ],
             "contention": {"learner_updates": 2, "actor_ids": [f"{seed}:0:0", f"{seed}:0:1"]},
         } for seed in config.training_seeds]

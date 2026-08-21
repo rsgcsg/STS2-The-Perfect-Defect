@@ -169,9 +169,11 @@ def _episode_record(
     combat_decisions: int,
     shaped_return: float,
     losses: list[float],
+    environment: Any,
 ) -> dict[str, Any]:
     persistent = snapshot.get("persistent", {}).get("content", {})
     surface = snapshot.get("interaction", {}).get("content", {}).get("surface", {})
+    episode_identity = environment.episode_identity()
     return {
         "seed": seed,
         "worker_id": worker_id,
@@ -182,6 +184,7 @@ def _episode_record(
         "combat_decisions": combat_decisions,
         "shaped_return": shaped_return,
         "mean_td_loss": sum(losses) / len(losses) if losses else None,
+        "episode_identity": episode_identity,
     }
 
 
@@ -212,23 +215,26 @@ def run_contention_seed(
                 snapshot = snapshots[worker_id]
                 if action_counts[worker_id] >= config.max_actions:
                     episodes.append(_episode_record(
-                        seed, worker_id, "action_limit", snapshot, delivered[worker_id],
+                        seeds[worker_id], worker_id, "action_limit", snapshot, delivered[worker_id],
                         combat_decisions[worker_id], shaped_returns[worker_id], losses[worker_id],
+                        environments[worker_id],
                     ))
                     active.remove(worker_id)
                     continue
                 if snapshot.get("interaction", {}).get("kind") == "game_over":
                     episodes.append(_episode_record(
-                        seed, worker_id, "game_over", snapshot, delivered[worker_id],
+                        seeds[worker_id], worker_id, "game_over", snapshot, delivered[worker_id],
                         combat_decisions[worker_id], shaped_returns[worker_id], losses[worker_id],
+                        environments[worker_id],
                     ))
                     active.remove(worker_id)
                     continue
                 actions = action_list(snapshot)
                 if not actions:
                     episodes.append(_episode_record(
-                        seed, worker_id, "no_action", snapshot, delivered[worker_id],
+                        seeds[worker_id], worker_id, "no_action", snapshot, delivered[worker_id],
                         combat_decisions[worker_id], shaped_returns[worker_id], losses[worker_id],
+                        environments[worker_id],
                     ))
                     active.remove(worker_id)
                     continue
@@ -283,8 +289,9 @@ def run_contention_seed(
             for worker_id in list(active):
                 if snapshots[worker_id].get("interaction", {}).get("kind") == "game_over":
                     episodes.append(_episode_record(
-                        seed, worker_id, "game_over", snapshots[worker_id], delivered[worker_id],
+                        seeds[worker_id], worker_id, "game_over", snapshots[worker_id], delivered[worker_id],
                         combat_decisions[worker_id], shaped_returns[worker_id], losses[worker_id],
+                        environments[worker_id],
                     ))
                     active.remove(worker_id)
     return episodes, contender.metrics
@@ -341,6 +348,11 @@ def contention_verdict(
             for actor_id in report.get("contention", {}).get("actor_ids", [])
         }) >= config.workers,
         "samples_present": delivered > 0,
+        "episode_provenance": bool(all_episodes) and all(
+            item.get("episode_identity", {}).get("episode_provenance", {}).get("verdict")
+            == "provenance_pass"
+            for item in all_episodes
+        ),
     }
     learning_criteria = {
         "all_seeds_have_samples": all(summary["delivered"] > 0 for summary in summaries),
@@ -470,6 +482,11 @@ def run_contention(
             ),
             "wall_seconds": wall_seconds,
             "usable_samples": verdict["delivered"],
+            "usable_samples_per_second": verdict["delivered"] / wall_seconds if wall_seconds > 0 else None,
+            "learner_updates_per_second": verdict["learner_updates"] / wall_seconds if wall_seconds > 0 else None,
+            "policy_version_lag": 0,
+            "queue_depth": 0,
+            "trajectory_age_seconds": 0.0,
             "discarded_samples": 0 if not errors else None,
         },
         "resource_envelope": {
