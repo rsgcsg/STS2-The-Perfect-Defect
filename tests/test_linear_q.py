@@ -5,6 +5,7 @@ import unittest
 from stpd.linear_q import LinearQ, combat_reward, features
 from stpd.contention_smoke import (
     ContentionConfig,
+    _episode_seed,
     contention_verdict,
     run_contention,
     validate_ready_identities,
@@ -114,6 +115,14 @@ class FakeVector:
 
 
 class LinearQTest(unittest.TestCase):
+    def test_episode_seed_is_stable_unique_and_game_valid(self):
+        first = _episode_seed("training-seed with punctuation", 0, 0)
+        self.assertEqual(first, _episode_seed("training-seed with punctuation", 0, 0))
+        self.assertNotEqual(first, _episode_seed("training-seed with punctuation", 0, 1))
+        self.assertTrue(first.isascii())
+        self.assertTrue(first.isalnum())
+        self.assertLessEqual(len(first), 64)
+
     def test_reward_uses_only_visible_successor_facts(self):
         self.assertGreater(combat_reward(snapshot(), snapshot(enemy_hp=10)), 0)
         self.assertLess(combat_reward(snapshot(), snapshot(player_hp=20)), 0)

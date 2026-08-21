@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -55,6 +56,13 @@ class ContentionConfig:
             raise ValueError("episodes_per_seed and max_actions must be positive.")
         if not 0.0 <= self.epsilon <= 1.0:
             raise ValueError("epsilon must be between zero and one.")
+
+
+def _episode_seed(training_seed: str, episode_index: int, worker_id: int) -> str:
+    """Derive a stable game-valid seed without weakening Host validation."""
+
+    material = f"{training_seed}\0{episode_index}\0{worker_id}".encode("utf-8")
+    return f"STPD{hashlib.sha256(material).hexdigest()[:28].upper()}"
 
 
 def source_identity(root: Path) -> dict[str, Any]:
@@ -224,7 +232,10 @@ def run_contention_seed(
     contender = _LearnerContender(model)
     episodes: list[dict[str, Any]] = []
     for episode_index in range(config.episodes_per_seed):
-        seeds = [f"{seed}:episode:{episode_index}:worker:{worker_id}" for worker_id in range(config.workers)]
+        seeds = [
+            _episode_seed(seed, episode_index, worker_id)
+            for worker_id in range(config.workers)
+        ]
         vector = vector_factory(environments)
         snapshots = list(vector.reset(seeds))
         active = set(range(config.workers))
