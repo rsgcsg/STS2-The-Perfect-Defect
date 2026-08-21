@@ -9,6 +9,7 @@ import random
 import time
 from typing import Any, Mapping, Sequence
 
+from .game_seed import derive_game_seed
 from .linear_q import LinearQ
 from .training_smoke import (
     driver_command,
@@ -71,7 +72,10 @@ def main() -> None:
     learner_seeds = tuple(args.learner_seeds or (731_2026, 731_2027, 731_2028))
     if len(set(learner_seeds)) != len(learner_seeds):
         raise SystemExit("learner seeds must be unique")
-    evaluation_seeds = [f"STPDMULTIEVAL{index + 1:04d}" for index in range(args.eval_episodes)]
+    evaluation_seeds = [
+        derive_game_seed("STPD_MULTI_EVAL", index + 1)
+        for index in range(args.eval_episodes)
+    ]
     output = Path(args.output)
     if not output.is_absolute():
         output = root / output
@@ -86,17 +90,21 @@ def main() -> None:
         for trial_index, learner_seed in enumerate(learner_seeds):
             model = LinearQ()
             training_rng = random.Random(learner_seed)
+            training_seeds = [
+                derive_game_seed("STPD_MULTI_TRAIN", trial_index + 1, index + 1)
+                for index in range(args.train_episodes)
+            ]
             training = [
                 run_episode(
                     environment,
-                    f"STPDL{trial_index + 1}TRAIN{index + 1:04d}",
+                    seed,
                     model,
                     training_rng,
                     train=True,
                     epsilon=args.epsilon,
                     max_actions=args.max_actions,
                 )
-                for index in range(args.train_episodes)
+                for seed in training_seeds
             ]
             baseline = [
                 run_episode(

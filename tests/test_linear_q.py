@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import unittest
 
 from stpd.linear_q import LinearQ, combat_reward, features
+from stpd.game_seed import derive_game_seed, require_canonical_game_seed
 from stpd.contention_smoke import (
     ContentionConfig,
     _episode_seed,
@@ -10,7 +11,7 @@ from stpd.contention_smoke import (
     run_contention,
     validate_ready_identities,
 )
-from stpd.training_smoke import action_list, learning_verdict
+from stpd.training_smoke import action_list, choose_noncombat_action, learning_verdict
 from stpd.multi_seed_learning import multi_seed_verdict
 from stpd.reference_transfer import transfer_verdict
 
@@ -125,6 +126,14 @@ class LinearQTest(unittest.TestCase):
         self.assertTrue(first.isalnum())
         self.assertLessEqual(len(first), 64)
 
+    def test_experiment_seed_is_preserved_by_the_native_seed_alphabet(self):
+        first = derive_game_seed("training label", 1)
+        self.assertEqual(first, derive_game_seed("training label", 1))
+        self.assertNotEqual(first, derive_game_seed("training label", 2))
+        self.assertEqual(require_canonical_game_seed(first), first)
+        with self.assertRaises(ValueError):
+            require_canonical_game_seed("contains-I-or-O")
+
     def test_reward_uses_only_visible_successor_facts(self):
         self.assertGreater(combat_reward(snapshot(), snapshot(enemy_hp=10)), 0)
         self.assertLess(combat_reward(snapshot(), snapshot(player_hp=20)), 0)
@@ -207,6 +216,44 @@ class LinearQTest(unittest.TestCase):
                 "status": "complete",
                 "actions": [{"bound_action_id": "same"}, {"bound_action_id": "same"}],
             }})
+
+    def test_noncombat_policy_uses_interaction_and_referent_roles_not_labels(self):
+        card_reward = {
+            "interaction": {"kind": "card_reward_selection"},
+            "referents": [
+                {"referent_id": "skip", "role": "option", "label": "跳过"},
+                {"referent_id": "card", "role": "card", "label": "打击"},
+            ],
+        }
+        skip = {
+            "bound_action_id": "skip-action", "verb": "activate",
+            "subject_referent_id": "skip", "label": "跳过", "arguments": [],
+        }
+        take = {
+            "bound_action_id": "take-action", "verb": "activate",
+            "subject_referent_id": "card", "label": "Take Strike", "arguments": [],
+        }
+        self.assertEqual(
+            choose_noncombat_action(card_reward, [skip, take])["bound_action_id"],
+            "take-action",
+        )
+
+        reward_claim = {
+            "interaction": {"kind": "reward_claim"},
+            "referents": [{"referent_id": "reward", "role": "reward", "label": "奖励"}],
+        }
+        proceed = {
+            "bound_action_id": "proceed", "verb": "activate",
+            "subject_referent_id": None, "label": "Proceed", "arguments": [],
+        }
+        claim = {
+            "bound_action_id": "claim", "verb": "activate",
+            "subject_referent_id": "reward", "label": "领取", "arguments": [],
+        }
+        self.assertEqual(
+            choose_noncombat_action(reward_claim, [proceed, claim])["bound_action_id"],
+            "claim",
+        )
 
     def test_runtime_identity_requires_shared_game_and_unique_instances(self):
         ready = [

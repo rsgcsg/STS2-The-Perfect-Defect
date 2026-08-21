@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -26,7 +25,9 @@ try:
 except ImportError:  # pragma: no cover - Windows has no resource module.
     resource = None
 
+from .game_seed import derive_game_seed
 from .linear_q import LinearQ, combat_reward
+from .training_smoke import choose_noncombat_action
 
 
 REQUIRED_READY_FIELDS = (
@@ -61,8 +62,7 @@ class ContentionConfig:
 def _episode_seed(training_seed: str, episode_index: int, worker_id: int) -> str:
     """Derive a stable game-valid seed without weakening Host validation."""
 
-    material = f"{training_seed}\0{episode_index}\0{worker_id}".encode("utf-8")
-    return f"STPD{hashlib.sha256(material).hexdigest()[:28].upper()}"
+    return derive_game_seed(training_seed, episode_index, worker_id)
 
 
 def source_identity(root: Path) -> dict[str, Any]:
@@ -281,7 +281,7 @@ def run_contention_seed(
                     actions,
                     random.Random(f"{seed}:{episode_index}:{worker_id}:{delivered[worker_id]}"),
                     config.epsilon if combat else 0.0,
-                ) if combat else actions[0]
+                ) if combat else choose_noncombat_action(snapshot, actions)
                 selected[worker_id] = selected_action
                 action_inputs.append((str(selected_action["bound_action_id"]), str(snapshot["snapshot_id"])))
             if not action_inputs:

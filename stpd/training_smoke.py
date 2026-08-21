@@ -11,6 +11,7 @@ import time
 from typing import Any, Mapping
 from uuid import uuid4
 
+from .game_seed import derive_game_seed
 from .linear_q import LinearQ, combat_reward
 
 
@@ -89,6 +90,38 @@ def _ordered_actions(
     )
 
 
+def _subject_role(snapshot: Mapping[str, Any], action: Mapping[str, Any]) -> str | None:
+    referent_id = action.get("subject_referent_id")
+    if referent_id is None:
+        return None
+    referent = next(
+        (item for item in snapshot.get("referents", []) if item.get("referent_id") == referent_id),
+        None,
+    )
+    return str(referent.get("role")) if isinstance(referent, Mapping) else None
+
+
+def choose_noncombat_action(
+    snapshot: Mapping[str, Any], actions: list[Mapping[str, Any]]
+) -> Mapping[str, Any]:
+    """Apply the smoke learner's fixed flow policy without inventing Host legality."""
+    ordered = _ordered_actions(snapshot, actions)
+    interaction = snapshot.get("interaction", {}).get("kind")
+    preferred_roles = {
+        # A reward alternative can remain visible after use. Taking a currently
+        # advertised card gives this combat-only learner a bounded way out.
+        "card_reward_selection": ("card", "option"),
+        # Claim advertised rewards before using the screen-level Proceed
+        # control. Potion disposal matters only when no reward is actionable.
+        "reward_claim": ("reward", "potion"),
+    }.get(interaction, ())
+    for role in preferred_roles:
+        candidates = [action for action in ordered if _subject_role(snapshot, action) == role]
+        if candidates:
+            return candidates[0]
+    return ordered[0]
+
+
 def run_episode(
     environment: Any,
     seed: str,
@@ -122,7 +155,7 @@ def run_episode(
         combat = snapshot.get("interaction", {}).get("kind") == "combat_turn"
         inference_started = time.perf_counter()
         selected = model.choose(snapshot, actions, rng, epsilon if train and combat else 0.0) \
-            if combat else actions[0]
+            if combat else choose_noncombat_action(snapshot, actions)
         inference_seconds += time.perf_counter() - inference_started
         step_started = time.perf_counter()
         mutation_request_id = uuid4().hex
@@ -150,6 +183,9 @@ def run_episode(
                 "before_interaction_kind": snapshot.get("interaction", {}).get("kind"),
                 "bound_action_id": selected.get("bound_action_id"),
                 "action": action_descriptor(snapshot, selected),
+                "available_actions": [
+                    action_descriptor(snapshot, action) for action in actions
+                ],
                 "mutation_request_id": mutation_request_id,
                 "delivery": receipt.get("delivery"),
                 "successor_snapshot_id": successor.get("snapshot_id"),
@@ -247,20 +283,24 @@ def main() -> None:
     cpu_started = time.process_time()
     with ManagedPlayerEnvironment(driver_command(headless, candidate)) as environment:
         provenance = environment.ready
+        training_seeds = [
+            derive_game_seed(args.training_seed_prefix, index + 1)
+            for index in range(args.train_episodes)
+        ]
         training = [
             run_episode(
                 environment,
-                f"{args.training_seed_prefix}{index + 1:04d}",
+                seed,
                 model,
                 rng,
                 train=True,
                 epsilon=args.epsilon,
                 max_actions=args.max_actions,
             )
-            for index in range(args.train_episodes)
+            for seed in training_seeds
         ]
         evaluation_seeds = [
-            f"{args.evaluation_seed_prefix}{index + 1:04d}"
+            derive_game_seed(args.evaluation_seed_prefix, index + 1)
             for index in range(args.eval_episodes)
         ]
         baseline = [

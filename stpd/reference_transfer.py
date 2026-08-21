@@ -10,6 +10,7 @@ import random
 import time
 from typing import Any, Mapping, Sequence
 
+from .game_seed import require_canonical_game_seed
 from .linear_q import LinearQ
 from .training_smoke import driver_command, run_episode, source_identity, summarize
 
@@ -99,6 +100,10 @@ def _evaluate(
     ]
 
 
+def _summary_or_none(episodes: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:
+    return summarize(list(episodes)) if episodes else None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run one Candidate-trained frozen policy on Managed Exact and shipped Reference."
@@ -119,26 +124,46 @@ def main() -> None:
     model_path = Path(args.model).resolve()
     model_bytes = model_path.read_bytes()
     model = LinearQ.from_dict(json.loads(model_bytes))
-    seeds = tuple(args.seeds or ("STPDTRANSFER01", "STPDTRANSFER02"))
+    seed_inputs = tuple(args.seeds or ("STPDXFER01", "STPDXFER02"))
+    try:
+        seeds = tuple(require_canonical_game_seed(seed) for seed in seed_inputs)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
     if not seeds or len(set(seeds)) != len(seeds):
         raise SystemExit("transfer seeds must be non-empty and unique")
 
     from sts2_headless import ManagedPlayerEnvironment
 
     started = time.perf_counter()
-    with ManagedPlayerEnvironment(driver_command(headless, candidate_path)) as environment:
-        candidate_ready = environment.ready
-        candidate_episodes = _evaluate(environment, seeds, model, args.max_actions)
-    reference_command = _reference_driver_command(
-        headless,
-        Path(args.game_dir).resolve() if args.game_dir else None,
-        args.experimental_connector,
-    )
-    with ManagedPlayerEnvironment(reference_command) as environment:
-        reference_ready = environment.ready
-        reference_episodes = _evaluate(environment, seeds, model, args.max_actions)
+    candidate_ready: Mapping[str, Any] | None = None
+    reference_ready: Mapping[str, Any] | None = None
+    candidate_episodes: list[dict[str, Any]] = []
+    reference_episodes: list[dict[str, Any]] = []
+    failure: dict[str, str] | None = None
+    stage = "managed"
+    try:
+        with ManagedPlayerEnvironment(driver_command(headless, candidate_path)) as environment:
+            candidate_ready = environment.ready
+            candidate_episodes = _evaluate(environment, seeds, model, args.max_actions)
+        stage = "reference"
+        reference_command = _reference_driver_command(
+            headless,
+            Path(args.game_dir).resolve() if args.game_dir else None,
+            args.experimental_connector,
+        )
+        with ManagedPlayerEnvironment(reference_command) as environment:
+            reference_ready = environment.ready
+            reference_episodes = _evaluate(environment, seeds, model, args.max_actions)
+    except Exception as error:
+        failure = {
+            "stage": stage,
+            "type": type(error).__name__,
+            "message": str(error),
+        }
 
     verdict = transfer_verdict(candidate_episodes, reference_episodes)
+    if failure is not None:
+        verdict = {**verdict, "status": "reference_transfer_failed"}
     report = {
         "schema": "stpd/reference-transfer-smoke-1",
         "status": verdict["status"],
@@ -152,20 +177,22 @@ def main() -> None:
         "seeds": list(seeds),
         "managed": {
             "ready": candidate_ready,
-            "summary": summarize(candidate_episodes),
+            "summary": _summary_or_none(candidate_episodes),
             "episodes": candidate_episodes,
         },
         "reference": {
             "ready": reference_ready,
-            "summary": summarize(reference_episodes),
+            "summary": _summary_or_none(reference_episodes),
             "episodes": reference_episodes,
         },
+        "failure": failure,
         "verdict": verdict,
         "wall_seconds": time.perf_counter() - started,
         "non_claims": [
             "Execution transfer does not by itself prove policy quality or broad semantic parity.",
             "Exact terminal outcome parity is claimed only when the recorded per-seed outcomes match.",
             "This sequential smoke is not a throughput or resource-density benchmark.",
+            "A partial report records evidence reached before a fail-closed driver or Host error.",
         ],
     }
     output = Path(args.output)
