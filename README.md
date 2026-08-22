@@ -66,8 +66,11 @@ Parquet, and B0 path. The reusable multi-worker lane adds exact collection
 profiles, immutable checksummed session bundles, a pseudonymous filesystem
 registry, strict multi-session admission, deterministic whole-run corpus
 snapshots, corpus B0/token profiling, and a frozen smoke handoff. Exact native
-human sessions exist locally; the current corpus is still below the 1,000-row
-smoke threshold and does not authorize training.
+human sessions exist locally; the current corpus is still below the campaign's
+1,500 accepted-row threshold and does not authorize training. The first exact 20-record
+offline corpus canary passes strict import and B0, but its real Standard token
+profile fails the frozen P95 gate (`4907 > 4096`); neither row count nor input
+profile is ready for smoke handoff.
 
 ## What v0 will build
 

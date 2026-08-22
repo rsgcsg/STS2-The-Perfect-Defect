@@ -4,7 +4,7 @@
 
 **STPD is pre-alpha; full-weight Qwen L2 and bounded tiny-overfit engineering admission are
 complete. AgenticSTS remains blocked at data admission, while the exact Human Corpus lane
-is implemented but remains below the 1,000-row smoke threshold.**
+is implemented but remains below the current 1,500-row campaign target.**
 The repository contains a real frozen pretrained backend and same-architecture random
 control, but no scientific Core model result, Human Gold result, B6 result, or final STPD
 v0 claim.
@@ -52,9 +52,21 @@ ordinary-combat evidence. Its latest session contains 28 exact-unique records
 (14 targeted plays, 9 untargeted plays, 5 end turns), 28 different stable
 successors, zero invalid records and one correctly isolated overlapping-action
 invalidation. An earlier same-artifact 20-record export passed strict STPD import
-and B0. These are local human-source facts; the new multi-session bundle/corpus
-lane still requires its own offline canary and additional real workers before it
-can reach the 1,000-row smoke threshold.
+and B0. These are local human-source facts. The bundle/corpus lane now has one
+single-worker offline canary; additional real workers and sessions remain
+required before it can reach the campaign target.
+
+The first real bundle/corpus canary used the closed 20-record exact session.
+Bundle content `3a5b1241...` and export `e59321b9...` registered idempotently;
+strict multi-session admission accepted 20/20, canonical Parquet and corpus B0
+passed, one whole run remained in one split, and no exact/semantic duplicate
+crossed a split. The report correctly recovered 8 targeted plays, 8 untargeted
+plays and 4 end turns. Standard profiling expanded the 20 decisions across 159
+legal state/action pairs and failed its unchanged P95 gate at `4907 > 4096`
+(max 5478, hard limit 8192). The campaign target is 1,500 accepted records, so
+the frozen smoke handoff correctly remains unavailable for both independent
+reasons. This canary was built by STPD source `e0a0334...`; later documentation
+commits do not transfer its evidence to another source identity.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes
@@ -142,6 +154,9 @@ No extractor, Parquet dataset, split manifest, S1 smoke config, or owner command
   successors, or current-patch identities.
 - Natural selector token families, large-corpus near-duplicate analysis and scientific data
   admission remain future work.
+- Real Standard representation size exceeds the current P95 token gate on the
+  first Human corpus canary. Do not raise the threshold or truncate to force a
+  pass; representation/pin ownership needs a separate evidence-based decision.
 - Annotator audit and explicit owner attestation do not machine-prove operator
   identity or non-interference. Existing owner-completed sessions validate only
   the exact ordinary-combat source envelope, not other workers, platforms or
@@ -149,7 +164,7 @@ No extractor, Parquet dataset, split manifest, S1 smoke config, or owner command
 
 The immediate next step is to pack/register the current exact session, verify
 the deterministic corpus/B0/token-profile lane offline, then collect additional
-exact-profile sessions until at least 1,000 complete-catalog, whole-root behavior
+exact-profile sessions until at least 1,500 complete-catalog, whole-root behavior
 decisions exist. See the
 [AgenticSTS audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md),
 [Data and Provenance](DATA_AND_PROVENANCE.md), and [Roadmap](ROADMAP.md).

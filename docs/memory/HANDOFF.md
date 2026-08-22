@@ -46,13 +46,19 @@ catalogs or fabricating provenance. See
 
 The multi-worker Human Corpus lane is implemented. First pack/register and build
 the latest exact owner session through the immutable bundle/corpus path. Then
-collect at least 1,000 exact-profile human decisions with authoritative complete
+collect at least 1,500 exact-profile human decisions with authoritative complete
 catalogs, exact chosen-action mapping, stable successors, whole-run roots and
 declared provenance. Rebuild and inspect strict per-session admission,
 whole-run/semantic-component split, B0 and Standard token profiling after each
 batch.
 
-Only after at least 1,000 rows pass may an `S1-1K-2K-SMOKE` preparation be created. It must
+The first exact 20-record offline corpus passes B0 and deterministic rebuild but
+fails the unchanged Standard P95 gate (`4907 > 4096`) and is 1,480 accepted
+records below the 1,500 campaign target. Both gates must close before freezing a
+smoke handoff; do not truncate or lower either threshold to manufacture PASS.
+
+Only after the current 1,500-row campaign target passes may an `S1-1K-2K-SMOKE`
+preparation be created. It must
 still stop for separate owner authorization; scientific training remains unstarted.
 
 ## Risks and non-claims

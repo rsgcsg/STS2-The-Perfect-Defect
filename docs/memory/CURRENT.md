@@ -48,19 +48,25 @@ environment regression lane.
   ordinary-combat records; an earlier same-artifact 20-record export passed
   strict import and B0. Collection profiles, immutable bundles/registry/corpus,
   whole-run/duplicate-component splits, B0, Standard profiling and smoke handoff
-  are automated, but the real corpus remains below 1,000 records.
+  are automated, but the real corpus remains below the 1,500-record campaign target.
+- A 20-record real offline canary passes bundle verification, strict import,
+  immutable corpus rebuild and B0. Standard profiling covers 159 legal
+  state/action pairs but fails P95 at `4907 > 4096`; smoke handoff remains
+  correctly blocked independently of the 1,500-record campaign target.
 
 ## Immediate priorities
 
 1. Pack/register and offline-build the current exact session, then collect at
-   least 1,000 human combat decisions with exact game/Host/Player
+   least 1,500 human combat decisions with exact game/Host/Player
    Environment identity, complete authoritative catalogs, one-to-one chosen-action mapping,
    stable successors, whole-run seed roots, and declared behavior-policy provenance.
 2. Rebuild the immutable corpus and inspect strict per-session admission,
    cross-session dedup/splits, B0 and Standard token profiling after each batch.
-3. Prepare `S1-1K-2K-SMOKE` only after at least 1,000 rows pass. Do not run it without a
+3. Resolve the real Standard P95 gate without truncation or an evidence-free
+   threshold change.
+4. Prepare `S1-1K-2K-SMOKE` only after the campaign target and all gates pass. Do not run it without a
    separately authorized owner command.
-4. Keep environment, FakeQwen, and real-Qwen engineering smokes green.
+5. Keep environment, FakeQwen, and real-Qwen engineering smokes green.
 
 ## Do not do yet
 

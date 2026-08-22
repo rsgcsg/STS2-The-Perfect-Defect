@@ -37,6 +37,11 @@ Automated tests cover drift, tampering, collisions, retries, input reordering an
 snapshot immutability. The real corpus remains below the campaign target; this
 implementation status is not data admission or permission to train.
 
+The first 20-record real corpus canary passes strict admission and B0, but
+Standard token profiling fails at P95 4907 versus the frozen 4096 gate. Before a
+smoke handoff, collect the campaign corpus and resolve this representation/pin
+gate without silent truncation or threshold relaxation.
+
 ## v0 Step 1 — Token and compute profiling
 
 Status: **L2 engineering admission complete; admitted-corpus profiling partial**. The
@@ -80,7 +85,7 @@ identities are absent.
 Before Core training, scientific data admission, Gold-dev, sealed Gold-test identity,
 required controls, selector-family coverage status and exact split/manifests must be ready.
 The next data action is deterministic packing/import of current exact human
-sessions followed by multi-worker collection of at least 1,000 exact-environment,
+sessions followed by multi-worker collection of at least 1,500 exact-environment,
 complete-catalog behavior decisions; no S1 smoke is frozen until that corpus
 passes B0 and Standard profiling.
 
