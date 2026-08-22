@@ -787,12 +787,14 @@ def _corpus_report(
     targeted = sum(
         1
         for transition in transitions
-        if transition.chosen_action.kind == "play" and transition.chosen_action.arguments
+        if transition.chosen_action.kind == "play_card"
+        and transition.chosen_action.arguments
     )
     untargeted = sum(
         1
         for transition in transitions
-        if transition.chosen_action.kind == "play" and not transition.chosen_action.arguments
+        if transition.chosen_action.kind == "play_card"
+        and not transition.chosen_action.arguments
     )
     catalog_sizes = [len(transition.legal_actions) for transition in transitions]
     invalidations: Counter[str] = Counter()

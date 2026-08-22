@@ -459,6 +459,9 @@ def test_two_sequence_one_sessions_build_deterministically_and_retry(tmp_path: P
     assert first.corpus_id == retry.corpus_id
     assert first.accepted_records == 2 and first.sessions == 2
     assert inspect_corpus_snapshot(first.snapshot_directory)["status"] == "pass"
+    report = json.loads((first.snapshot_directory / "corpus-report.json").read_text())
+    assert report["targeted_play"] == 0
+    assert report["untargeted_play"] == 2
 
 
 def test_collection_documents_match_their_machine_schemas() -> None:
