@@ -1,12 +1,47 @@
 # STPD v0 Scientific Experiment Protocol
 
-Status: frozen before real-dataset multi-step L2 training
-Protocol version: `stpd-v0-l2-2026-08-22`
+Status: frozen before Core scientific training; tiny-overfit engineering retry revision active
+Protocol version: `stpd-v0-l2-2026-08-22-r1`
 
 This document is the preregistered decision boundary for v0. It narrows the architecture
-plan into executable comparisons; it does not report a scientific result. Any material
-change after the first owner training run creates a new protocol version and requires all
-affected runs to be repeated.
+plan into executable comparisons; it does not report a scientific winner. Any material
+change after scientific Core training begins creates a new protocol version and requires all
+affected scientific runs to be repeated.
+
+## Revision r1: bounded tiny-overfit budget correction
+
+The repository owner executed the original owner-gated `L2-TINY-OVERFIT attempt-001`
+against source `a95ab022b8d81e6e697e8784893ece9c5eb1f59d`. The local attempt was bound to
+preparation SHA-256
+`7da5ad0bf8df8c422f2affeaf6a89fb041231aac2a0d59709228c6311253302e`.
+The owner-reported result was:
+
+- initial mean listwise NLL: `1.7887210547924042`;
+- final mean listwise NLL at step 64: `0.902236595749855`;
+- relative mean loss reduction: `0.49559681576255216`;
+- memorized Top-1: `0.25 -> 1.0`;
+- all values finite: pass;
+- Qwen gradient tensor count: pass;
+- final-NLL and 90%-loss-reduction criteria: fail;
+- elapsed time: `27.888440199996694` seconds on the recorded Windows host.
+
+The owner also inspected the final part of the trace. Mean listwise NLL continued to fall
+smoothly from about `0.9813` at step 55 to `0.9022` at step 64, with no visible plateau.
+This evidence is consistent with an under-budgeted engineering memorization check, not a
+numerical failure or a demonstrated Qwen/training-plumbing defect. It is not evidence of
+model quality.
+
+Revision r1 therefore changes only the bounded tiny-overfit retry budget from 64 to 256
+optimizer steps and assigns the prepared retry identity `attempt-002`. It does not lower any
+pass criterion and does not change the dataset-selection rule, Qwen identity, architecture,
+input profile, seed, optimizer, learning rate, Gold boundary, B6 boundary, Core matrix,
+Gates 0-5, or any scientific winner criterion. The original failed attempt remains retained
+as evidence and must not be overwritten.
+
+The four selected attempt-001 rows each had six candidates and target index 5. This is
+recorded as a fixture-selection diagnostic, not treated as a proven leakage defect. Candidate
+position remains forbidden as a model feature, and candidate-permutation/leakage controls
+remain mandatory before scientific interpretation.
 
 ## Immutable admission identity
 
@@ -90,6 +125,9 @@ invalidation, frozen parameters, failure paths, latency, and VRAM are measured; 
 three model families complete forward plus backward-only engineering smokes. Gold and B6
 remain sealed.
 
+The bounded L2 tiny-overfit is an additional optimizer/checkpoint plumbing admission check.
+Passing it does not by itself satisfy Gate 1 or any scientific model-quality gate.
+
 ### Gate 1 - pretrained representation value
 
 Compare paired pretrained versus random runs for Scheme 1 linear and S2-Simple N using the
@@ -152,10 +190,19 @@ Unit/synthetic/FakeQwen tests, real-Qwen forward/profile/backward checks, and at
 optimizer steps for plumbing are engineering work. Any real-dataset multi-step optimization
 that can produce a checkpoint or metric is owner training. Before it begins, preparation
 must print and persist the exact source SHA, dataset/B0/Qwen/config identities, seed, command,
-resources, output paths, pass/fail criteria, and retry rule. Codex then stops at:
+resources, output paths, pass/fail criteria, and retry rule. Codex then stops at an explicit
+owner-training boundary.
+
+The active retry is the bounded Scheme 1 linear memorization check in
+`configs/v0/experiments/l2-tiny-overfit.json`: 2-4 train examples, Standard input, pretrained
+frozen Qwen, seed `20260822`, AdamW with learning rate `0.001`, 256 optimizer steps, and
+checkpoints at steps 0 and 256. It never uses Gold or B6 and cannot support a scientific
+claim. The preparation must generate `attempt-002`; it must not overwrite attempt-001.
+
+The required stop code for this retry remains:
 
 `STOP - OWNER TRAINING REQUIRED: L2-TINY-OVERFIT`
 
-The first owner run is the bounded Scheme 1 linear memorization check in
-`configs/v0/experiments/l2-tiny-overfit.json`. It never uses Gold or B6 and cannot support a
-scientific claim. Retries are new attempt IDs; failed artifacts and reasons are retained.
+Retries retain all failed artifacts and reasons. Any future change to data, Qwen, model,
+optimizer, learning rate, pass criteria, or scientific protocol requires a new explicit
+identity and renewed affected-run review.
