@@ -45,6 +45,7 @@ PREPARATION_SCHEMA = "stpd/l2-tiny-overfit-preparation-v0"
 RESULT_SCHEMA = "stpd/l2-tiny-overfit-result-v0"
 ORIGINAL_PROTOCOL_VERSION = "stpd-v0-l2-2026-08-22"
 RETRY_PROTOCOL_VERSION = "stpd-v0-l2-2026-08-22-r1"
+FINAL_RETRY_PROTOCOL_VERSION = "stpd-v0-l2-2026-08-22-r2"
 
 
 class ExperimentPreparationError(ContractError):
@@ -83,7 +84,11 @@ def _validate_config(value: Mapping[str, Any]) -> None:
     if value.get("schema") != "stpd/l2-tiny-overfit-config-v0":
         raise ExperimentPreparationError("unsupported L2 tiny-overfit config schema")
     protocol_version = value.get("protocol_version")
-    if protocol_version not in {ORIGINAL_PROTOCOL_VERSION, RETRY_PROTOCOL_VERSION}:
+    if protocol_version not in {
+        ORIGINAL_PROTOCOL_VERSION,
+        RETRY_PROTOCOL_VERSION,
+        FINAL_RETRY_PROTOCOL_VERSION,
+    }:
         raise ExperimentPreparationError(
             f"unsupported tiny-overfit protocol_version: {protocol_version!r}"
         )
@@ -118,7 +123,7 @@ def _validate_config(value: Mapping[str, Any]) -> None:
             raise ExperimentPreparationError(
                 "original tiny-overfit budget must remain bounded at steps 0 and 64"
             )
-    else:
+    elif protocol_version == RETRY_PROTOCOL_VERSION:
         if steps != 256:
             raise ExperimentPreparationError(
                 f"tiny-overfit r1 requires exactly 256 optimizer steps, got {steps}"
@@ -126,6 +131,15 @@ def _validate_config(value: Mapping[str, Any]) -> None:
         if budget.get("checkpoint_steps") != [0, 256]:
             raise ExperimentPreparationError(
                 "tiny-overfit r1 requires checkpoint_steps=[0, 256]"
+            )
+    else:
+        if steps != 512:
+            raise ExperimentPreparationError(
+                f"tiny-overfit r2 requires exactly 512 optimizer steps, got {steps}"
+            )
+        if budget.get("checkpoint_steps") != [0, 512]:
+            raise ExperimentPreparationError(
+                "tiny-overfit r2 requires checkpoint_steps=[0, 512]"
             )
     boundaries = _object(value.get("boundaries"), "boundaries")
     for forbidden in (
@@ -325,11 +339,13 @@ def prepare_l2_tiny_overfit(
     output = output.expanduser().resolve()
     if output.exists():
         raise ExperimentPreparationError(f"refusing to overwrite preparation output: {output}")
-    attempt_id = (
-        "attempt-002"
-        if config["protocol_version"] == RETRY_PROTOCOL_VERSION
-        else "attempt-001"
-    )
+    protocol_version = str(config["protocol_version"])
+    if protocol_version == FINAL_RETRY_PROTOCOL_VERSION:
+        attempt_id = "attempt-003"
+    elif protocol_version == RETRY_PROTOCOL_VERSION:
+        attempt_id = "attempt-002"
+    else:
+        attempt_id = "attempt-001"
     attempt_output = output / attempt_id
     preparation_path = output / "preparation.json"
     owner_command = [
