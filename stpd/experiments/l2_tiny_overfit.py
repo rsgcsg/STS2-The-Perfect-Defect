@@ -43,6 +43,8 @@ DEFAULT_CONFIG = ROOT / "configs" / "v0" / "experiments" / "l2-tiny-overfit.json
 OWNER_ACK = "I_AM_THE_OWNER_AND_AUTHORIZE_L2_TINY_OVERFIT"
 PREPARATION_SCHEMA = "stpd/l2-tiny-overfit-preparation-v0"
 RESULT_SCHEMA = "stpd/l2-tiny-overfit-result-v0"
+ORIGINAL_PROTOCOL_VERSION = "stpd-v0-l2-2026-08-22"
+RETRY_PROTOCOL_VERSION = "stpd-v0-l2-2026-08-22-r1"
 
 
 class ExperimentPreparationError(ContractError):
@@ -80,8 +82,12 @@ def _git_identity() -> tuple[str, str]:
 def _validate_config(value: Mapping[str, Any]) -> None:
     if value.get("schema") != "stpd/l2-tiny-overfit-config-v0":
         raise ExperimentPreparationError("unsupported L2 tiny-overfit config schema")
+    protocol_version = value.get("protocol_version")
+    if protocol_version not in {ORIGINAL_PROTOCOL_VERSION, RETRY_PROTOCOL_VERSION}:
+        raise ExperimentPreparationError(
+            f"unsupported tiny-overfit protocol_version: {protocol_version!r}"
+        )
     expected = {
-        "protocol_version": "stpd-v0-l2-2026-08-22",
         "architecture_id": "scheme1-linear-pretrained",
         "input_profile": InputProfile.STANDARD.value,
         "qwen_control": "pretrained",
@@ -105,10 +111,22 @@ def _validate_config(value: Mapping[str, Any]) -> None:
         raise ExperimentPreparationError("minimum_examples exceeds maximum_examples")
     budget = _object(value.get("budget"), "budget")
     steps = _positive_int(budget.get("optimizer_steps"), "optimizer_steps")
-    if steps > 64 or budget.get("checkpoint_steps") != [0, steps]:
-        raise ExperimentPreparationError(
-            "tiny-overfit budget must remain bounded at steps 0 and 64"
-        )
+    if budget.get("evaluation_interval_steps") != 1:
+        raise ExperimentPreparationError("tiny-overfit requires evaluation_interval_steps=1")
+    if protocol_version == ORIGINAL_PROTOCOL_VERSION:
+        if steps > 64 or budget.get("checkpoint_steps") != [0, steps]:
+            raise ExperimentPreparationError(
+                "original tiny-overfit budget must remain bounded at steps 0 and 64"
+            )
+    else:
+        if steps != 256:
+            raise ExperimentPreparationError(
+                f"tiny-overfit r1 requires exactly 256 optimizer steps, got {steps}"
+            )
+        if budget.get("checkpoint_steps") != [0, 256]:
+            raise ExperimentPreparationError(
+                "tiny-overfit r1 requires checkpoint_steps=[0, 256]"
+            )
     boundaries = _object(value.get("boundaries"), "boundaries")
     for forbidden in (
         "gold_dev_allowed",
@@ -307,7 +325,12 @@ def prepare_l2_tiny_overfit(
     output = output.expanduser().resolve()
     if output.exists():
         raise ExperimentPreparationError(f"refusing to overwrite preparation output: {output}")
-    attempt_output = output / "attempt-001"
+    attempt_id = (
+        "attempt-002"
+        if config["protocol_version"] == RETRY_PROTOCOL_VERSION
+        else "attempt-001"
+    )
+    attempt_output = output / attempt_id
     preparation_path = output / "preparation.json"
     owner_command = [
         sys.executable,
@@ -316,7 +339,7 @@ def prepare_l2_tiny_overfit(
         "--preparation",
         str(preparation_path),
         "--attempt-id",
-        "attempt-001",
+        attempt_id,
         "--owner-ack",
         OWNER_ACK,
     ]
@@ -333,6 +356,7 @@ def prepare_l2_tiny_overfit(
         }
         for record, batch in zip(selected, batches, strict=True)
     ]
+    optimizer_steps = int(_object(config["budget"], "budget")["optimizer_steps"])
     value = {
         "schema": PREPARATION_SCHEMA,
         "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
@@ -383,13 +407,15 @@ def prepare_l2_tiny_overfit(
             "gpu_total_memory_bytes": properties.total_memory,
             "gpu_compute_capability": f"{properties.major}.{properties.minor}",
             "disk_free_bytes": disk.free,
-            "expected_optimizer_steps": config["budget"]["optimizer_steps"],
+            "expected_optimizer_steps": optimizer_steps,
             "expected_qwen_parameter_count": 596049920,
         },
         "artifacts": {
             "attempt_output": str(attempt_output),
             "initial_checkpoint": str(attempt_output / "checkpoint-step-000.pt"),
-            "final_checkpoint": str(attempt_output / "checkpoint-step-064.pt"),
+            "final_checkpoint": str(
+                attempt_output / f"checkpoint-step-{optimizer_steps:03d}.pt"
+            ),
             "result": str(attempt_output / "result.json"),
         },
         "pass_fail": config["pass_criteria"],
@@ -442,6 +468,13 @@ def run_l2_tiny_overfit(
     preparation = _json_object(preparation_path)
     if preparation.get("schema") != PREPARATION_SCHEMA:
         raise ExperimentPreparationError("unsupported preparation manifest")
+    expected_attempt = Path(
+        str(_object(preparation.get("artifacts"), "artifacts")["attempt_output"])
+    ).name
+    if attempt_id != expected_attempt:
+        raise ExperimentPreparationError(
+            f"attempt_id must match prepared attempt {expected_attempt!r}"
+        )
     source_revision, _ = _git_identity()
     if source_revision != _object(preparation.get("source"), "source").get("revision"):
         raise ExperimentPreparationError("source changed after owner-training preparation")
