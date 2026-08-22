@@ -25,6 +25,7 @@ Pre-initialization remote baseline:
 - deterministic profile serializers, semantic hashing, leakage rejection, stable-successor
   and execution-authority separation tests;
 - canonical Parquet storage, checksummed data manifests, seed-root splits, and B0 checks;
+- trainable Scheme 1/S2-Simple/S2-SDT forward paths and N/Z objective composition;
 - structure tests that keep canonical docs and schemas discoverable.
 
 ## Next action

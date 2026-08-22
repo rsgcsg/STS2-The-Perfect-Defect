@@ -48,13 +48,13 @@ remain bound to the exact reports that produced them.
   hashes, model-input leakage rejection, strict schemas, and a golden transition fixture.
 - raw JSONL ingestion, canonical Parquet round-trip, checksummed data manifests,
   deterministic seed-root splits, and an executable fail-closed B0 gate.
+- trainable PyTorch Scheme 1, S2-Simple, and S2-SDT forward paths with candidate-set
+  ranking, successor/anchor losses, learned world tokens, and EMA target resampling.
 
 ## Not yet implemented
 
 - frozen Qwen backend and random frozen control;
 - production-source dataset collection/import and large-corpus near-deduplication;
-- Scheme 1 Direct Joint Scoring;
-- S2-Simple and S2-SDT;
 - candidate-set ranking training stack;
 - B0-B7 benchmark implementation and Human Gold workflow;
 - experiment registry, model artifact registry, and final report generator;
@@ -79,7 +79,7 @@ remain bound to the exact reports that produced them.
 1. Build the Headless collector and AgenticSTS importer against the frozen contracts.
 2. Exercise the data/B0 pipeline on source-representative local samples.
 3. Implement a pinned frozen-Qwen backend with pretrained and random controls.
-4. Build the smallest Scheme 1 baseline before adding Scheme 2.
+4. Add optimizer/checkpoint/resume and independent evaluation around the implemented models.
 5. Keep the current smoke lane green as an environment regression gate.
 
 See [Roadmap](ROADMAP.md) and [v0 Execution Plan](V0_EXECUTION_PLAN.md).
