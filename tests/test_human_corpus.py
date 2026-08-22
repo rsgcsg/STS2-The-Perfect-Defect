@@ -421,7 +421,7 @@ def _register(
 def test_two_sequence_one_sessions_build_deterministically_and_retry(tmp_path: Path) -> None:
     profile, campaign, collection, registry = _setup(tmp_path)
     for index, worker in enumerate(("human-001", "human-002"), start=1):
-        session = f"session-{index:04d}"
+        session = f"session-20260823T00000{index}Z-{index:032x}"
         record = _record(
             profile,
             session_id=session,

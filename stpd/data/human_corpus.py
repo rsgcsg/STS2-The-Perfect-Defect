@@ -33,6 +33,7 @@ CORPUS_IDENTITY_SCHEMA = "stpd/human-corpus-identity-v1"
 CORPUS_REPORT_SCHEMA = "stpd/human-corpus-report-v1"
 SMOKE_HANDOFF_SCHEMA = "stpd/human-smoke-handoff-v1"
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9_-]{2,63}$")
+_OPAQUE_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT = re.compile(r"^[0-9a-f]{40}$")
 
@@ -203,7 +204,7 @@ class SessionRegistryEntry:
         if _text(value, "schema") != REGISTRY_SCHEMA:
             raise HumanCorpusError("unsupported session registry schema")
         result = cls(
-            _identifier(value, "session_id"),
+            _opaque_identifier(value, "session_id"),
             _identifier(value, "worker_id"),
             _identifier(value, "collection_profile_id"),
             _identifier(value, "campaign_id"),
@@ -297,7 +298,7 @@ def verify_session_bundle(
     if export_sha != _digest(manifest, "export_sha256"):
         raise HumanCorpusError("bundle export digest differs from manifest")
     recording = _load_object(directory / "raw" / "recording-manifest.json")
-    session_id = _identifier(manifest, "session_id")
+    session_id = _opaque_identifier(manifest, "session_id")
     if recording.get("session_id") != session_id:
         raise HumanCorpusError("raw recording manifest session differs from bundle")
     if recording.get("platform") != profile.value["platform"]:
@@ -1043,6 +1044,13 @@ def _identifier(value: Mapping[str, Any], key: str) -> str:
     item = _text(value, key)
     if not _IDENTIFIER.fullmatch(item):
         raise HumanCorpusError(f"invalid pseudonymous identifier: {key}")
+    return item
+
+
+def _opaque_identifier(value: Mapping[str, Any], key: str) -> str:
+    item = _text(value, key)
+    if not _OPAQUE_IDENTIFIER.fullmatch(item):
+        raise HumanCorpusError(f"invalid opaque identifier: {key}")
     return item
 
 
