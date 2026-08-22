@@ -42,11 +42,30 @@ gate; `card_selection` and `card_choice` remain `not_exercised`.
 Measure Lite/Standard/Full token distributions, legal-action counts, frozen-Qwen latency,
 VRAM, cold compute, cached compute, and storage costs.
 
+## v0 Step 1.5 — Owner optimizer-plumbing admission
+
+Status: **attempt-001 completed; protocol-r1 retry pending owner execution**.
+
+The original 64-step Scheme 1 linear tiny-overfit reached 100% memorized Top-1 but ended at
+mean NLL `0.9022365957` and relative loss reduction `49.56%`, so it correctly failed the
+unchanged NLL <= 0.1 and reduction >= 90% thresholds. Its loss was still decreasing through
+step 64. The failed attempt remains retained.
+
+Protocol `stpd-v0-l2-2026-08-22-r1` changes only this bounded engineering retry budget to
+256 optimizer steps and emits `attempt-002`. Data selection, Qwen, architecture, seed,
+AdamW/lr, pass criteria, Core matrix and scientific Gates remain unchanged.
+
+This step is a plumbing/memorization admission check. Passing it is not Gate 1 and does not
+establish pretrained representation value.
+
 ## v0 Steps 2-4 — Core architecture selection
 
-Status: **protocol frozen; owner training not started**. The exact 10 configurations and
-three seeds are machine-readable. A separate bounded real-data tiny-overfit preparation
-gate must pass before the first owner-authorized optimizer run.
+Status: **protocol r1 frozen; scientific Core training not started**. The exact 10
+configurations and three seeds are machine-readable. The bounded r1 tiny-overfit retry must
+be resolved before the first scientific Core run.
+
+Before Core training, scientific data admission, Gold-dev, sealed Gold-test identity,
+required controls, selector-family coverage status and exact split/manifests must be ready.
 
 Run Standard input for:
 
