@@ -7,11 +7,11 @@ offline CUDA/BF16 engineering use. Pretrained and same-architecture frozen rando
 controls pass deterministic feature extraction and backward-only integration with Scheme
 1, S2-Simple, and S2-SDT. This is not a representation-quality claim.
 
-One bounded owner-run tiny-overfit attempt has now occurred. The original 64-step
-`attempt-001` reached 100% memorized Top-1 but failed the unchanged final-NLL and relative
-loss-reduction thresholds while its loss was still decreasing. Protocol r1 therefore keeps
-the same data/model/Qwen/optimizer/pass criteria and increases only the bounded retry budget
-to 256 optimizer steps. The retry remains owner-gated and is not a scientific model result.
+Two bounded owner-run tiny-overfit attempts have now occurred. The original 64-step
+`attempt-001` and the 256-step `attempt-002` both reached 100% memorized Top-1, remained
+numerically finite, kept Qwen frozen, and continued reducing loss through their final step.
+They failed only the unchanged final-NLL and relative-loss-reduction thresholds. Protocol r2
+therefore makes one final budget-only retry at 512 optimizer steps as `attempt-003`.
 
 ## Immutable identity
 
@@ -30,21 +30,15 @@ is operational input and must never be committed.
 
 ## Rebuild and inspect
 
-Install the locked environment, then explicitly discover/fetch or inspect the snapshot:
-
 ```powershell
 uv sync --locked --all-extras
-uv run python tools/qwen_l2.py discover --output .local/evidence/l2/qwen-discovery.json
-uv run python tools/qwen_l2.py fetch --cache-dir "$env:USERPROFILE\.cache\stpd\qwen-l2" --output .local/evidence/l2/qwen-fetch.json
 uv run python tools/qwen_l2.py inspect --cache-dir "$env:USERPROFILE\.cache\stpd\qwen-l2" --output .local/evidence/l2/qwen-inspect.json
 ```
 
-`discover` and `fetch` are explicit online operations. `inspect` and all backend loads are
-offline and fail closed on missing, unexpected, resized, or rehashed files.
+`inspect` and all backend loads are offline and fail closed on missing, unexpected, resized,
+or rehashed files.
 
 ## Engineering smokes
-
-Run pretrained and random controls separately:
 
 ```powershell
 uv run python tools/l2_smoke.py --cache-dir "$env:USERPROFILE\.cache\stpd\qwen-l2" --control pretrained --output .local/evidence/l2/pretrained-smoke.json
@@ -54,43 +48,26 @@ uv run python tools/l2_smoke.py --cache-dir "$env:USERPROFILE\.cache\stpd\qwen-l
 On the admitted Windows host, pretrained Qwen loaded in 1.339 seconds; a synthetic
 1,024-token forward took 0.145 seconds with 1,394,181,120 bytes peak allocated VRAM. All
 three model families produced finite losses and trainable-head gradients with zero Qwen
-gradients. Two independent full random constructions at seed `20260822` produced exact
-parameter fingerprint
-`2db01fbe8292c68fa485c9f4e4d5a9f083c0ecfe030685b65248965c73be07df`.
-
-These are synthetic engineering checks. They do not establish pretrained advantage or a
-scientific winner.
+gradients. These are synthetic engineering checks only.
 
 ## Bounded real-data preparation
 
-The current Managed collector defaults to transition-only records. For the deliberately
-transparent tiny-overfit plumbing fixture, `canonical-semantic-first` may mark the actual
-canonical first behavior action against a complete action catalog as full-listwise rank
-supervision:
+Preparation replays data/B0/Qwen/config/source identities and writes the exact owner command
+without constructing an optimizer:
 
 ```powershell
-uv run python tools/collect_managed.py --headless <HEADLESS_REPO> --candidate <EXACT_CANDIDATE> --output .local/evidence/l2/managed-ranking-fixture --seed <SEED> --max-environment-actions 64 --max-transitions 8 --split-salt stpd-l2-tiny-overfit-v0 --tokenizer-cache <L1_TOKENIZER_CACHE> --ranking-supervision canonical-semantic-first
+uv run python tools/l2_tiny_overfit.py prepare --dataset-manifest <MANIFEST> --qwen-cache <QWEN_CACHE> --output .local/evidence/l2/tiny-overfit-preparation-<NEW-SHA>-r2
 ```
 
-This mode is not a teacher, Q-value, reward, quality label, or policy claim. Preparation
-replays schema, byte hashes, semantic hashes, split assignments, B0, rank eligibility,
-selected rows, full Qwen identity, CUDA/BF16, resources, config, and clean Git identity:
-
-```powershell
-uv run python tools/l2_tiny_overfit.py prepare --dataset-manifest <COLLECTION_OUTPUT>\dataset\manifest.json --qwen-cache "$env:USERPROFILE\.cache\stpd\qwen-l2" --output .local/evidence/l2/tiny-overfit-preparation-<NEW-SHA>-r1
-```
-
-Preparation constructs no optimizer and writes no checkpoint. It prints and persists the
-exact owner command, artifacts, pass/fail criteria, and retry rule, followed by:
+It must stop with:
 
 `STOP - OWNER TRAINING REQUIRED: L2-TINY-OVERFIT`
 
 Do not invoke the `run` subcommand without the repository owner's explicit authorization.
 
-## Attempt-001 and active r1 retry
+## Attempt history and active r2 retry
 
-The original owner-run `attempt-001` used the v0 budget of 64 optimizer steps. The
-owner-reported result was:
+`attempt-001`, 64 steps:
 
 ```text
 initial mean NLL       1.7887210548
@@ -100,32 +77,40 @@ memorized Top-1        25% -> 100%
 finite values          pass
 Qwen gradients         absent/pass
 elapsed                27.8884 s
+status                 fail
 ```
 
-The loss remained smoothly decreasing through step 64. The original attempt remains a
-failed engineering artifact because the unchanged criteria require final mean NLL <= 0.1
-and relative reduction >= 90%.
-
-The active config at `configs/v0/experiments/l2-tiny-overfit.json` is protocol
-`stpd-v0-l2-2026-08-22-r1`. It uses exactly:
+`attempt-002`, 256 steps:
 
 ```text
-2-4 rank-eligible train examples
-Scheme 1 linear
-Standard input
-pretrained frozen Qwen
-seed 20260822
-AdamW
-learning_rate 0.001
-weight_decay 0.0
-grad_clip_norm 1.0
-256 optimizer steps
-checkpoint steps 0 and 256
-same pass/fail thresholds as attempt-001
+initial mean NLL       1.7887210548
+final mean NLL         0.2385502681
+relative reduction     86.6636406%
+memorized Top-1        100%
+finite values          pass
+Qwen gradients         absent/pass
+elapsed                17.9047 s
+status                 fail
 ```
 
-A new preparation under r1 emits `attempt-002`. It must be generated from a clean pulled
-source and a new output directory; it never overwrites the old local attempt-001 directory.
+Owner-reported intermediate NLL for attempt-002:
+
+```text
+step 64   0.9022365957
+step 128  0.5347326919
+step 192  0.3452932015
+step 256  0.2385502681
+```
+
+The active config is protocol `stpd-v0-l2-2026-08-22-r2` and keeps exactly the same data
+selection, Scheme 1 linear model, Standard input, pretrained frozen Qwen, seed `20260822`,
+AdamW, learning rate `0.001`, weight decay `0.0`, grad clip `1.0`, and pass thresholds. Only
+the bounded budget changes to 512 optimizer steps with checkpoints at 0 and 512. A new
+preparation emits `attempt-003`.
+
+Attempt-003 is the final default budget-only retry. If it still fails, do not automatically
+increase to 1024/2048 steps. Audit fixture design, linear-feature separability, optimizer
+behavior and related plumbing first.
 
 See [Scientific Experiment Protocol](SCIENTIFIC_EXPERIMENT_PROTOCOL.md) for the exact
 revision history, frozen 10-configuration/three-seed matrix, controls, Gates 0-5, and
