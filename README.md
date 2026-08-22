@@ -44,8 +44,15 @@ canonical Parquet/manifests/splits, a fail-closed AgenticSTS importer, a real Ma
 collector, Scheme 1/S2-Simple/S2-SDT, optimizer/checkpoint/evaluation mechanics, B1-B7
 report tooling, a pinned metadata/tokenizer Qwen L1 gate, and an exact full-weight
 CUDA/BF16 Qwen L2 adapter with a same-architecture frozen random control. FakeQwen remains
-the cheap CI backend. Real-Qwen forward/profile/backward smokes are engineering evidence;
-no owner training, Gold test, B6 run, or scientific model result has occurred.
+the cheap CI backend. Real-Qwen forward/profile/backward smokes are engineering evidence.
+
+A first bounded owner-run `L2-TINY-OVERFIT attempt-001` has occurred. It reached 100%
+memorized Top-1 but failed the unchanged final-NLL and loss-reduction thresholds at the
+original 64-step budget while the loss was still decreasing. Protocol r1 therefore prepares
+a 256-step `attempt-002` retry without changing the model, data-selection rule, Qwen,
+optimizer, learning rate, pass criteria, Core matrix, Gold boundary or B6 boundary. This is
+still optimizer/plumbing evidence, not a scientific model-quality result. No Core scientific
+run, Gold test, B6 run or v0 winner exists.
 
 ## What v0 will build
 
@@ -59,7 +66,8 @@ STPD v0 is a combat-focused representation and architecture study. It freezes
 The first architecture phase contains 10 configurations and 3 training seeds per
 configuration. Evaluation is organized into B0-B7: contract/leakage, behavior holdout,
 human gold, state-action coupling, successor dynamics, current-patch transfer, fixed-seed
-live combat, and compute/scaling.
+live combat, and compute/scaling. Gates 0-5 are the actual sequential research decisions;
+B0-B7 are supporting evidence families.
 
 See [v0 execution plan](docs/V0_EXECUTION_PLAN.md).
 
@@ -113,6 +121,7 @@ inherit the macOS operational freeze. A changed identity is a requalification ev
 - [Data and provenance](docs/DATA_AND_PROVENANCE.md)
 - [Qwen integration](docs/QWEN_INTEGRATION.md)
 - [Qwen L2 operations and owner handoff](docs/QWEN_L2_OPERATIONS.md)
+- [Scientific experiment protocol](docs/SCIENTIFIC_EXPERIMENT_PROTOCOL.md)
 - [Project system](docs/PROJECT_SYSTEM.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Pre-Qwen operations and historical L1 handoff](docs/PRE_QWEN_OPERATIONS.md)
