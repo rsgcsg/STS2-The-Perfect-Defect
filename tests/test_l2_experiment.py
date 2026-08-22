@@ -52,9 +52,45 @@ def test_tiny_subset_fails_closed_without_two_rank_eligible_train_rows() -> None
         select_tiny_records(records, assignments, config)
 
 
+def test_tiny_retry_config_changes_only_bounded_budget_identity() -> None:
+    config = json.loads(CONFIG.read_text(encoding="utf-8"))
+
+    assert config["protocol_version"] == "stpd-v0-l2-2026-08-22-r1"
+    assert config["architecture_id"] == "scheme1-linear-pretrained"
+    assert config["input_profile"] == "stpd-combat-v0-standard"
+    assert config["qwen_control"] == "pretrained"
+    assert config["seed"] == 20260822
+    assert config["optimizer"] == {
+        "name": "adamw",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0,
+        "grad_clip_norm": 1.0,
+    }
+    assert config["budget"] == {
+        "optimizer_steps": 256,
+        "evaluation_interval_steps": 1,
+        "checkpoint_steps": [0, 256],
+    }
+    assert config["pass_criteria"] == {
+        "memorized_top1_fraction": 1.0,
+        "maximum_final_mean_listwise_nll": 0.1,
+        "minimum_relative_mean_loss_reduction": 0.9,
+        "qwen_gradient_tensor_count": 0,
+        "all_values_finite": True,
+    }
+    assert config["boundaries"] == {
+        "gold_dev_allowed": False,
+        "gold_test_allowed": False,
+        "b6_allowed": False,
+        "scientific_claim_allowed": False,
+        "owner_execution_required": True,
+    }
+
+
 def test_core_matrix_is_exactly_ten_configs_three_seeds_and_no_fake_qwen() -> None:
     matrix = json.loads((ROOT / "configs" / "v0" / "models" / "core.json").read_text())
     architectures = matrix["architectures"]
+    assert matrix["plan_version"] == "stpd-v0-l2-2026-08-22-r1"
     assert len(architectures) == 10
     assert len(matrix["training_seeds"]) == 3
     assert matrix["expected_core_run_count"] == 30
