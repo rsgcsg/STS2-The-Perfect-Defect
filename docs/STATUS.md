@@ -26,6 +26,8 @@ inherit the macOS operational freeze or formal H1.0 authority.
 - Python 3.11-only `uv` lock, CI/package, canonical docs and strict schemas;
 - ResearchState/Action/Transition, deterministic Lite/Standard/Full serialization and B0;
 - canonical Parquet/manifests/splits/dedup and fail-closed provenance handling;
+- fail-closed Human Annotator import through the existing research projection,
+  whole-run split, canonical Parquet and B0 path;
 - Scheme 1, S2-Simple and S2-SDT with ranking/successor/anchor objectives;
 - optimizer/checkpoint/evaluation mechanics and B1-B7 report/gate tooling;
 - immutable Qwen3-0.6B-Base L1/L2 pin, exact full-weight CUDA/BF16 backend and random control;
@@ -126,6 +128,8 @@ No extractor, Parquet dataset, split manifest, S1 smoke config, or owner command
   successors, or current-patch identities.
 - Natural selector token families, large-corpus near-duplicate analysis and scientific data
   admission remain future work.
+- Human Annotator fixtures do not prove native human-origin mapping, recorder
+  non-interference, Live successor settlement, or any real-data admission.
 
 The immediate next step is current-teacher collection of at least 1,000 complete-catalog,
 whole-root, exact-environment behavior decisions. See the

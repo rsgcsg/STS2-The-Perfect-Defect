@@ -43,6 +43,9 @@ environment regression lane.
   catalog, seed/root, and exact environment identity, so zero are rank eligible.
 - The exact operational environment baseline remains a separate Headless/Connector concern;
   Windows candidate evidence does not inherit macOS formal authority.
+- A strict Human Annotator importer is implemented and fixture-tested through
+  `ResearchProjectorV0`, canonical Parquet/whole-run splits, and B0. Real native
+  human records remain pending and fixtures create no data-admission claim.
 
 ## Immediate priorities
 

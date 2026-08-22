@@ -94,6 +94,24 @@ External processing must address:
 
 Unknown rights or provenance means exclude the source from training.
 
+## Native Human Recorder Source
+
+`stpd.data.human_annotator` consumes exported
+`sts2.human-annotator/decision-record-1` JSONL. Admission requires exact
+game/Connector/Annotator identities, the exact observer Modset canary, a
+complete interactive pre-catalog, one chosen action present exactly once, a
+native witness mapped by reference equality to the frozen Host binding, and a
+different stable successor in the same runtime/environment. It applies the one
+existing `ResearchProjectorV0`; it does not derive legality from names,
+coordinates, post-state, or action order.
+
+Accepted human choices are full-listwise rank and transition eligible. Return
+eligibility remains false until a separate terminal/outcome linkage exists.
+The recording session plus run ID is the whole-run split root; when the normal
+player-visible contract does not expose the game seed, the importer records an
+explicit `human-root:` key rather than inventing a seed. Raw recordings remain
+private local data and are never committed.
+
 ## Current external-source admission
 
 The exact `AlayaLab/AgenticSTS-trajectories` revision

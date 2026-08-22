@@ -37,6 +37,10 @@ answer.
 
 - [AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md)
 
+The Human Annotator raw contract is owned by the sibling
+`STS2-human-Annotator` repository. STPD's strict importer is
+`stpd/data/human_annotator.py`; this map does not duplicate that external schema.
+
 ## Working memory
 
 - [Memory instructions](memory/README.md)

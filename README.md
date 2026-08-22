@@ -58,6 +58,13 @@ legal-action catalogs, game seeds, or exact environment identities. Zero records
 rank-eligible under the existing fail-closed contract, so no S1-1K-2K smoke configuration
 or owner command exists. Current-teacher collection is required.
 
+A separate fail-closed Human Annotator importer now accepts only exact native-UI
+records with a complete frozen BoundAction catalog, exact-unique process-local
+mapping, stable successor, exact game/Connector/Annotator/Modset identity, and
+whole-run roots. It reuses the existing `ResearchProjectorV0`, canonical split,
+Parquet, and B0 path. This is implemented and synthetic-tested; no real human
+record has yet been admitted.
+
 ## What v0 will build
 
 STPD v0 is a combat-focused representation and architecture study. It freezes
