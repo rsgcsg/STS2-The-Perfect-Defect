@@ -83,12 +83,14 @@ Each run records:
 
 ## Continuous integration
 
-GitHub Actions runs the pure suite on Python 3.9 and 3.11:
+GitHub Actions runs the pure suite on the single supported interpreter, Python 3.11:
 
 ```text
-editable install
--> unittest discovery
--> compileall
+uv sync --frozen
+-> ruff
+-> mypy
+-> pytest
+-> package build
 ```
 
 CI intentionally does not download STS2, Headless/Connector artifacts, Qwen weights, external

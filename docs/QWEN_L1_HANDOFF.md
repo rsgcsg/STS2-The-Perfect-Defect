@@ -96,8 +96,16 @@ this L1 slice neither downloads weights nor makes that claim.
 
 ## Evidence boundary
 
+The current pinned cache was fetched and inspected at immutable revision
+`da87bfb608c14b7cf20ba1ce41287e8de496c0cd`; tokenizer SHA-256 is
+`c0382117...539`, tokenizer-bundle SHA-256 is `44985097...983`, and
+`weights_downloaded=false`. A bounded Managed sample produced 180 joint state/action
+texts. `turn_action` passed for all profiles (Full max/P95 `3334/3334`, Lite and
+Standard `2501/2501`). Natural `card_selection` and `card_choice` did not occur, so
+the aggregate report is correctly `not_exercised`, not a pass.
+
 This handoff proves only source/config implementation, deterministic offline tests, and
 the explicitly recorded metadata/tokenizer fetch evidence. It does not prove model
 weights, frozen parameters, Qwen hidden representations, GPU behavior, training quality,
-or a completed STPD B0/B1 gate. A real profile report must be generated from the pinned
-`tokenizer.json` and retained outside Git as run evidence.
+or a completed scientific B1 gate. The real profile report is retained outside Git; the
+missing selector-family samples remain unmeasured rather than fixture-filled.

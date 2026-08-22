@@ -51,3 +51,12 @@ STPD pins Headless `v1.0.0`, its exact Managed Host tuple and Connector
 Formal H1.0 and exhaustive qualification are not implied. Identity change or
 an environment-invalid episode reopens only the affected gates; routine
 training starts with the cheap fail-closed environment smoke.
+
+## D-007 — Advance the operational patch without transferring evidence
+
+**Status:** accepted; supersedes D-006 for current execution
+
+STPD consumes Headless `v1.0.1` and its exact `8ced088b...` patch / `8dc622b0...`
+Host while retaining Connector `v1.1.0-rc.1` and protocol/SDK `1.0.0`. The different
+Headless `v1.0.0` Host remains immutable predecessor evidence; runtime authority does not
+transfer across the artifact change.

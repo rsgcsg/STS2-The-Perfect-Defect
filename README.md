@@ -22,7 +22,8 @@ shipped STS2 / qualified Headless Host
 
 ## What exists today
 
-The current package is an H1 integration lane:
+The current package contains the complete pre-Qwen v0 engineering lane plus the retained
+H1 integration regression tools:
 
 - `linear_q.py`: a deliberately small linear-Q baseline;
 - `training_smoke.py`: real single-environment learning smoke;
@@ -36,9 +37,13 @@ are expected to remain useful as regression and qualification tools. They do not
 that linear Q-learning is the final STPD architecture or that the current reward is the
 project objective.
 
-The first v0 contract slice is also implemented: strict `ResearchState`,
+The v0 pre-Qwen system is implemented: strict `ResearchState`,
 `ResearchAction`, `ResearchTransition`, execution-envelope separation, eligibility,
-Lite/Standard/Full deterministic serializers, semantic hashes, schemas, and leakage tests.
+Lite/Standard/Full deterministic serializers, semantic hashes, schemas, leakage/B0,
+canonical Parquet/manifests/splits, a fail-closed AgenticSTS importer, a real Managed
+collector, Scheme 1/S2-Simple/S2-SDT, optimizer/checkpoint/evaluation mechanics, B1-B7
+report tooling, and a pinned metadata/tokenizer-only Qwen L1 gate. FakeQwen drives the
+whole engineering path but is not scientific Qwen evidence.
 
 ## What v0 will build
 
@@ -70,8 +75,9 @@ See [v0 execution plan](docs/V0_EXECUTION_PLAN.md).
 ```bash
 uv sync --locked --all-extras
 uv run pytest
-uv run mypy stpd
+uv run mypy stpd tools
 uv run ruff check stpd tests
+uv run python tools/doctor.py
 ```
 
 A real environment run additionally requires a prepared `STS2-headless` candidate:
@@ -90,8 +96,8 @@ python3 -m stpd.training_smoke \
 
 Raw evidence is local and must not be committed.
 
-The frozen environment baseline is Headless `v1.0.0`, Managed Host
-`a884b104.../5b6adbd6...`, Connector `v1.1.0-rc.1`
+The current environment patch baseline is Headless `v1.0.1`, Managed Host
+`8dc622b0.../7228541c...`, Connector `v1.1.0-rc.1`
 `e065102.../c1877f1a.../64765ea1...`, and Player Environment protocol/SDK
 `1.0.0/1.0.0`. A changed identity is a requalification event.
 
@@ -105,6 +111,7 @@ The frozen environment baseline is Headless `v1.0.0`, Managed Host
 - [Qwen integration](docs/QWEN_INTEGRATION.md)
 - [Project system](docs/PROJECT_SYSTEM.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Pre-Qwen operations and L2 handoff](docs/PRE_QWEN_OPERATIONS.md)
 - [Agent and contributor rules](AGENTS.md)
 
 The project is evidence-first: a test, implementation, benchmark, and runtime claim are

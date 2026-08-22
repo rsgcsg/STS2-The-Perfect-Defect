@@ -87,13 +87,17 @@ Canonical shape (the machine-readable schema and tested Python type are authorit
   "environment": {
     "game_version": "...",
     "game_commit": "...",
+    "game_artifact_sha256": "...",
+    "game_artifact_mvid": "...",
     "host_kind": "managed_exact",
     "host_source_revision": "...",
+    "host_source_digest_sha256": "...",
     "host_artifact_sha256": "...",
-    "connector_version": "...",
-    "connector_source_revision": "...",
-    "connector_artifact_sha256": "...",
-    "pe_protocol": "1.0.0",
+    "host_artifact_mvid": "...",
+    "player_environment_implementation": "sts2_headless_managed_adapter",
+    "player_environment_revision": "...",
+    "player_environment_digest_sha256": "...",
+    "player_environment_protocol": "1.0.0",
     "information_policy_id": "player_visible_v1"
   },
   "policy": {
@@ -161,4 +165,5 @@ The scorer must preserve candidate count and order. Selection happens outside th
 architecture/config, seeds, benchmark set, and output locations.
 
 `model-artifact-manifest-v0` binds a frozen checkpoint to the experiment, files/checksums,
-data manifests, metrics, compatibility scope, and non-claims.
+data manifests, metrics, compatibility scope, and non-claims. `stpd.artifacts` builds and
+verifies this manifest without loading model code; unsafe paths and changed bytes fail closed.

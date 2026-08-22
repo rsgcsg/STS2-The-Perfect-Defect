@@ -2,8 +2,9 @@
 
 ## Checkpoint
 
-The repository has a locked Python 3.11/uv baseline and frozen first v0 contract slice while
-retaining the H1 learning/transfer smoke as a qualification baseline.
+The repository has exhausted the Mac-side metadata/tokenizer-only pre-Qwen implementation:
+contracts, data, collector/importer, three model families, training/checkpoint/evaluation,
+B0-B7 mechanics, doctor, artifact integrity and portable L2 handoff are implemented.
 
 The Headless/Connector lane is frozen as an exact STPD operational dependency.
 Run the cheap environment smoke before training; do not repeat the full
@@ -33,12 +34,13 @@ Pre-initialization remote baseline:
 
 ## Next action
 
-Attach the Headless collector and AgenticSTS importer to the frozen contracts, then exercise
-source-representative local samples through the canonical Parquet/B0 path.
+Move the generated secret-free handoff to an L2 machine, acquire the pinned full Qwen
+weights outside Git, and implement/measure the real frozen backend plus random control.
 
 ## Risks
 
 - Current smoke evidence must not be confused with v0 model evidence.
 - Draft interfaces may need revision when confronted with real duplicate-action and Read
   examples.
-- Existing local runtime reports are not automatically evidence for this new source revision.
+- FakeQwen does not prove real Qwen representations, learning, or pretrained advantage.
+- `card_selection` and `card_choice` token groups remain naturally unexercised.

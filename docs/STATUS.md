@@ -2,91 +2,64 @@
 
 ## Verdict
 
-**STPD is pre-alpha. The repository currently contains an H1 integration and learning
-qualification scaffold, not the complete STPD v0 model system.**
+**STPD is pre-alpha and pre-Qwen definition-of-ready is implemented.** The repository is
+ready for an L2 full-weight handoff; it contains no real Qwen representation, scientific
+model result, or final STPD v0 claim.
 
-The existing code is not declared obsolete. It is a reusable low-cost baseline for
-validating environment consumption, learning, actor/learner contention, provenance, and
-Candidate-to-Reference execution while the full v0 architecture is built.
+## Exact environment lane
 
-## Current phase
+| Layer | Current identity |
+|---|---|
+| Game | macOS arm64 STS2 `v0.111.0/41cef1ea`, assembly `9cb4f1a.../57785517...` |
+| Headless | release `v1.0.1`, source `4961b52...` |
+| Managed Host | upstream `d11aa883...`, patch `8ced088b...`, artifact `8dc622b0.../7228541c...` |
+| Connector Reference | `v1.1.0-rc.1/e065102...`, artifact `c1877f1a.../64765ea1...` |
+| Player Environment | protocol/SDK `1.0.0/1.0.0`, policy `player_visible_v1` |
 
-```text
-P0: project system and contract initialization
-+
-H1 environment/consumer qualification
-```
+This is an operational STPD baseline, not formal H1.0 qualification. Headless `v1.0.0`
+used a different Managed artifact; its runtime evidence is predecessor-only.
 
-The environment lane is aligned to Headless `v1.0.0`, Managed patch
-`ed9248b...` / Host `a884b104.../5b6adbd6...`, Connector
-`v1.1.0-rc.1/e065102...` / Host `c1877f1a.../64765ea1...`, STS2
-`v0.111.0/41cef1ea`, and Player Environment protocol/SDK `1.0.0/1.0.0`.
-This is an operational baseline, not formal H1.0 qualification.
+## Implemented and tested
 
-The predecessor code baseline was `1b4039fe3933b408e31dd92e9fbe1454bdd7672e`.
-The locked Python 3.11 baseline and first v0 contract slice are implemented; runtime claims
-remain bound to the exact reports that produced them.
+- Python 3.11-only `uv` lock, CI, package build, canonical docs and strict schemas;
+- ResearchState/Action/Transition, execution-envelope separation and eligibility;
+- deterministic Lite/Standard/Full ModelState plus ModelAction, semantic hashes, golden
+  fixtures and leakage rejection;
+- raw JSONL to canonical Parquet, checksummed manifests, seed-root split/dedup and B0;
+- fail-closed AgenticSTS audit/import with source-subset license/provenance admission;
+- source-free Player Environment projection and current Managed stable-transition collector;
+- trainable Scheme 1, S2-Simple and S2-SDT with ranking/successor/anchor objectives;
+- RankBatch/DynamicsBatch optimizer steps, atomic identity-bound checkpoint/resume and
+  independent ranking evaluation;
+- B1-B7 report/gate mechanics with synthetic positive and negative evidence;
+- immutable Qwen3-0.6B-Base metadata/tokenizer L1 pin and weight-rejecting cache inspection;
+- DeterministicFakeQwenBackend engineering path across all three model families;
+- checksum-bound artifact manifest, pre-Qwen doctor and path-free L2 handoff manifest.
 
-## Implemented
+## Runtime evidence
 
-- independent Python consumer of the Headless Player Environment;
-- finite action-set checks and fail-closed delivery handling;
-- small linear-Q learner and shaped-reward integration smoke;
-- multi-seed learning harness;
-- multi-environment actor/shared-learner contention harness;
-- model freeze/load path for the smoke learner;
-- Managed-to-shipped-Reference execution harness;
-- seed derivation, exact Host provenance, temporal settling/stale supervision;
-- locale-neutral action ordering for the qualification policy while retaining
-  localized labels in evidence;
-- a cheap fail-closed environment smoke before training;
-- pure unit tests for the current smoke lane;
-- project document map, memory/ADR workflow, and typed ports;
-- strict ResearchState, ResearchAction, ResearchTransition, policy/environment identity,
-  eligibility, and execution-envelope contracts;
-- deterministic Lite/Standard/Full ModelState and ModelAction serialization, semantic
-  hashes, model-input leakage rejection, strict schemas, and a golden transition fixture.
-- raw JSONL ingestion, canonical Parquet round-trip, checksummed data manifests,
-  deterministic seed-root splits, and an executable fail-closed B0 gate.
-- trainable PyTorch Scheme 1, S2-Simple, and S2-SDT forward paths with candidate-set
-  ranking, successor/anchor losses, learned world tokens, and EMA target resampling.
-- typed RankBatch/DynamicsBatch optimizer steps, identity-bound atomic checkpoint/resume,
-  and independent Top-1/MRR/listwise-NLL/pairwise/per-source ranking evaluation.
-- source-free Player Environment projector and one-step collector that separate semantic
-  candidates from exact BoundAction envelopes and fail closed on partial Reads/catalogs,
-  unknown delivery, receipt mismatch, missing successor, settling timeout, or runtime drift.
-- B1-B7 report mechanics: behavior ranking, Human Gold validation/agreement, controlled
-  projection interventions, successor/ASR retrieval, transfer stratification, fixed-seed
-  pairing, and cold/cached token/latency/VRAM/cache distributions.
+A bounded exact Managed collection reached natural game over with 10 Combat transitions,
+complete finite action catalogs, exact Receipts/successors, complete `run_deck` and
+`combat_piles` Reads, provenance pass, canonical Parquet and B0 pass. The pinned tokenizer
+profile contains 180 `turn_action` joint samples: Full max/P95 `3334/3334`, Lite and
+Standard `2501/2501`. Natural `card_selection` and `card_choice` were not exercised, so the
+aggregate token gate is not claimed passed.
 
-## Not yet implemented
+Headless `v1.0.1` current-artifact gates additionally passed exact audit, native binding,
+two terminal episodes (346 deliveries, 633 Reads), stale/reset/idempotency and
+unknown-no-retry process replacement. Connector RC and Headless releases are publicly
+downloadable; a cold Headless clone reproduced the exact Host SHA/MVID.
 
-- frozen Qwen backend and random frozen control;
-- production-source dataset collection/import and large-corpus near-deduplication;
-- real B1-B7 datasets, Human Gold labels, model outputs, and runtime measurements;
-- experiment registry, model artifact registry, and final report generator;
-- v0 core 30-run matrix or input-ablation runs;
-- offline/online RL beyond the current integration smoke.
+## Non-claims and remaining L2 work
 
-## Current non-claims
+- FakeQwen is not a random-initialized scientific control and proves no representation quality.
+- Full Qwen weights were not downloaded or loaded; frozen-Qwen latency/VRAM are unmeasured.
+- No Human Gold, B1-B7 scientific result, 30-run core matrix, v0 winner or policy claim exists.
+- The bounded transition sample is not a production corpus or broad semantic qualification.
+- Natural selector token families, large-corpus near-duplicate analysis and scientific data
+  admission remain future dataset work.
+- Formal H1.0 long soak, broad CrossHost/fault/cross-platform campaigns remain deferred.
 
-- The linear-Q model is not the planned STPD model.
-- Its shaped reward is not the final project objective or a calibrated win-probability Q.
-- The frozen structural contracts do not prove a real dataset or Headless collector.
-- A successful smoke does not prove broad semantic parity, policy quality, or H1 admission.
-- No Qwen representation, Scheme 1/Scheme 2 hypothesis, Human Gold result, or v0 benchmark
-  has been measured by this repository yet.
-- No raw data, Qwen weights, proprietary game files, or private runtime evidence are part of
-  the source tree.
-- Long soak, exhaustive semantics, broad changed-build/fault and cross-platform
-  qualification remain deferred non-claims rather than STPD v0 blockers.
-
-## Immediate priorities
-
-1. Exercise the collector and data/B0 pipeline on source-representative current Headless samples.
-2. Audit source-representative AgenticSTS samples through its fail-closed importer.
-3. Implement a pinned frozen-Qwen backend with pretrained and random controls.
-4. Extend independent evaluation into the remaining B1-B7 fixture/report tooling.
-5. Keep the current smoke lane green as an environment regression gate.
-
-See [Roadmap](ROADMAP.md) and [v0 Execution Plan](V0_EXECUTION_PLAN.md).
+The next material step is the pinned full-weight/GPU L2 implementation and experiment lane.
+See [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md), [Roadmap](ROADMAP.md), and
+[Qwen L1 Handoff](QWEN_L1_HANDOFF.md).

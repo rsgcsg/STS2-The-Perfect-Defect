@@ -39,7 +39,9 @@ Every transition records:
 - policy source/version and optional confidence;
 - rank/transition/return eligibility;
 - episode ID, seed, game version;
-- exact Host and Connector identities;
+- exact game and Host artifact identities plus the concrete Player Environment
+  implementation revision/digest; a Managed Host does not falsely claim a loaded
+  Connector DLL;
 - input profile and schema versions;
 - legal actions, chosen action, stable successor, terminal/outcome status.
 

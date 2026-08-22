@@ -2,6 +2,8 @@
 
 ## P0 — Project and contract foundation
 
+Status: **implemented and automated**.
+
 Definition of done:
 
 - canonical documents, memory, ADR, schemas, and repository boundaries exist;
@@ -12,6 +14,9 @@ Definition of done:
 - Headless/Connector/Qwen boundaries are testable.
 
 ## v0 Step 0 — Data and contract freeze
+
+Status: **implemented** for the v0 contract and current bounded collector. Large-corpus
+near-duplicate analysis and scientific data admission remain dataset-scale work.
 
 Deliver:
 
@@ -25,6 +30,10 @@ Deliver:
 No model result is interpretable until this step passes.
 
 ## v0 Step 1 — Token and compute profiling
+
+Status: **L1 partial**. The immutable Qwen config/tokenizer and all three serializers are
+implemented. Current natural `turn_action` samples pass the token gate; `card_selection`
+and `card_choice` are `not_exercised`. Real frozen-Qwen latency/VRAM requires L2 weights/GPU.
 
 Measure Lite/Standard/Full token distributions, legal-action counts, frozen-Qwen latency,
 VRAM, cold compute, cached compute, and storage costs.

@@ -29,6 +29,7 @@ answer.
 | [Roadmap](ROADMAP.md) | phase sequencing and definitions of done | priority/phase changes |
 | [Project System](PROJECT_SYSTEM.md) | docs, memory, experiment and decision workflow | project workflow changes |
 | [Code Style](CODE_STYLE.md) | code and formatting conventions | style/test rules change |
+| [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md) | doctor, artifacts, L2 rebuild handoff | operational identity changes |
 
 ## Working memory
 

@@ -16,7 +16,7 @@
 
 ## Qwen and compute
 
-- Which immutable Qwen/tokenizer revision will be pinned?
+- What L2 GPU/runtime envelope gives reproducible frozen-Qwen latency and VRAM?
 - What pooling definition is used for Scheme 1 and S2-Simple?
 - Is on-the-fly S2-SDT encoding sufficient, or is a sharded hidden-state cache required?
 - What hardware envelope defines the v0 compute budget?
