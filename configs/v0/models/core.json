@@ -1,6 +1,6 @@
 {
   "schema": "stpd/model-config-v0",
-  "plan_version": "stpd-v0-l2-2026-08-22",
+  "plan_version": "stpd-v0-l2-2026-08-22-r1",
   "input_profile": "stpd-combat-v0-standard",
   "training_seeds": [20260822, 20260823, 20260824],
   "architectures": {
@@ -74,6 +74,7 @@
   "non_claims": [
     "These are preregistered architecture identities, not measured winners.",
     "FakeQwen is excluded from every scientific configuration.",
-    "Random means the same Qwen architecture with a frozen, seed-bound initialization digest."
+    "Random means the same Qwen architecture with a frozen, seed-bound initialization digest.",
+    "Protocol r1 changes only the bounded pre-Core tiny-overfit retry budget; the 10 Core architecture identities and three training seeds are unchanged."
   ]
 }
