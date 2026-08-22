@@ -7,6 +7,7 @@ is closed and versioned.
 - `research-state-v0.schema.json`: one coherent fair-player semantic decision state;
 - `research-action-v0.schema.json`: one legal candidate's visible semantic meaning;
 - `research-transition-v0.schema.json`: one provenance-bound stable-successor transition;
+- `data-manifest-v0.schema.json`: checksummed source, split, deduplication, and file lineage;
 - `experiment-manifest-v0.schema.json`: one reproducible training or benchmark run;
 - `model-artifact-manifest-v0.schema.json`: one frozen model/checkpoint artifact.
 

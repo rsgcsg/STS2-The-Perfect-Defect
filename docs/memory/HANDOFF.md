@@ -24,12 +24,13 @@ Pre-initialization remote baseline:
   projection, serialization, Qwen, and scoring boundaries;
 - deterministic profile serializers, semantic hashing, leakage rejection, stable-successor
   and execution-authority separation tests;
+- canonical Parquet storage, checksummed data manifests, seed-root splits, and B0 checks;
 - structure tests that keep canonical docs and schemas discoverable.
 
 ## Next action
 
-Implement the raw-to-Parquet pipeline, manifests/splits/deduplication and executable B0 gate;
-then attach the Headless collector and AgenticSTS importer to those frozen contracts.
+Attach the Headless collector and AgenticSTS importer to the frozen contracts, then exercise
+source-representative local samples through the canonical Parquet/B0 path.
 
 ## Risks
 

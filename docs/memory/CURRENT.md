@@ -12,6 +12,8 @@ a regression/qualification lane.
 - v0 core uses frozen Qwen3-0.6B-Base and Standard input.
 - ResearchState/ResearchAction/ResearchTransition and deterministic Lite/Standard/Full
   ModelState/ModelAction structural contracts are frozen and tested.
+- Canonical Parquet, data manifests, seed-root split assignment, and executable B0 are
+  implemented and fixture-tested; no production dataset claim has been made.
 - No Scheme 1, S2-Simple, S2-SDT, Human Gold, or B0-B7 production pipeline exists yet.
 - The exact operational environment baseline is Headless `v1.0.0`, Managed
   Host `a884b104.../5b6adbd6...`, Connector `v1.1.0-rc.1/e065102...`
@@ -21,8 +23,8 @@ a regression/qualification lane.
 
 ## Immediate priorities
 
-1. Implement raw/canonical Parquet data, manifests, splits, deduplication, and B0.
-2. Implement the current Headless collector and AgenticSTS importer.
+1. Implement the current Headless collector and AgenticSTS importer.
+2. Run source-representative samples through canonical Parquet and B0.
 3. Implement the pinned frozen-Qwen backend.
 4. Implement the smallest pretrained/random Scheme 1 baseline.
 5. Keep current smoke tests and real environment qualification usable.

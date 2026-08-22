@@ -46,11 +46,13 @@ remain bound to the exact reports that produced them.
   eligibility, and execution-envelope contracts;
 - deterministic Lite/Standard/Full ModelState and ModelAction serialization, semantic
   hashes, model-input leakage rejection, strict schemas, and a golden transition fixture.
+- raw JSONL ingestion, canonical Parquet round-trip, checksummed data manifests,
+  deterministic seed-root splits, and an executable fail-closed B0 gate.
 
 ## Not yet implemented
 
 - frozen Qwen backend and random frozen control;
-- dataset ingestion, eligibility, split, deduplication, and manifest pipeline;
+- production-source dataset collection/import and large-corpus near-deduplication;
 - Scheme 1 Direct Joint Scoring;
 - S2-Simple and S2-SDT;
 - candidate-set ranking training stack;
@@ -74,8 +76,8 @@ remain bound to the exact reports that produced them.
 
 ## Immediate priorities
 
-1. Establish the raw-to-Parquet pipeline and executable B0 dataset gate.
-2. Build the Headless collector and AgenticSTS importer against the frozen contracts.
+1. Build the Headless collector and AgenticSTS importer against the frozen contracts.
+2. Exercise the data/B0 pipeline on source-representative local samples.
 3. Implement a pinned frozen-Qwen backend with pretrained and random controls.
 4. Build the smallest Scheme 1 baseline before adding Scheme 2.
 5. Keep the current smoke lane green as an environment regression gate.

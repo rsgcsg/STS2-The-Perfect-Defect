@@ -17,6 +17,11 @@ Only manifests, schemas, checksums, reviewed summaries, and small synthetic fixt
 in Git. Raw traces, saves, model caches, and external datasets stay local or in an approved
 artifact store.
 
+The implemented `stpd.data` pipeline reads explicit raw JSONL without correction/defaults,
+validates the frozen transition schemas and B0 invariants, assigns whole seed roots to a
+deterministic split, then writes canonical-JSON Arrow columns to compressed Parquet. Nested
+JSON is the contract; Arrow is storage, not a second semantic authority.
+
 ## Data zones
 
 - `data/raw/`: immutable source capture; ignored.
@@ -54,6 +59,12 @@ Split by episode/run/seed root, never by adjacent turn. Requirements:
 - duplicate and near-duplicate states are measured, not ignored.
 
 B0 failure invalidates the experiment.
+
+The current executable B0 checks schema validity, unique transition/action identity, chosen
+action membership, fair-player model-input leakage, complete listwise catalogs, stable
+successor semantics, inadmissible lifecycle reason codes, manifest row counts, and semantic
+duplicates crossing splits. Large-corpus approximate-neighbor analysis remains pending and
+must be added before large external data admission.
 
 ## Eligibility
 

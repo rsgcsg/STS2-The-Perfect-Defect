@@ -53,6 +53,7 @@ class ProjectStructureTest(unittest.TestCase):
             {path.name for path in schema_paths},
             {
                 "experiment-manifest-v0.schema.json",
+                "data-manifest-v0.schema.json",
                 "model-artifact-manifest-v0.schema.json",
                 "research-action-v0.schema.json",
                 "research-state-v0.schema.json",
