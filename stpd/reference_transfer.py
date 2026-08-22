@@ -11,6 +11,7 @@ import time
 from typing import Any, Mapping, Sequence
 
 from .game_seed import require_canonical_game_seed
+from .headless_client import activate_headless_client
 from .linear_q import LinearQ
 from .training_smoke import driver_command, run_episode, source_identity, summarize
 
@@ -132,6 +133,7 @@ def main() -> None:
     if not seeds or len(set(seeds)) != len(seeds):
         raise SystemExit("transfer seeds must be non-empty and unique")
 
+    activate_headless_client(headless)
     from sts2_headless import ManagedPlayerEnvironment
 
     started = time.perf_counter()

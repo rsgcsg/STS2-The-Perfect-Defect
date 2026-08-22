@@ -12,6 +12,7 @@ from typing import Any, Mapping
 from uuid import uuid4
 
 from .game_seed import derive_game_seed
+from .headless_client import activate_headless_client
 from .linear_q import LinearQ, combat_reward
 
 
@@ -453,6 +454,7 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     headless = Path(args.headless).resolve()
     candidate = Path(args.candidate).resolve()
+    activate_headless_client(headless)
     from sts2_headless import ManagedPlayerEnvironment
 
     model = LinearQ()

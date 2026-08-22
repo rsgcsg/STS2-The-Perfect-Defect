@@ -26,6 +26,7 @@ except ImportError:  # pragma: no cover - Windows has no resource module.
     resource = None
 
 from .game_seed import derive_game_seed
+from .headless_client import activate_headless_client
 from .linear_q import LinearQ, combat_reward
 from .training_smoke import choose_noncombat_action
 
@@ -555,11 +556,11 @@ def main() -> None:
     parser.add_argument("--epsilon", type=float, default=0.25)
     parser.add_argument("--output", default=".local/evidence/contention-smoke/report.json")
     args = parser.parse_args()
-    from sts2_headless import ManagedPlayerEnvironment, ThreadedVectorPlayerEnvironment
-
     root = Path(__file__).resolve().parents[1]
     headless = Path(args.headless).resolve()
     candidate = Path(args.candidate).resolve()
+    activate_headless_client(headless)
+    from sts2_headless import ManagedPlayerEnvironment, ThreadedVectorPlayerEnvironment
     seeds = tuple(args.training_seeds or ("STPDCONTEND01", "STPDCONTEND02", "STPDCONTEND03"))
     config = ContentionConfig(
         training_seeds=seeds,

@@ -10,6 +10,7 @@ import time
 from typing import Any, Mapping, Sequence
 
 from .game_seed import derive_game_seed
+from .headless_client import activate_headless_client
 from .linear_q import LinearQ
 from .training_smoke import (
     driver_command,
@@ -81,6 +82,7 @@ def main() -> None:
         output = root / output
     output.parent.mkdir(parents=True, exist_ok=True)
 
+    activate_headless_client(headless)
     from sts2_headless import ManagedPlayerEnvironment
 
     trials: list[dict[str, Any]] = []

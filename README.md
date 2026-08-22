@@ -77,7 +77,7 @@ PYTHONPATH=../STS2-headless/consumers/python \
   --max-actions 64 \
   --evidence-file .local/evidence/environment-smoke/report.json
 
-PYTHONPATH=../STS2-headless/consumers/python:. python3 -m stpd.training_smoke \
+python3 -m stpd.training_smoke \
   --headless ../STS2-headless \
   --candidate ../STS2-headless/.local/candidates/<exact-candidate>
 ```
