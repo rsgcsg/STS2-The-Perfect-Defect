@@ -28,6 +28,7 @@ Pre-initialization remote baseline:
 - trainable Scheme 1/S2-Simple/S2-SDT forward paths and N/Z objective composition;
 - typed optimizer steps, identity/checksum-bound checkpoint resume, and B1 ranking metrics;
 - source-free Player Environment projection and stable one-step transition collection;
+- B2-B7 Gold/intervention/retrieval/transfer/fixed-seed/compute report mechanics;
 - structure tests that keep canonical docs and schemas discoverable.
 
 ## Next action

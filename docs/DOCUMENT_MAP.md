@@ -24,6 +24,7 @@ answer.
 | [Interfaces](INTERFACES.md) | environment, data, model, artifact formats | a public contract changes |
 | [Data and Provenance](DATA_AND_PROVENANCE.md) | data zones, eligibility, splits, external data | data policy changes |
 | [Qwen Integration](QWEN_INTEGRATION.md) | frozen-backbone adapter and cache contract | Qwen use changes |
+| [B0-B7 Benchmarks](BENCHMARKS.md) | executable gates, reports, and evidence boundaries | benchmark mechanics change |
 | [v0 Execution Plan](V0_EXECUTION_PLAN.md) | v0 experiments, benchmarks, gates, deliverables | v0 scope changes |
 | [Roadmap](ROADMAP.md) | phase sequencing and definitions of done | priority/phase changes |
 | [Project System](PROJECT_SYSTEM.md) | docs, memory, experiment and decision workflow | project workflow changes |

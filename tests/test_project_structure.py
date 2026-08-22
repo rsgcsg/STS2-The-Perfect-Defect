@@ -22,6 +22,7 @@ class ProjectStructureTest(unittest.TestCase):
             "docs/INTERFACES.md",
             "docs/DATA_AND_PROVENANCE.md",
             "docs/QWEN_INTEGRATION.md",
+            "docs/BENCHMARKS.md",
             "docs/V0_EXECUTION_PLAN.md",
             "docs/memory/README.md",
             "docs/memory/CURRENT.md",
@@ -43,6 +44,7 @@ class ProjectStructureTest(unittest.TestCase):
             "INTERFACES.md",
             "DATA_AND_PROVENANCE.md",
             "QWEN_INTEGRATION.md",
+            "BENCHMARKS.md",
             "V0_EXECUTION_PLAN.md",
         ):
             self.assertIn(filename, document_map)

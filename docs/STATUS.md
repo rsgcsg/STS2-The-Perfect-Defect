@@ -55,12 +55,15 @@ remain bound to the exact reports that produced them.
 - source-free Player Environment projector and one-step collector that separate semantic
   candidates from exact BoundAction envelopes and fail closed on partial Reads/catalogs,
   unknown delivery, receipt mismatch, missing successor, settling timeout, or runtime drift.
+- B1-B7 report mechanics: behavior ranking, Human Gold validation/agreement, controlled
+  projection interventions, successor/ASR retrieval, transfer stratification, fixed-seed
+  pairing, and cold/cached token/latency/VRAM/cache distributions.
 
 ## Not yet implemented
 
 - frozen Qwen backend and random frozen control;
 - production-source dataset collection/import and large-corpus near-deduplication;
-- B0-B7 benchmark implementation and Human Gold workflow;
+- real B1-B7 datasets, Human Gold labels, model outputs, and runtime measurements;
 - experiment registry, model artifact registry, and final report generator;
 - v0 core 30-run matrix or input-ablation runs;
 - offline/online RL beyond the current integration smoke.

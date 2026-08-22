@@ -20,6 +20,8 @@ a regression/qualification lane.
   metrics are implemented and synthetic-tested.
 - Player Environment projection/collection is implemented and synthetic-tested, including
   Read completeness, exact receipt, stable successor, unknown-no-retry, and runtime drift.
+- B0-B7 evaluation/report mechanics are implemented with synthetic counterexamples; there
+  are no B1-B7 scientific result claims yet.
 - No Scheme 1, S2-Simple, S2-SDT, Human Gold, or B0-B7 production pipeline exists yet.
 - The exact operational environment baseline is Headless `v1.0.0`, Managed
   Host `a884b104.../5b6adbd6...`, Connector `v1.1.0-rc.1/e065102...`
