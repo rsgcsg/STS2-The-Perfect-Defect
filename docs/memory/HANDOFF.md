@@ -2,9 +2,10 @@
 
 ## Checkpoint
 
-The repository has exhausted the Mac-side metadata/tokenizer-only pre-Qwen implementation:
-contracts, data, collector/importer, three model families, training/checkpoint/evaluation,
-B0-B7 mechanics, doctor, artifact integrity and portable L2 handoff are implemented.
+The repository has completed the Windows L2 engineering implementation: exact full-weight
+Qwen pin/acquisition/inspection, frozen pretrained and same-architecture random backends,
+cache, real-Qwen smokes, contracts, data, collector/importer, three model families,
+training/checkpoint/evaluation, and B0-B7 mechanics are implemented.
 
 The Headless/Connector lane is frozen as an exact STPD operational dependency.
 Run the cheap environment smoke before training; do not repeat the full
@@ -13,8 +14,8 @@ occurs.
 
 ## Source baseline
 
-Pre-initialization remote baseline:
-`1b4039fe3933b408e31dd92e9fbe1454bdd7672e`.
+Windows L2 parent baseline before this implementation:
+`2b918c3f5d3108b4b49cfc030588eb5cc0724bbe`.
 
 ## Added system
 
@@ -31,16 +32,20 @@ Pre-initialization remote baseline:
 - source-free Player Environment projection and stable one-step transition collection;
 - B2-B7 Gold/intervention/retrieval/transfer/fixed-seed/compute report mechanics;
 - structure tests that keep canonical docs and schemas discoverable.
+- exact 10-config/three-seed scientific protocol, controls and Gates 0-5;
+- transparent complete-catalog ranking-fixture collection and clean-source preparation;
+- owner-gated 64-step L2 tiny-overfit tooling that cannot run without the exact acknowledgement.
 
 ## Next action
 
-Move the generated secret-free handoff to an L2 machine, acquire the pinned full Qwen
-weights outside Git, and implement/measure the real frozen backend plus random control.
+Commit the exact L2 source, collect the bounded Managed ranking fixture, prepare the exact
+owner manifest, and stop at `STOP - OWNER TRAINING REQUIRED: L2-TINY-OVERFIT`.
 
 ## Risks
 
 - Current smoke evidence must not be confused with v0 model evidence.
 - Draft interfaces may need revision when confronted with real duplicate-action and Read
   examples.
-- FakeQwen does not prove real Qwen representations, learning, or pretrained advantage.
+- FakeQwen does not prove real Qwen representations. The admitted real-Qwen engineering
+  smokes still do not prove learning or pretrained advantage.
 - `card_selection` and `card_choice` token groups remain naturally unexercised.

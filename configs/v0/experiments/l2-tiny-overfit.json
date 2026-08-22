@@ -1,0 +1,47 @@
+{
+  "schema": "stpd/l2-tiny-overfit-config-v0",
+  "protocol_version": "stpd-v0-l2-2026-08-22",
+  "architecture_id": "scheme1-linear-pretrained",
+  "input_profile": "stpd-combat-v0-standard",
+  "qwen_control": "pretrained",
+  "seed": 20260822,
+  "example_selection": {
+    "split": "train",
+    "rank_eligible_only": true,
+    "legal_action_completeness": "complete",
+    "order": "transition_semantic_hash_ascending",
+    "maximum_examples": 4,
+    "minimum_examples": 2,
+    "minimum_candidates_per_example": 2
+  },
+  "optimizer": {
+    "name": "adamw",
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "grad_clip_norm": 1.0
+  },
+  "budget": {
+    "optimizer_steps": 64,
+    "evaluation_interval_steps": 1,
+    "checkpoint_steps": [0, 64]
+  },
+  "pass_criteria": {
+    "memorized_top1_fraction": 1.0,
+    "maximum_final_mean_listwise_nll": 0.1,
+    "minimum_relative_mean_loss_reduction": 0.9,
+    "qwen_gradient_tensor_count": 0,
+    "all_values_finite": true
+  },
+  "boundaries": {
+    "gold_dev_allowed": false,
+    "gold_test_allowed": false,
+    "b6_allowed": false,
+    "scientific_claim_allowed": false,
+    "owner_execution_required": true
+  },
+  "non_claims": [
+    "This is a memorization and optimizer-plumbing test, not a quality result.",
+    "Behavior choices are supervision, not optimal-Q labels.",
+    "Passing does not satisfy Gate 1 or any later scientific gate."
+  ]
+}

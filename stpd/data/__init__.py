@@ -4,6 +4,7 @@ from .b0 import B0Finding, B0Report, validate_b0
 from .manifest import DataFile, DataManifest, DataSource
 from .parquet import read_transition_parquet, write_transition_parquet
 from .pipeline import DatasetBuildError, build_canonical_dataset, read_raw_jsonl
+from .records import research_action_from_record, research_state_from_record
 from .splits import SplitAssignment, assign_episode_splits
 
 __all__ = [
@@ -18,6 +19,8 @@ __all__ = [
     "build_canonical_dataset",
     "read_raw_jsonl",
     "read_transition_parquet",
+    "research_action_from_record",
+    "research_state_from_record",
     "validate_b0",
     "write_transition_parquet",
 ]

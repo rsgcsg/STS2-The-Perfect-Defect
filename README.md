@@ -22,8 +22,8 @@ shipped STS2 / qualified Headless Host
 
 ## What exists today
 
-The current package contains the complete pre-Qwen v0 engineering lane plus the retained
-H1 integration regression tools:
+The current package contains the v0 engineering lane, an admitted real frozen-Qwen L2
+backend, and the retained H1 integration regression tools:
 
 - `linear_q.py`: a deliberately small linear-Q baseline;
 - `training_smoke.py`: real single-environment learning smoke;
@@ -42,8 +42,10 @@ The v0 pre-Qwen system is implemented: strict `ResearchState`,
 Lite/Standard/Full deterministic serializers, semantic hashes, schemas, leakage/B0,
 canonical Parquet/manifests/splits, a fail-closed AgenticSTS importer, a real Managed
 collector, Scheme 1/S2-Simple/S2-SDT, optimizer/checkpoint/evaluation mechanics, B1-B7
-report tooling, and a pinned metadata/tokenizer-only Qwen L1 gate. FakeQwen drives the
-whole engineering path but is not scientific Qwen evidence.
+report tooling, a pinned metadata/tokenizer Qwen L1 gate, and an exact full-weight
+CUDA/BF16 Qwen L2 adapter with a same-architecture frozen random control. FakeQwen remains
+the cheap CI backend. Real-Qwen forward/profile/backward smokes are engineering evidence;
+no owner training, Gold test, B6 run, or scientific model result has occurred.
 
 ## What v0 will build
 
@@ -96,10 +98,11 @@ python3 -m stpd.training_smoke \
 
 Raw evidence is local and must not be committed.
 
-The current environment patch baseline is Headless `v1.0.1`, Managed Host
-`8dc622b0.../7228541c...`, Connector `v1.1.0-rc.1`
+The original operational environment patch baseline remains Headless `v1.0.1`, Managed
+Host `8dc622b0.../7228541c...`, Connector `v1.1.0-rc.1`
 `e065102.../c1877f1a.../64765ea1...`, and Player Environment protocol/SDK
-`1.0.0/1.0.0`. A changed identity is a requalification event.
+`1.0.0/1.0.0`. Windows x64 has separate candidate identities and evidence; it does not
+inherit the macOS operational freeze. A changed identity is a requalification event.
 
 ## Repository navigation
 
@@ -109,9 +112,10 @@ The current environment patch baseline is Headless `v1.0.1`, Managed Host
 - [Interfaces](docs/INTERFACES.md)
 - [Data and provenance](docs/DATA_AND_PROVENANCE.md)
 - [Qwen integration](docs/QWEN_INTEGRATION.md)
+- [Qwen L2 operations and owner handoff](docs/QWEN_L2_OPERATIONS.md)
 - [Project system](docs/PROJECT_SYSTEM.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Pre-Qwen operations and L2 handoff](docs/PRE_QWEN_OPERATIONS.md)
+- [Pre-Qwen operations and historical L1 handoff](docs/PRE_QWEN_OPERATIONS.md)
 - [Agent and contributor rules](AGENTS.md)
 
 The project is evidence-first: a test, implementation, benchmark, and runtime claim are

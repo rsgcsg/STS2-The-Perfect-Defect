@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema": "stpd/qwen-l2-config-v0",
+  "model_id": "Qwen/Qwen3-0.6B-Base",
+  "repo_revision": "da87bfb608c14b7cf20ba1ce41287e8de496c0cd",
+  "l1_pin": "qwen3-0.6b-base-l1.json",
+  "weight_files": [
+    {
+      "name": "model.safetensors",
+      "size_bytes": 1192135096,
+      "sha256": "cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba"
+    }
+  ],
+  "backend": {
+    "architecture": "Qwen3ForCausalLM",
+    "hidden_state_layer": -1,
+    "pooling": "masked-mean-v0",
+    "joint_format": "state-newline-action-v0",
+    "add_special_tokens": false,
+    "silent_truncation": false,
+    "use_cache": false,
+    "attention_implementation": "eager",
+    "dtype": "bfloat16"
+  },
+  "controls": {
+    "pretrained": "pinned-full-weights",
+    "random": "same-config-seeded-random-frozen"
+  }
+}

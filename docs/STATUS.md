@@ -2,9 +2,10 @@
 
 ## Verdict
 
-**STPD is pre-alpha and pre-Qwen definition-of-ready is implemented.** The repository is
-ready for an L2 full-weight handoff; it contains no real Qwen representation, scientific
-model result, or final STPD v0 claim.
+**STPD is pre-alpha; full-weight Qwen L2 engineering admission and the scientific
+protocol are implemented.** The repository contains a real frozen pretrained backend and
+same-architecture random control, but no owner training, scientific model result, Gold
+test, B6 result, or final STPD v0 claim.
 
 ## Exact environment lane
 
@@ -19,6 +20,11 @@ model result, or final STPD v0 claim.
 This is an operational STPD baseline, not formal H1.0 qualification. Headless `v1.0.0`
 used a different Managed artifact; its runtime evidence is predecessor-only.
 
+Windows x64 has separate candidate evidence for game `v0.111.0/41cef1ea`: Headless
+Managed Host `0d8c9163.../387bc1a3...` and Connector current-source Host
+`2050ae23.../64066c98...`. These candidates do not inherit the macOS operational freeze or
+formal H1.0 authority.
+
 ## Implemented and tested
 
 - Python 3.11-only `uv` lock, CI, package build, canonical docs and strict schemas;
@@ -32,8 +38,14 @@ used a different Managed artifact; its runtime evidence is predecessor-only.
 - RankBatch/DynamicsBatch optimizer steps, atomic identity-bound checkpoint/resume and
   independent ranking evaluation;
 - B1-B7 report/gate mechanics with synthetic positive and negative evidence;
-- immutable Qwen3-0.6B-Base metadata/tokenizer L1 pin and weight-rejecting cache inspection;
-- DeterministicFakeQwenBackend engineering path across all three model families;
+- immutable Qwen3-0.6B-Base metadata/tokenizer L1 pin and full-weight L2 file pin;
+- offline exact-snapshot inspection, explicit fetch/discovery, frozen CUDA/BF16 pretrained
+  backend, same-architecture seeded random control, and checksum-keyed CPU feature cache;
+- deterministic real-Qwen representation, VRAM/latency, and all-three-family backward-only
+  smokes with no Qwen gradients;
+- DeterministicFakeQwenBackend cheap engineering path across all three model families;
+- frozen 10-configuration/three-seed scientific protocol, controls, Gates 0-5, Gold/B6
+  boundary, and bounded owner-gated L2 tiny-overfit preparation/run tooling;
 - checksum-bound artifact manifest, pre-Qwen doctor and path-free L2 handoff manifest.
 
 ## Runtime evidence
@@ -50,16 +62,25 @@ two terminal episodes (346 deliveries, 633 Reads), stale/reset/idempotency and
 unknown-no-retry process replacement. Connector RC and Headless releases are publicly
 downloadable; a cold Headless clone reproduced the exact Host SHA/MVID.
 
+On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
+CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes
+peak allocated VRAM on the RTX 4070 Laptop GPU. Two independent full random constructions
+at seed `20260822` matched fingerprint `2db01fbe...`. These are engineering smokes only.
+
 ## Non-claims and remaining L2 work
 
-- FakeQwen is not a random-initialized scientific control and proves no representation quality.
-- Full Qwen weights were not downloaded or loaded; frozen-Qwen latency/VRAM are unmeasured.
+- FakeQwen remains non-scientific; the real random-Qwen control has no quality claim before
+  paired admitted-data evaluation.
+- Synthetic real-Qwen smokes prove implementation, determinism, resource measurement, and
+  frozen-gradient boundaries only; they prove no pretrained advantage.
 - No Human Gold, B1-B7 scientific result, 30-run core matrix, v0 winner or policy claim exists.
 - The bounded transition sample is not a production corpus or broad semantic qualification.
 - Natural selector token families, large-corpus near-duplicate analysis and scientific data
   admission remain future dataset work.
 - Formal H1.0 long soak, broad CrossHost/fault/cross-platform campaigns remain deferred.
 
-The next material step is the pinned full-weight/GPU L2 implementation and experiment lane.
-See [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md), [Roadmap](ROADMAP.md), and
-[Qwen L1 Handoff](QWEN_L1_HANDOFF.md).
+The next material step is a clean-source bounded Managed ranking fixture and exact
+preparation manifest. Execution must then stop for explicit owner authorization before the
+first 64-step real-data tiny overfit. See [Qwen L2 Operations](QWEN_L2_OPERATIONS.md),
+[Scientific Experiment Protocol](SCIENTIFIC_EXPERIMENT_PROTOCOL.md), and
+[Roadmap](ROADMAP.md).

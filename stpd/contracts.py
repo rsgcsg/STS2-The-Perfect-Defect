@@ -119,6 +119,17 @@ class QwenIdentity:
     dtype: str
     device: str
     frozen: bool
+    control: str = "unspecified"
+    config_sha256: str = "unspecified"
+    tokenizer_sha256: str = "unspecified"
+    weights_sha256: str | None = None
+    random_seed: int | None = None
+    initialization_sha256: str | None = None
+    attention_implementation: str = "unspecified"
+    feature_dtype: str = "unspecified"
+    cache_mode: str = "none"
+    torch_version: str = "unspecified"
+    transformers_version: str = "unspecified"
 
     def validate(self) -> None:
         for name, value in (
@@ -127,6 +138,14 @@ class QwenIdentity:
             ("tokenizer_revision", self.tokenizer_revision),
             ("dtype", self.dtype),
             ("device", self.device),
+            ("control", self.control),
+            ("config_sha256", self.config_sha256),
+            ("tokenizer_sha256", self.tokenizer_sha256),
+            ("attention_implementation", self.attention_implementation),
+            ("feature_dtype", self.feature_dtype),
+            ("cache_mode", self.cache_mode),
+            ("torch_version", self.torch_version),
+            ("transformers_version", self.transformers_version),
         ):
             _require_text(name, value)
 
@@ -134,6 +153,37 @@ class QwenIdentity:
         self.validate()
         if not self.frozen:
             raise ContractError("the v0 core Qwen backbone must be frozen")
+
+    def validate_scientific_v0(self) -> None:
+        """Fail closed on the stronger identity needed by pretrained/random experiments."""
+
+        self.validate_v0()
+        if self.model_id != "Qwen/Qwen3-0.6B-Base":
+            raise ContractError("scientific v0 requires Qwen/Qwen3-0.6B-Base")
+        if not re.fullmatch(r"[0-9a-f]{40}", self.model_revision):
+            raise ContractError("scientific Qwen model_revision must be an immutable Git SHA")
+        if self.tokenizer_revision != self.model_revision:
+            raise ContractError("model and tokenizer revisions must be identical")
+        if self.dtype != "bfloat16" or not self.device.startswith("cuda:"):
+            raise ContractError("scientific v0 requires a CUDA bfloat16 backbone")
+        _require_sha256("config_sha256", self.config_sha256)
+        _require_sha256("tokenizer_sha256", self.tokenizer_sha256)
+        if self.control == "pretrained":
+            if self.weights_sha256 is None:
+                raise ContractError("pretrained Qwen requires a pinned weight digest")
+            _require_sha256("weights_sha256", self.weights_sha256)
+            if self.random_seed is not None:
+                raise ContractError("pretrained Qwen cannot carry a random initialization seed")
+            if self.initialization_sha256 is not None:
+                raise ContractError("pretrained Qwen cannot carry a random initialization digest")
+        elif self.control == "random":
+            if self.weights_sha256 is not None or self.random_seed is None:
+                raise ContractError("random Qwen requires a seed and no pretrained weight identity")
+            if self.initialization_sha256 is None:
+                raise ContractError("random Qwen requires an exact initialization digest")
+            _require_sha256("initialization_sha256", self.initialization_sha256)
+        else:
+            raise ContractError("scientific Qwen control must be pretrained or random")
 
 
 @runtime_checkable

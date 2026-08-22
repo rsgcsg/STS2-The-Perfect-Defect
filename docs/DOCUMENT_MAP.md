@@ -24,12 +24,14 @@ answer.
 | [Interfaces](INTERFACES.md) | environment, data, model, artifact formats | a public contract changes |
 | [Data and Provenance](DATA_AND_PROVENANCE.md) | data zones, eligibility, splits, external data | data policy changes |
 | [Qwen Integration](QWEN_INTEGRATION.md) | frozen-backbone adapter and cache contract | Qwen use changes |
+| [Qwen L2 Operations](QWEN_L2_OPERATIONS.md) | exact full-weight admission, engineering smokes, data preparation and owner stop | L2 operational identity changes |
 | [B0-B7 Benchmarks](BENCHMARKS.md) | executable gates, reports, and evidence boundaries | benchmark mechanics change |
+| [Scientific Experiment Protocol](SCIENTIFIC_EXPERIMENT_PROTOCOL.md) | frozen 10-config matrix, controls, Gates 0-5, Gold and owner-training boundaries | scientific protocol changes |
 | [v0 Execution Plan](V0_EXECUTION_PLAN.md) | v0 experiments, benchmarks, gates, deliverables | v0 scope changes |
 | [Roadmap](ROADMAP.md) | phase sequencing and definitions of done | priority/phase changes |
 | [Project System](PROJECT_SYSTEM.md) | docs, memory, experiment and decision workflow | project workflow changes |
 | [Code Style](CODE_STYLE.md) | code and formatting conventions | style/test rules change |
-| [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md) | doctor, artifacts, L2 rebuild handoff | operational identity changes |
+| [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md) | doctor, artifacts, historical L1 handoff | L1 operational identity changes |
 
 ## Working memory
 

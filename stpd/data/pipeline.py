@@ -72,6 +72,9 @@ def build_canonical_dataset(
         semantic_hash_=dataset_hash,
     )
     split_counts = Counter(assignment.split for assignment in assignments.values())
+    split_assignments = {
+        episode: assignment.split for episode, assignment in sorted(assignments.items())
+    }
     manifest = DataManifest(
         manifest_id=f"dataset-{dataset_hash[:16]}",
         created_at=created_at,
@@ -84,9 +87,8 @@ def build_canonical_dataset(
             "strategy": "seed_root_sha256_v0",
             "salt_hash": semantic_hash(split_salt),
             "episode_counts": dict(sorted(split_counts.items())),
-            "assignments_hash": semantic_hash(
-                {episode: assignment.split for episode, assignment in sorted(assignments.items())}
-            ),
+            "assignments": split_assignments,
+            "assignments_hash": semantic_hash(split_assignments),
         },
         deduplication={
             "exact_record_duplicates": 0,

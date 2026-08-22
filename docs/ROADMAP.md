@@ -31,14 +31,22 @@ No model result is interpretable until this step passes.
 
 ## v0 Step 1 — Token and compute profiling
 
-Status: **L1 partial**. The immutable Qwen config/tokenizer and all three serializers are
-implemented. Current natural `turn_action` samples pass the token gate; `card_selection`
-and `card_choice` are `not_exercised`. Real frozen-Qwen latency/VRAM requires L2 weights/GPU.
+Status: **L2 engineering admission complete; admitted-corpus profiling partial**. The
+immutable config/tokenizer/full-weight snapshot and all three serializers are implemented.
+Pretrained and seeded same-architecture random frozen backends pass deterministic
+CUDA/BF16 representation and all-family backward-only smokes. A synthetic 1,024-token
+pretrained measurement took 0.145 seconds with about 1.30 GB process peak allocated VRAM
+on the recorded RTX 4070 Laptop GPU. Current natural `turn_action` samples pass the token
+gate; `card_selection` and `card_choice` remain `not_exercised`.
 
 Measure Lite/Standard/Full token distributions, legal-action counts, frozen-Qwen latency,
 VRAM, cold compute, cached compute, and storage costs.
 
 ## v0 Steps 2-4 — Core architecture selection
+
+Status: **protocol frozen; owner training not started**. The exact 10 configurations and
+three seeds are machine-readable. A separate bounded real-data tiny-overfit preparation
+gate must pass before the first owner-authorized optimizer run.
 
 Run Standard input for:
 

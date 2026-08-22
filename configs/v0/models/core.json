@@ -1,12 +1,79 @@
 {
   "schema": "stpd/model-config-v0",
+  "plan_version": "stpd-v0-l2-2026-08-22",
+  "input_profile": "stpd-combat-v0-standard",
+  "training_seeds": [20260822, 20260823, 20260824],
   "architectures": {
-    "scheme1-linear": {"family": "scheme1", "head": "linear"},
-    "scheme1-mlp": {"family": "scheme1", "head": "mlp"},
-    "s2-simple-n": {"family": "s2-simple", "variant": "N"},
-    "s2-simple-z": {"family": "s2-simple", "variant": "Z", "lambda_z": 1.0},
-    "s2-sdt-n": {"family": "s2-sdt", "variant": "N", "lambda_anchor": 1.0},
-    "s2-sdt-z": {"family": "s2-sdt", "variant": "Z", "lambda_anchor": 1.0, "lambda_z": 1.0}
+    "scheme1-linear-pretrained": {
+      "family": "scheme1",
+      "head": "linear",
+      "qwen_control": "pretrained",
+      "successor_supervision": false
+    },
+    "scheme1-linear-random": {
+      "family": "scheme1",
+      "head": "linear",
+      "qwen_control": "random",
+      "successor_supervision": false
+    },
+    "scheme1-mlp-pretrained": {
+      "family": "scheme1",
+      "head": "mlp",
+      "qwen_control": "pretrained",
+      "successor_supervision": false
+    },
+    "scheme1-mlp-random": {
+      "family": "scheme1",
+      "head": "mlp",
+      "qwen_control": "random",
+      "successor_supervision": false
+    },
+    "s2-simple-n-pretrained": {
+      "family": "s2-simple",
+      "variant": "N",
+      "qwen_control": "pretrained",
+      "successor_supervision": false
+    },
+    "s2-simple-n-random": {
+      "family": "s2-simple",
+      "variant": "N",
+      "qwen_control": "random",
+      "successor_supervision": false
+    },
+    "s2-simple-z-pretrained": {
+      "family": "s2-simple",
+      "variant": "Z",
+      "qwen_control": "pretrained",
+      "successor_supervision": true,
+      "lambda_z": 1.0
+    },
+    "s2-simple-z-random": {
+      "family": "s2-simple",
+      "variant": "Z",
+      "qwen_control": "random",
+      "successor_supervision": true,
+      "lambda_z": 1.0
+    },
+    "s2-sdt-n-pretrained": {
+      "family": "s2-sdt",
+      "variant": "N",
+      "qwen_control": "pretrained",
+      "successor_supervision": false,
+      "lambda_anchor": 1.0
+    },
+    "s2-sdt-z-pretrained": {
+      "family": "s2-sdt",
+      "variant": "Z",
+      "qwen_control": "pretrained",
+      "successor_supervision": true,
+      "lambda_anchor": 1.0,
+      "lambda_z": 1.0
+    }
   },
-  "non_claim": "These are architecture identities, not measured winners."
+  "expected_core_run_count": 30,
+  "non_claims": [
+    "These are preregistered architecture identities, not measured winners.",
+    "FakeQwen is excluded from every scientific configuration.",
+    "Random means the same Qwen architecture with a frozen, seed-bound initialization digest."
+  ]
 }

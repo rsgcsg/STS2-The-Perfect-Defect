@@ -6,7 +6,7 @@ import time
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from ..canonical import canonical_json, semantic_hash, to_json_value
 from ..contracts import ContractError, EnvironmentIdentity, PlayerEnvironmentPort
@@ -173,18 +173,27 @@ def collect_managed_runtime(
     episode_id: str,
     max_environment_actions: int,
     max_transitions: int,
+    ranking_supervision: Literal["none", "canonical-semantic-first"] = "none",
 ) -> RuntimeCollection:
     if max_environment_actions <= 0 or max_transitions <= 0:
         raise ValueError("collection bounds must be positive")
+    if ranking_supervision not in ("none", "canonical-semantic-first"):
+        raise ValueError("unsupported runtime ranking supervision mode")
     snapshot = _stable_observation(environment, environment.reset(seed))
     identity = environment_identity_from_managed_ready(environment.ready, snapshot)
+    rank_eligible = ranking_supervision == "canonical-semantic-first"
     policy = PolicyProvenance(
-        source="deterministic_environment_probe",
-        version="stpd-runtime-collector-v0",
+        source=(
+            "deterministic_behavior_fixture"
+            if rank_eligible
+            else "deterministic_environment_probe"
+        ),
+        version="stpd-runtime-collector-v1",
         config_hash=semantic_hash(
             {
                 "selection": "canonical_semantic_first",
-                "rank_eligible": False,
+                "ranking_supervision": ranking_supervision,
+                "rank_eligible": rank_eligible,
                 "max_environment_actions": max_environment_actions,
                 "max_transitions": max_transitions,
             }
@@ -219,7 +228,7 @@ def collect_managed_runtime(
                 step_index=environment_actions,
                 seed=seed,
                 raw_ref=f"raw/runtime.jsonl#{len(transitions)}",
-                rank_eligible=False,
+                rank_eligible=rank_eligible,
             )
             transitions.append(result.transition)
             raw_records.append(_raw_record(result))

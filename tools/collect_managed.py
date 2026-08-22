@@ -25,12 +25,8 @@ from stpd.training_smoke import driver_command  # noqa: E402
 
 
 def _source_identity() -> dict[str, str]:
-    revision = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
-    ).strip()
-    status = subprocess.check_output(
-        ["git", "status", "--porcelain"], cwd=ROOT, text=True
-    ).strip()
+    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    status = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip()
     if status:
         raise RuntimeError("current-runtime evidence requires a clean STPD source checkout")
     return {"revision": revision, "worktree": "clean"}
@@ -50,6 +46,15 @@ def main() -> int:
     parser.add_argument("--max-transitions", type=int, default=16)
     parser.add_argument("--split-salt", default="stpd-current-runtime-v0")
     parser.add_argument("--tokenizer-cache", type=Path)
+    parser.add_argument(
+        "--ranking-supervision",
+        choices=("none", "canonical-semantic-first"),
+        default="none",
+        help=(
+            "Optionally mark the executed canonical-semantic-first behavior as full-listwise "
+            "ranking supervision. This is a transparent plumbing fixture, not a teacher oracle."
+        ),
+    )
     args = parser.parse_args()
 
     source = _source_identity()
@@ -68,13 +73,13 @@ def main() -> int:
             episode_id=f"runtime-{args.seed.lower()}",
             max_environment_actions=args.max_environment_actions,
             max_transitions=args.max_transitions,
+            ranking_supervision=args.ranking_supervision,
         )
         episode_identity = environment.episode_identity()
     provenance = episode_identity.get("episode_provenance", {})
-    if (
-        provenance.get("verdict") != "provenance_pass"
-        or provenance.get("requested_seed") != provenance.get("actual_seed")
-    ):
+    if provenance.get("verdict") != "provenance_pass" or provenance.get(
+        "requested_seed"
+    ) != provenance.get("actual_seed"):
         raise RuntimeError("managed runtime did not prove the requested episode seed")
 
     output.mkdir(parents=True)
@@ -112,9 +117,7 @@ def main() -> int:
             encoding="utf-8",
         )
         overlength = [
-            violation
-            for violation in token_report["violations"]
-            if "exceeds" in violation
+            violation for violation in token_report["violations"] if "exceeds" in violation
         ]
         if overlength:
             raise RuntimeError("current runtime token profile exceeded a frozen length gate")
@@ -130,13 +133,19 @@ def main() -> int:
         "environment_actions": collection.environment_actions,
         "transitions": len(collection.transitions),
         "termination_reason": collection.termination_reason,
+        "ranking_supervision": args.ranking_supervision,
         "family_counts": collection.family_counts,
         "legal_action_count_histogram": dict(sorted(action_counts.items())),
         "b0": b0.to_dict(),
         "dataset_manifest": manifest.to_dict(),
         "token_profile": token_report,
         "non_claims": [
-            "The deterministic probe policy is transition-eligible but not ranking supervision.",
+            (
+                "The deterministic probe policy is transition-eligible but not ranking supervision."
+                if args.ranking_supervision == "none"
+                else "Canonical-semantic-first labels are transparent behavior-fixture "
+                "supervision for optimizer plumbing, not optimal-Q or policy-quality evidence."
+            ),
             "A bounded Managed Exact sample is not Reference transfer or formal H1.0 evidence.",
             "Missing natural selector families remain unmeasured rather than fixture-filled.",
         ],

@@ -17,6 +17,8 @@ from stpd.data import (
     assign_episode_splits,
     build_canonical_dataset,
     read_transition_parquet,
+    research_action_from_record,
+    research_state_from_record,
     validate_b0,
     write_transition_parquet,
 )
@@ -122,6 +124,10 @@ def test_pipeline_writes_checksums_manifest_and_fails_before_bad_output(tmp_path
     assert report.verdict == "pass" and manifest.row_count == 1
     assert (output / "transitions.parquet").is_file()
     assert json.loads((output / "manifest.json").read_text())["manifest_id"] == manifest.manifest_id
+    serialized_manifest = json.loads((output / "manifest.json").read_text())
+    assert serialized_manifest["split"]["assignments"] == {
+        "episode-fixture": next(iter(serialized_manifest["split"]["assignments"].values()))
+    }
 
     bad = _record()
     bad["successor"] = None
@@ -137,3 +143,16 @@ def test_pipeline_writes_checksums_manifest_and_fails_before_bad_output(tmp_path
             split_salt="stpd-v0",
         )
     assert not rejected_output.exists()
+
+
+def test_strict_record_reconstruction_preserves_state_and_actions() -> None:
+    record = _record()
+    state = research_state_from_record(record["state"])
+    actions = [research_action_from_record(value) for value in record["legal_actions"]]
+    assert state.to_dict() == record["state"]
+    assert [action.to_dict() for action in actions] == record["legal_actions"]
+
+    broken = copy.deepcopy(record["state"])
+    broken["state_hash"] = "0" * 64
+    with pytest.raises(ContractError, match="hash"):
+        research_state_from_record(broken)

@@ -15,8 +15,8 @@ pretraining-value gate is supported.
 
 ## Adapter boundary
 
-Only the future `stpd.qwen` adapter may depend on Hugging Face/PyTorch implementation
-objects. Models consume the `QwenBackend` protocol from `stpd.contracts`.
+Only the `stpd.qwen` adapter may depend on Hugging Face/PyTorch implementation objects.
+Models consume the `QwenBackend` protocol from `stpd.contracts`.
 
 Required backend operations:
 
@@ -25,6 +25,13 @@ Required backend operations:
 - frozen token embedding lookup and mask for SDT actions;
 - exact model/tokenizer identity;
 - deterministic device/dtype/cache configuration.
+
+`RealQwenBackend` implements this port from an offline snapshot that must match every
+checked-in file hash. It requires explicit CUDA/BF16 admission, uses eager attention,
+disables generation cache, performs no silent truncation, returns detached float32
+features, freezes all Qwen parameters, and exposes pretrained or seeded
+same-architecture random control. `CachingQwenBackend` adds checksum-keyed CPU memory
+caching without changing the scientific identity.
 
 The backend does not choose actions, build rewards, call the environment, or own model
 architecture heads.
@@ -42,6 +49,12 @@ Every run records:
 - cache mode and cache manifest digest.
 
 Never rely on a moving model branch or silently updated tokenizer.
+
+The current pin is revision
+`da87bfb608c14b7cf20ba1ce41287e8de496c0cd`; `model.safetensors` is
+1,192,135,096 bytes with SHA-256
+`cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba`.
+Weights remain outside Git.
 
 ## Cold and cached compute
 
@@ -80,3 +93,6 @@ on-the-fly resampling
 Model revision, tokenizer revision, serializer version, input profile, dtype, or Qwen config
 changes invalidate derived features. Unknown cache identity fails closed instead of mixing
 features from different encoders.
+
+See [Qwen L2 Operations](QWEN_L2_OPERATIONS.md) for exact admission, smoke, preparation,
+and owner-training boundaries.

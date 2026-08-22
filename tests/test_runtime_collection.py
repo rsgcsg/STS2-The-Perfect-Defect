@@ -227,6 +227,25 @@ def test_collects_real_port_shape_through_navigation_and_combat_successor() -> N
     assert len(collection.raw_records) == 1
     assert len(collection.token_profile_records) == 6
     assert collection.transitions[0].terminal is True
+    assert collection.transitions[0].eligibility.rank is False
+    assert collection.transitions[0].policy.source == "deterministic_environment_probe"
+
+
+def test_declared_behavior_fixture_can_be_rank_eligible_without_teacher_claim() -> None:
+    collection = collect_managed_runtime(
+        _ScriptedEnvironment(),
+        seed="STPDFIXTURE00001",
+        episode_id="episode-fixture",
+        max_environment_actions=4,
+        max_transitions=1,
+        ranking_supervision="canonical-semantic-first",
+    )
+
+    transition = collection.transitions[0]
+    assert transition.eligibility.rank is True
+    assert transition.eligibility.rank_mode == "full_listwise"
+    assert transition.policy.source == "deterministic_behavior_fixture"
+    assert transition.policy.teacher_confidence is None
 
 
 def test_unknown_navigation_delivery_is_not_retried() -> None:
