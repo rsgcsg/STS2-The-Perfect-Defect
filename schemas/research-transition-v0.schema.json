@@ -30,17 +30,21 @@
     "environmentIdentity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["game_version", "game_commit", "host_kind", "host_source_revision", "host_artifact_sha256", "connector_version", "connector_source_revision", "connector_artifact_sha256", "pe_protocol", "information_policy_id"],
+      "required": ["game_version", "game_commit", "game_artifact_sha256", "game_artifact_mvid", "host_kind", "host_source_revision", "host_source_digest_sha256", "host_artifact_sha256", "host_artifact_mvid", "player_environment_protocol", "player_environment_implementation", "player_environment_revision", "player_environment_digest_sha256", "information_policy_id"],
       "properties": {
         "game_version": {"type": "string", "minLength": 1},
         "game_commit": {"type": "string", "minLength": 1},
+        "game_artifact_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+        "game_artifact_mvid": {"type": "string", "format": "uuid"},
         "host_kind": {"type": "string", "minLength": 1},
         "host_source_revision": {"type": "string", "minLength": 1},
+        "host_source_digest_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
         "host_artifact_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
-        "connector_version": {"type": "string", "minLength": 1},
-        "connector_source_revision": {"type": "string", "minLength": 1},
-        "connector_artifact_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
-        "pe_protocol": {"type": "string", "minLength": 1},
+        "host_artifact_mvid": {"type": "string", "format": "uuid"},
+        "player_environment_protocol": {"type": "string", "minLength": 1},
+        "player_environment_implementation": {"type": "string", "minLength": 1},
+        "player_environment_revision": {"type": "string", "minLength": 1},
+        "player_environment_digest_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
         "information_policy_id": {"type": "string", "minLength": 1}
       }
     },

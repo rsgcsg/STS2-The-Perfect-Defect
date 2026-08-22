@@ -152,13 +152,17 @@ def _collector(environment: _Environment) -> StableTransitionCollector:
         environment_identity=EnvironmentIdentity(
             "v0.111.0",
             "41cef1ea",
+            "c" * 64,
+            "11111111-1111-4111-8111-111111111111",
             "managed_exact",
             "headless-source",
+            "d" * 64,
             "a" * 64,
-            "v1.1.0-rc.1",
-            "connector-source",
-            "b" * 64,
+            "22222222-2222-4222-8222-222222222222",
             "1.0.0",
+            "sts2_headless_managed_adapter",
+            "headless-source",
+            "d" * 64,
             "player_visible_v1",
         ),
         policy=PolicyProvenance("fixture_teacher", "1", "config", None),
@@ -184,9 +188,47 @@ def test_projector_separates_semantics_from_execution_authority() -> None:
     assert projected.envelopes[0].bound_action_id == "bound-play-s0"
 
 
+def test_projector_action_keys_do_not_depend_on_catalog_order() -> None:
+    forward = _snapshot("s0")
+    reversed_snapshot = copy.deepcopy(forward)
+    reversed_snapshot["bound_actions"]["actions"].reverse()
+    projector = ResearchProjectorV0()
+    first = projector.project(
+        forward,
+        {},
+        game_version="v0.111.0",
+        game_commit="41cef1ea",
+        mutation_request_prefix="first",
+    )
+    second = projector.project(
+        reversed_snapshot,
+        {},
+        game_version="v0.111.0",
+        game_commit="41cef1ea",
+        mutation_request_prefix="second",
+    )
+    assert {action.action_key for action in first.actions} == {
+        action.action_key for action in second.actions
+    }
+
+
+def test_projector_rejects_noncombat_selection_even_when_surface_name_matches() -> None:
+    snapshot = _snapshot("s0")
+    snapshot["interaction"]["kind"] = "card_reward_selection"
+    snapshot["interaction"]["content"]["context"]["kind"] = "reward"
+    with pytest.raises(ContractError, match="Combat semantic context"):
+        ResearchProjectorV0().project(
+            snapshot,
+            {},
+            game_version="v0.111.0",
+            game_commit="41cef1ea",
+            mutation_request_prefix="reward",
+        )
+
+
 def test_collector_emits_stable_transition_with_reads_and_exact_receipt() -> None:
     environment = _Environment(_snapshot("s1", energy=2))
-    transition, successor = _collector(environment).collect_one(
+    result = _collector(environment).collect_one(
         _snapshot("s0"),
         choose=lambda projected: projected.actions[0].action_key,
         transition_id="transition-1",
@@ -196,9 +238,13 @@ def test_collector_emits_stable_transition_with_reads_and_exact_receipt() -> Non
         raw_ref="raw/fixture#0",
         rank_eligible=True,
     )
-    assert transition.successor is not None
-    assert transition.state.reads["combat_piles"]["zones"][0]["cards"][0]["name"] == "Strike"
-    assert successor["snapshot_id"] == "s1"
+    assert result.transition.successor is not None
+    assert (
+        result.transition.state.reads["combat_piles"]["zones"][0]["cards"][0]["name"]
+        == "Strike"
+    )
+    assert result.successor["snapshot_id"] == "s1"
+    assert result.receipt["delivery"] == "delivered"
     assert environment.steps == 1 and environment.reads == 2
 
 

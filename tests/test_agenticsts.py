@@ -34,6 +34,33 @@ def test_missing_and_unknown_license_fail_closed() -> None:
     assert missing.rejected[0].reason_code is RejectionCode.MISSING_LICENSE
 
 
+def test_mixed_license_competitor_subset_cannot_self_declare_cc_by(
+    tmp_path: Path,
+) -> None:
+    source = json.loads((FIXTURES / "pass.jsonl").read_text(encoding="utf-8"))
+    source["source"]["record_ref"] = "competitors/CharTyr.tar.gz#record-0"
+    path = tmp_path / "competitor.json"
+    path.write_text(json.dumps(source), encoding="utf-8")
+
+    report = import_agenticsts(path)
+
+    assert report.accepted_count == 0
+    assert report.rejected[0].reason_code is RejectionCode.SOURCE_SUBSET_NOT_ADMITTED
+
+
+def test_unpinned_or_noncanonical_source_fails_closed(tmp_path: Path) -> None:
+    source = json.loads((FIXTURES / "pass.jsonl").read_text(encoding="utf-8"))
+    source["source"]["revision"] = "main"
+    source["source"]["source_url"] = "https://example.invalid/agenticsts"
+    path = tmp_path / "untrusted-source.json"
+    path.write_text(json.dumps(source), encoding="utf-8")
+
+    report = import_agenticsts(path)
+
+    assert report.accepted_count == 0
+    assert report.rejected[0].reason_code is RejectionCode.SOURCE_SUBSET_NOT_ADMITTED
+
+
 def test_missing_successor_is_not_transition_eligible() -> None:
     report = _report("missing-successor.json")
 
@@ -83,13 +110,13 @@ def test_gzipped_jsonl_accepts_explicit_file_level_provenance(tmp_path: Path) ->
             "dataset": "AgenticSTS-trajectories",
             "revision": "fixture-v1",
             "license": "CC-BY-4.0",
-            "source_url": "https://example.invalid/agenticsts",
-            "record_ref": "run-fixture#file-level",
+            "source_url": "https://huggingface.co/datasets/AlayaLab/AgenticSTS-trajectories",
+            "record_ref": "trajectories/run-fixture#file-level",
         },
     )
 
     assert report.accepted_count == 1
-    assert report.accepted[0].provenance.record_ref == "run-fixture#file-level"
+    assert report.accepted[0].provenance.record_ref == "trajectories/run-fixture#file-level"
 
 
 def test_terminal_transition_may_end_without_a_successor(tmp_path: Path) -> None:

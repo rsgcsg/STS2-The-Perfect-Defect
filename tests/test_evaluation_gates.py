@@ -43,13 +43,17 @@ def _environment(host_kind: str, version: str = "v0.111.0") -> EnvironmentIdenti
     return EnvironmentIdentity(
         version,
         "41cef1ea",
+        "c" * 64,
+        "11111111-1111-4111-8111-111111111111",
         host_kind,
         "host-source",
+        "d" * 64,
         "a" * 64,
-        "v1.1.0-rc.1",
-        "connector-source",
-        "b" * 64,
+        "22222222-2222-4222-8222-222222222222",
         "1.0.0",
+        "sts2_headless_managed_adapter",
+        "host-source",
+        "d" * 64,
         "player_visible_v1",
     )
 

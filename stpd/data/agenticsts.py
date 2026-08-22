@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, TextIO, cast
+from urllib.parse import urlparse
 
 from ..contracts import EnvironmentIdentity, TransitionEligibility
 from ..representation import (
@@ -36,6 +37,7 @@ class RejectionCode(StrEnum):
     MISSING_PROVENANCE = "missing_provenance"
     MISSING_LICENSE = "missing_license"
     UNKNOWN_LICENSE = "unknown_license"
+    SOURCE_SUBSET_NOT_ADMITTED = "source_subset_not_admitted"
     NON_COMBAT_RECORD = "non_combat_record"
     MISSING_LEGAL_ACTION_CATALOG = "missing_legal_action_catalog"
     INCOMPLETE_LEGAL_ACTION_CATALOG = "incomplete_legal_action_catalog"
@@ -164,6 +166,11 @@ _LICENSE_ALIASES = {
     "CC-BY 4.0": "CC-BY-4.0",
     "CC BY 4.0": "CC-BY-4.0",
 }
+
+_AGENTICSTS_DATASET = "AgenticSTS-trajectories"
+_AGENTICSTS_REPOSITORY_HOST = "huggingface.co"
+_AGENTICSTS_REPOSITORY_PATH = "/datasets/AlayaLab/AgenticSTS-trajectories"
+_ADMITTED_RECORD_PREFIXES = ("trajectories/", "runs_history.jsonl")
 
 
 def import_agenticsts(
@@ -454,6 +461,13 @@ def _normalize_record(raw: _RawRecord) -> NormalizedAgenticSTSRecord:
             {"error": str(error)},
         ) from error
 
+    _validate_admitted_source(
+        provenance.dataset,
+        provenance.revision,
+        provenance.source_url,
+        provenance.record_ref,
+    )
+
     return NormalizedAgenticSTSRecord(research_transition, provenance)
 
 
@@ -533,6 +547,49 @@ def _parse_provenance(
         license_url=license_url,
         metadata=metadata,
     )
+
+
+def _validate_admitted_source(
+    dataset: str,
+    revision: str,
+    source_url: str,
+    record_ref: str,
+) -> None:
+    """Admit only the repository subsets that are explicitly CC-BY-4.0.
+
+    AgenticSTS is a mixed-license repository.  A row cannot make a third-party
+    archive admissible merely by declaring ``CC-BY-4.0`` in its sidecar.
+    """
+
+    parsed_url = urlparse(source_url)
+    repository_path = parsed_url.path.rstrip("/")
+    canonical_repository = (
+        parsed_url.scheme == "https"
+        and parsed_url.netloc == _AGENTICSTS_REPOSITORY_HOST
+        and (
+            repository_path == _AGENTICSTS_REPOSITORY_PATH
+            or repository_path.startswith(f"{_AGENTICSTS_REPOSITORY_PATH}/")
+        )
+    )
+    revision_is_pinned = revision.lower() not in {"main", "master", "head", "latest"}
+    admitted_record = record_ref.startswith(_ADMITTED_RECORD_PREFIXES)
+    if (
+        dataset != _AGENTICSTS_DATASET
+        or not canonical_repository
+        or not revision_is_pinned
+        or not admitted_record
+    ):
+        raise _RejectedRecord(
+            RejectionCode.SOURCE_SUBSET_NOT_ADMITTED,
+            "source is not a pinned record from an admitted AgenticSTS subset",
+            {
+                "dataset": dataset,
+                "revision": revision,
+                "source_url": source_url,
+                "record_ref": record_ref,
+                "admitted_record_prefixes": list(_ADMITTED_RECORD_PREFIXES),
+            },
+        )
 
 
 def _legal_action_completeness(transition: Mapping[str, Any]) -> Any:
@@ -709,13 +766,17 @@ def _environment_fields(data: Mapping[str, Any]) -> dict[str, Any]:
     fields = (
         "game_version",
         "game_commit",
+        "game_artifact_sha256",
+        "game_artifact_mvid",
         "host_kind",
         "host_source_revision",
+        "host_source_digest_sha256",
         "host_artifact_sha256",
-        "connector_version",
-        "connector_source_revision",
-        "connector_artifact_sha256",
-        "pe_protocol",
+        "host_artifact_mvid",
+        "player_environment_protocol",
+        "player_environment_implementation",
+        "player_environment_revision",
+        "player_environment_digest_sha256",
         "information_policy_id",
     )
     return {field: _text(data, field) for field in fields}

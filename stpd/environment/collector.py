@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from ..contracts import EnvironmentIdentity, PlayerEnvironmentPort, TransitionEligibility
@@ -17,6 +19,16 @@ class CollectionError(RuntimeError):
 ActionPolicy = Callable[[ProjectedDecision], str]
 
 
+@dataclass(frozen=True)
+class CollectedTransition:
+    transition: ResearchTransition
+    snapshot: Mapping[str, Any]
+    reads: Mapping[str, Mapping[str, Any]]
+    receipt: Mapping[str, Any]
+    successor: Mapping[str, Any]
+    successor_reads: Mapping[str, Mapping[str, Any]]
+
+
 class StableTransitionCollector:
     def __init__(
         self,
@@ -27,7 +39,8 @@ class StableTransitionCollector:
         policy: PolicyProvenance,
         input_profile: InputProfile,
         read_kinds: Sequence[str] = (),
-        max_settling_observations: int = 64,
+        settling_timeout_seconds: float = 20.0,
+        polling_interval_seconds: float = 0.02,
     ) -> None:
         self.environment = environment
         self.projector = projector
@@ -35,7 +48,10 @@ class StableTransitionCollector:
         self.policy = policy
         self.input_profile = input_profile
         self.read_kinds = tuple(read_kinds)
-        self.max_settling_observations = max_settling_observations
+        if settling_timeout_seconds <= 0 or polling_interval_seconds < 0:
+            raise ValueError("settling timeout must be positive and polling interval non-negative")
+        self.settling_timeout_seconds = settling_timeout_seconds
+        self.polling_interval_seconds = polling_interval_seconds
         environment_identity.validate()
         policy.validate()
 
@@ -72,14 +88,18 @@ class StableTransitionCollector:
 
     def _stable_successor(self, candidate: Mapping[str, Any]) -> Mapping[str, Any]:
         snapshot = candidate
-        for _ in range(self.max_settling_observations + 1):
+        deadline = time.monotonic() + self.settling_timeout_seconds
+        while True:
             status = snapshot.get("status")
             if status in {"interactive", "visible_unsupported", "observed"}:
                 return snapshot
             if status != "settling":
                 raise CollectionError(f"unknown successor readiness state: {status}")
+            if time.monotonic() >= deadline:
+                raise CollectionError("settling timeout while waiting for stable successor")
+            if self.polling_interval_seconds:
+                time.sleep(self.polling_interval_seconds)
             snapshot = self.environment.observe()
-        raise CollectionError("settling timeout while waiting for stable successor")
 
     def collect_one(
         self,
@@ -92,7 +112,7 @@ class StableTransitionCollector:
         seed: str,
         raw_ref: str,
         rank_eligible: bool,
-    ) -> tuple[ResearchTransition, Mapping[str, Any]]:
+    ) -> CollectedTransition:
         reads = self._reads(snapshot)
         projected = self.projector.project(
             snapshot,
@@ -133,6 +153,12 @@ class StableTransitionCollector:
         if successor_raw.get("snapshot_id") == snapshot.get("snapshot_id"):
             raise CollectionError("delivered action did not advance snapshot identity")
         successor_raw = self._stable_successor(successor_raw)
+        observed = self._stable_successor(self.environment.observe())
+        if self._runtime_instance(observed) != self._runtime_instance(snapshot):
+            raise CollectionError("runtime identity changed during successor verification")
+        if int(observed.get("sequence", -1)) < int(successor_raw.get("sequence", -1)):
+            raise CollectionError("independent successor observation moved backwards")
+        successor_raw = observed
         if self._runtime_instance(successor_raw) != self._runtime_instance(snapshot):
             raise CollectionError("runtime identity changed across one transition")
         successor_kind = str(
@@ -147,6 +173,7 @@ class StableTransitionCollector:
             or "choice" in successor_kind
         )
         successor_state: ResearchState | None = None
+        successor_reads: dict[str, Mapping[str, Any]] = {}
         if not terminal and not scope_exit:
             successor_reads = self._reads(successor_raw)
             successor_state = self.projector.project(
@@ -185,4 +212,11 @@ class StableTransitionCollector:
             raw_ref,
         )
         transition.validate()
-        return transition, successor_raw
+        return CollectedTransition(
+            transition,
+            snapshot,
+            reads,
+            receipt,
+            successor_raw,
+            successor_reads,
+        )

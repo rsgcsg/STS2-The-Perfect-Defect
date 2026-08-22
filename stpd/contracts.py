@@ -7,9 +7,13 @@ must preserve without importing Headless or Connector implementation details.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
+from uuid import UUID
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class ContractError(ValueError):
@@ -21,19 +25,35 @@ def _require_text(name: str, value: str) -> None:
         raise ContractError(f"{name} must be a non-empty string")
 
 
+def _require_sha256(name: str, value: str) -> None:
+    if not isinstance(value, str) or _SHA256_RE.fullmatch(value.lower()) is None:
+        raise ContractError(f"{name} must be a 64-character SHA-256 digest")
+
+
+def _require_mvid(name: str, value: str) -> None:
+    try:
+        UUID(value)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ContractError(f"{name} must be a UUID-form module MVID") from exc
+
+
 @dataclass(frozen=True)
 class EnvironmentIdentity:
-    """Exact game, Host, Connector, and information-policy identity."""
+    """Exact game, Host, Player Environment implementation, and policy identity."""
 
     game_version: str
     game_commit: str
+    game_artifact_sha256: str
+    game_artifact_mvid: str
     host_kind: str
     host_source_revision: str
+    host_source_digest_sha256: str
     host_artifact_sha256: str
-    connector_version: str
-    connector_source_revision: str
-    connector_artifact_sha256: str
-    pe_protocol: str
+    host_artifact_mvid: str
+    player_environment_protocol: str
+    player_environment_implementation: str
+    player_environment_revision: str
+    player_environment_digest_sha256: str
     information_policy_id: str
 
     def validate(self) -> None:
@@ -42,14 +62,21 @@ class EnvironmentIdentity:
             ("game_commit", self.game_commit),
             ("host_kind", self.host_kind),
             ("host_source_revision", self.host_source_revision),
-            ("host_artifact_sha256", self.host_artifact_sha256),
-            ("connector_version", self.connector_version),
-            ("connector_source_revision", self.connector_source_revision),
-            ("connector_artifact_sha256", self.connector_artifact_sha256),
-            ("pe_protocol", self.pe_protocol),
+            ("player_environment_protocol", self.player_environment_protocol),
+            ("player_environment_implementation", self.player_environment_implementation),
+            ("player_environment_revision", self.player_environment_revision),
             ("information_policy_id", self.information_policy_id),
         ):
             _require_text(name, value)
+        for name, value in (
+            ("game_artifact_sha256", self.game_artifact_sha256),
+            ("host_source_digest_sha256", self.host_source_digest_sha256),
+            ("host_artifact_sha256", self.host_artifact_sha256),
+            ("player_environment_digest_sha256", self.player_environment_digest_sha256),
+        ):
+            _require_sha256(name, value)
+        _require_mvid("game_artifact_mvid", self.game_artifact_mvid)
+        _require_mvid("host_artifact_mvid", self.host_artifact_mvid)
 
 
 @dataclass(frozen=True)

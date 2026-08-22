@@ -76,6 +76,8 @@ part of model input.
 The stable reason codes currently include:
 
 - `missing_license` and `unknown_license`;
+- `source_subset_not_admitted` for moving revisions, mirrors, unknown paths,
+  or mixed-license third-party archives;
 - `missing_provenance`;
 - `missing_legal_action_catalog` and `incomplete_legal_action_catalog`;
 - `ambiguous_action_mapping` and `chosen_action_not_in_catalog`;
@@ -83,9 +85,13 @@ The stable reason codes currently include:
 - `non_combat_record`, `malformed_json`, `invalid_record`, and
   `invalid_transition_contract`.
 
-The admitted AgenticSTS source license for this slice is `CC-BY-4.0`. Mixed or
-third-party competitor archives must be split and audited under their own
-licenses before they can be imported. Unknown rights fail closed.
+The upstream repository is mixed-license. This importer admits only pinned
+revisions of the official `AlayaLab/AgenticSTS-trajectories` repository whose
+record references are under `trajectories/` or `runs_history.jsonl`, both
+published as `CC-BY-4.0`. `competitors/*.tar.gz` retain third-party upstream
+licenses and are rejected even if a row incorrectly self-declares CC-BY.
+Moving revisions (`main`, `latest`, and equivalents), mirrors, unknown paths,
+and unknown rights fail closed.
 
 The importer preserves historical game/source provenance but does not create a
 current Headless/Connector artifact identity, current-patch qualification, B0

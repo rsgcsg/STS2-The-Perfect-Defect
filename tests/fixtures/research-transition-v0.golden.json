@@ -7,13 +7,17 @@
   "environment": {
     "game_version": "v0.111.0",
     "game_commit": "41cef1ea",
+    "game_artifact_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+    "game_artifact_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b",
     "host_kind": "managed_exact",
     "host_source_revision": "03b7fa2ad3a4f84ea6c502eb7e9efbaab8fdc2f1",
+    "host_source_digest_sha256": "71d19be61158893a3770fe3752c7abedafcf29dfc82eed54f472a80458282bea",
     "host_artifact_sha256": "a884b1048b5334f6b008dbfc543789cf7662f35fd7f33e01acb1b83f313b3d66",
-    "connector_version": "v1.1.0-rc.1",
-    "connector_source_revision": "c9d7af518a7c84b81ab0db9e2eea5cf0cce13cbe",
-    "connector_artifact_sha256": "c1877f1a2c0c15d290a518c230d2bce8ea98589dfcd8d9cfba05c6694fa8aa6e",
-    "pe_protocol": "1.0.0",
+    "host_artifact_mvid": "5b6adbd6-1e21-4148-a6f1-a6510a534838",
+    "player_environment_protocol": "1.0.0",
+    "player_environment_implementation": "sts2_headless_managed_adapter",
+    "player_environment_revision": "03b7fa2ad3a4f84ea6c502eb7e9efbaab8fdc2f1",
+    "player_environment_digest_sha256": "71d19be61158893a3770fe3752c7abedafcf29dfc82eed54f472a80458282bea",
     "information_policy_id": "player_visible_v1"
   },
   "policy": {

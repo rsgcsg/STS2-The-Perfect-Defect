@@ -70,21 +70,23 @@ def _decision_family(interaction_kind: str) -> DecisionFamily:
 
 
 def _action_kind(verb: str, family: DecisionFamily, subject_role: str | None) -> str:
-    if verb == "play":
+    if family is DecisionFamily.TURN_ACTION and verb == "play":
         return "play_card"
-    if verb == "use":
+    if family is DecisionFamily.TURN_ACTION and verb == "use":
         return "use_potion"
-    if verb == "end_turn":
+    if family is DecisionFamily.TURN_ACTION and verb == "end_turn":
         return "end_turn"
-    if verb in {"select", "deselect"}:
+    if family is DecisionFamily.CARD_SELECTION and verb in {"select", "deselect"}:
         return f"{verb}_card"
-    if verb in {"confirm", "cancel"}:
+    if family is DecisionFamily.CARD_SELECTION and verb in {"confirm", "cancel"}:
         return f"{verb}_selection"
-    if verb == "skip":
+    if family is DecisionFamily.CARD_CHOICE and verb == "skip":
         return "skip_choice"
     if family is DecisionFamily.CARD_CHOICE and verb == "activate":
         return "choose_card"
-    return f"{verb}_{subject_role or 'control'}"
+    raise ContractError(
+        f"unsupported v0 action verb/family: {verb}/{family.value}/{subject_role or 'control'}"
+    )
 
 
 @dataclass(frozen=True)
@@ -123,6 +125,14 @@ class ResearchProjectorV0:
         interaction = snapshot.get("interaction")
         if not isinstance(interaction, Mapping):
             raise ContractError("snapshot interaction is missing")
+        interaction_content = interaction.get("content")
+        context = (
+            interaction_content.get("context")
+            if isinstance(interaction_content, Mapping)
+            else None
+        )
+        if not isinstance(context, Mapping) or context.get("kind") != "combat":
+            raise ContractError("STPD v0 projection requires explicit Combat semantic context")
         interaction_kind = str(interaction.get("kind", ""))
         family = _decision_family(interaction_kind)
         referents_raw = snapshot.get("referents")
@@ -169,7 +179,8 @@ class ResearchProjectorV0:
         )
         semantic_actions: list[ResearchAction] = []
         envelopes: list[ExecutionEnvelope] = []
-        for index, action_raw in enumerate(actions_raw):
+        action_keys: set[str] = set()
+        for action_raw in actions_raw:
             if not isinstance(action_raw, Mapping):
                 raise ContractError("BoundAction must be an object")
             bound_id = action_raw.get("bound_action_id")
@@ -207,7 +218,12 @@ class ResearchProjectorV0:
                 ),
                 "visible_effect": subject_properties.get("description"),
             }
-            action_key = f"a{index}:{semantic_hash(action_payload)[:20]}"
+            action_key = f"a:{semantic_hash(action_payload)[:24]}"
+            if action_key in action_keys:
+                raise ContractError(
+                    "two current BoundActions have indistinguishable semantic identity"
+                )
+            action_keys.add(action_key)
             action = ResearchAction(action_key=action_key, **action_payload)
             semantic_actions.append(action)
             envelopes.append(
@@ -215,7 +231,7 @@ class ResearchProjectorV0:
                     action_key,
                     snapshot_id,
                     bound_id,
-                    f"{mutation_request_prefix}-{index:04d}",
+                    f"{mutation_request_prefix}-{action_key[2:]}",
                 )
             )
         ensure_action_catalog_alignment(semantic_actions, envelopes)
