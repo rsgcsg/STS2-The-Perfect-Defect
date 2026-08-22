@@ -58,12 +58,16 @@ legal-action catalogs, game seeds, or exact environment identities. Zero records
 rank-eligible under the existing fail-closed contract, so no S1-1K-2K smoke configuration
 or owner command exists. Current-teacher collection is required.
 
-A separate fail-closed Human Annotator importer now accepts only exact native-UI
+A separate fail-closed Human Annotator importer accepts only exact native-UI
 records with a complete frozen BoundAction catalog, exact-unique process-local
 mapping, stable successor, exact game/Connector/Annotator/Modset identity, and
 whole-run roots. It reuses the existing `ResearchProjectorV0`, canonical split,
-Parquet, and B0 path. This is implemented and synthetic-tested; no real human
-record has yet been admitted.
+Parquet, and B0 path. The reusable multi-worker lane adds exact collection
+profiles, immutable checksummed session bundles, a pseudonymous filesystem
+registry, strict multi-session admission, deterministic whole-run corpus
+snapshots, corpus B0/token profiling, and a frozen smoke handoff. Exact native
+human sessions exist locally; the current corpus is still below the 1,000-row
+smoke threshold and does not authorize training.
 
 ## What v0 will build
 
@@ -130,6 +134,7 @@ inherit the macOS operational freeze. A changed identity is a requalification ev
 - [Architecture](docs/ARCHITECTURE.md)
 - [Interfaces](docs/INTERFACES.md)
 - [Data and provenance](docs/DATA_AND_PROVENANCE.md)
+- [Human corpus lane](docs/HUMAN_CORPUS.md)
 - [Qwen integration](docs/QWEN_INTEGRATION.md)
 - [Qwen L2 operations and owner handoff](docs/QWEN_L2_OPERATIONS.md)
 - [Scientific experiment protocol](docs/SCIENTIFIC_EXPERIMENT_PROTOCOL.md)

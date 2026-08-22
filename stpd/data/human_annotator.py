@@ -96,7 +96,9 @@ class _Reject(ValueError):
         self.detail = detail
 
 
-def import_human_recording(path: str | Path) -> HumanImportReport:
+def import_human_recording(
+    path: str | Path, *, provenance_uri: str | None = None
+) -> HumanImportReport:
     """Import an Annotator export without correcting or defaulting evidence."""
 
     source = Path(path)
@@ -110,7 +112,7 @@ def import_human_recording(path: str | Path) -> HumanImportReport:
     for line_number, line in enumerate(source_bytes.decode("utf-8").splitlines(), start=1):
         if not line.strip():
             continue
-        record_ref = f"{source}:line:{line_number}"
+        record_ref = f"{provenance_uri or source}:line:{line_number}"
         try:
             value = json.loads(line)
         except json.JSONDecodeError as error:

@@ -3,7 +3,8 @@
 ## Verdict
 
 **STPD is pre-alpha; full-weight Qwen L2 and bounded tiny-overfit engineering admission are
-complete, while the intended AgenticSTS bootstrap dataset is blocked at data admission.**
+complete. AgenticSTS remains blocked at data admission, while the exact Human Corpus lane
+is implemented but remains below the 1,000-row smoke threshold.**
 The repository contains a real frozen pretrained backend and same-architecture random
 control, but no scientific Core model result, Human Gold result, B6 result, or final STPD
 v0 claim.
@@ -28,6 +29,10 @@ inherit the macOS operational freeze or formal H1.0 authority.
 - canonical Parquet/manifests/splits/dedup and fail-closed provenance handling;
 - fail-closed Human Annotator import through the existing research projection,
   whole-run split, canonical Parquet and B0 path;
+- versioned exact Human Collection Profiles, immutable checksummed session
+  bundles, pseudonymous multi-worker registry, strict multi-session corpus
+  admission, whole-run/semantic-component splits, multi-source provenance,
+  immutable corpus snapshots, Standard token profiling and frozen smoke handoff;
 - Scheme 1, S2-Simple and S2-SDT with ranking/successor/anchor objectives;
 - optimizer/checkpoint/evaluation mechanics and B1-B7 report/gate tooling;
 - immutable Qwen3-0.6B-Base L1/L2 pin, exact full-weight CUDA/BF16 backend and random control;
@@ -41,6 +46,15 @@ complete finite action catalogs, exact Receipts/successors, complete `run_deck` 
 `combat_piles` Reads, canonical Parquet and B0 pass. The pinned tokenizer profile contains
 180 `turn_action` joint samples: Full max/P95 `3334/3334`, Lite and Standard `2501/2501`.
 Natural `card_selection` and `card_choice` were not exercised.
+
+The Native Human Annotator current exact artifact has owner-completed local
+ordinary-combat evidence. Its latest session contains 28 exact-unique records
+(14 targeted plays, 9 untargeted plays, 5 end turns), 28 different stable
+successors, zero invalid records and one correctly isolated overlapping-action
+invalidation. An earlier same-artifact 20-record export passed strict STPD import
+and B0. These are local human-source facts; the new multi-session bundle/corpus
+lane still requires its own offline canary and additional real workers before it
+can reach the 1,000-row smoke threshold.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes
@@ -128,10 +142,14 @@ No extractor, Parquet dataset, split manifest, S1 smoke config, or owner command
   successors, or current-patch identities.
 - Natural selector token families, large-corpus near-duplicate analysis and scientific data
   admission remain future work.
-- Human Annotator fixtures do not prove native human-origin mapping, recorder
-  non-interference, Live successor settlement, or any real-data admission.
+- Annotator audit and explicit owner attestation do not machine-prove operator
+  identity or non-interference. Existing owner-completed sessions validate only
+  the exact ordinary-combat source envelope, not other workers, platforms or
+  unsupported families.
 
-The immediate next step is current-teacher collection of at least 1,000 complete-catalog,
-whole-root, exact-environment behavior decisions. See the
+The immediate next step is to pack/register the current exact session, verify
+the deterministic corpus/B0/token-profile lane offline, then collect additional
+exact-profile sessions until at least 1,000 complete-catalog, whole-root behavior
+decisions exist. See the
 [AgenticSTS audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md),
 [Data and Provenance](DATA_AND_PROVENANCE.md), and [Roadmap](ROADMAP.md).

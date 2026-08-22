@@ -23,6 +23,7 @@ answer.
 | [Architecture](ARCHITECTURE.md) | ownership, layers, dependency direction | a boundary changes |
 | [Interfaces](INTERFACES.md) | environment, data, model, artifact formats | a public contract changes |
 | [Data and Provenance](DATA_AND_PROVENANCE.md) | data zones, eligibility, splits, external data | data policy changes |
+| [Human Corpus Lane](HUMAN_CORPUS.md) | collection profiles, bundles, registry, corpus and smoke handoff | human corpus semantics or operations change |
 | [Qwen Integration](QWEN_INTEGRATION.md) | frozen-backbone adapter and cache contract | Qwen use changes |
 | [Qwen L2 Operations](QWEN_L2_OPERATIONS.md) | exact full-weight admission, engineering smokes, data preparation and owner stop | L2 operational identity changes |
 | [B0-B7 Benchmarks](BENCHMARKS.md) | executable gates, reports, and evidence boundaries | benchmark mechanics change |

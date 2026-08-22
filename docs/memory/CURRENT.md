@@ -43,17 +43,21 @@ environment regression lane.
   catalog, seed/root, and exact environment identity, so zero are rank eligible.
 - The exact operational environment baseline remains a separate Headless/Connector concern;
   Windows candidate evidence does not inherit macOS formal authority.
-- A strict Human Annotator importer is implemented and fixture-tested through
-  `ResearchProjectorV0`, canonical Parquet/whole-run splits, and B0. Real native
-  human records remain pending and fixtures create no data-admission claim.
+- A strict Human Annotator importer and reusable multi-worker corpus lane are
+  implemented. The latest exact local owner session has 28 audit-valid
+  ordinary-combat records; an earlier same-artifact 20-record export passed
+  strict import and B0. Collection profiles, immutable bundles/registry/corpus,
+  whole-run/duplicate-component splits, B0, Standard profiling and smoke handoff
+  are automated, but the real corpus remains below 1,000 records.
 
 ## Immediate priorities
 
-1. Collect at least 1,000 current-teacher combat decisions with exact game/Host/Player
+1. Pack/register and offline-build the current exact session, then collect at
+   least 1,000 human combat decisions with exact game/Host/Player
    Environment identity, complete authoritative catalogs, one-to-one chosen-action mapping,
    stable successors, whole-run seed roots, and declared behavior-policy provenance.
-2. Run the existing import/normalization, split, deduplication/leakage, and B0 admission
-   boundaries on that source.
+2. Rebuild the immutable corpus and inspect strict per-session admission,
+   cross-session dedup/splits, B0 and Standard token profiling after each batch.
 3. Prepare `S1-1K-2K-SMOKE` only after at least 1,000 rows pass. Do not run it without a
    separately authorized owner command.
 4. Keep environment, FakeQwen, and real-Qwen engineering smokes green.

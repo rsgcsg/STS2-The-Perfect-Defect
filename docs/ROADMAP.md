@@ -29,6 +29,14 @@ Deliver:
 
 No model result is interpretable until this step passes.
 
+The multi-worker Human Corpus infrastructure is implemented: versioned exact
+profiles/campaigns, immutable session bundles, fail-closed registry admission,
+deterministic multi-source corpus snapshots, whole-run plus semantic-duplicate
+component splitting, corpus B0, Standard profiling and frozen smoke handoff.
+Automated tests cover drift, tampering, collisions, retries, input reordering and
+snapshot immutability. The real corpus remains below the campaign target; this
+implementation status is not data admission or permission to train.
+
 ## v0 Step 1 — Token and compute profiling
 
 Status: **L2 engineering admission complete; admitted-corpus profiling partial**. The
@@ -71,8 +79,10 @@ identities are absent.
 
 Before Core training, scientific data admission, Gold-dev, sealed Gold-test identity,
 required controls, selector-family coverage status and exact split/manifests must be ready.
-The next data action is a current-teacher collection of at least 1,000 exact-environment,
-complete-catalog behavior decisions; no S1 smoke is prepared until that dataset passes B0.
+The next data action is deterministic packing/import of current exact human
+sessions followed by multi-worker collection of at least 1,000 exact-environment,
+complete-catalog behavior decisions; no S1 smoke is frozen until that corpus
+passes B0 and Standard profiling.
 
 Run Standard input for:
 

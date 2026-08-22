@@ -74,6 +74,12 @@ stpd/
 Do not create empty framework packages merely to match this diagram. Introduce a package
 when its first tested responsibility is implemented.
 
+Within `stpd/data`, `human_annotator.py` is the only strict native-human record
+normalizer. `human_corpus.py` composes it across immutable session bundles and
+owns registry validation, global collisions, whole-run/duplicate-component
+splits, corpus identity, B0/profile reports and smoke handoff. It does not copy
+or weaken Recorder mapping rules.
+
 ## Core abstractions
 
 ### PlayerEnvironmentPort

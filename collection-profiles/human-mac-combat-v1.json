@@ -1,0 +1,33 @@
+{
+  "schema": "stpd/human-collection-profile-v1",
+  "profile_id": "human-mac-combat-v1",
+  "platform": "osx-arm64",
+  "game": {
+    "version": "v0.111.0",
+    "commit": "41cef1ea",
+    "main_assembly_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+    "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
+  },
+  "connector": {
+    "source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
+    "source_digest_sha256": "d6faf7f01844786896a9db75d80b97caf35b0cf99049d4c200a3ab59e85ac6df",
+    "artifact_sha256": "f991eab77f846416468fcaaa014565912d7ee547ee7848cc46d24735c4ac2040",
+    "mvid": "5b35e8ad-4f52-4dae-a551-17efc06547fb"
+  },
+  "annotator": {
+    "source_revision": "9459d22a3693c87c272b84d0c56c15b1551d54ae",
+    "source_digest_sha256": "9e5e1f8568df663b6695073a31d3dd7c5e40d1bcf0a87c11a61522c57e419281",
+    "artifact_sha256": "910c5bfeea02d3fb3539f73e3e9b0bdaca1e7acbe5b418dce16878d9099268b6",
+    "mvid": "635bf321-1871-45b0-ad9f-ce06b9502c51"
+  },
+  "player_environment_protocol": "1.0.0",
+  "modset": {
+    "status": "canary_exact_observer_modset",
+    "fingerprint": "948be0e660fe3bb8220b80b574056f6a7c0bdb7583c50b314bf55f248a6dc48d"
+  },
+  "record_schema": "sts2.human-annotator/decision-record-1",
+  "allowed_action_families": [
+    "ordinary_combat.play_card",
+    "ordinary_combat.end_turn"
+  ]
+}

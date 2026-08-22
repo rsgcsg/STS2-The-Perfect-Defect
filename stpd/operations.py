@@ -60,9 +60,28 @@ def run_doctor(
     }))
 
     schemas = sorted((root / "schemas").glob("*.schema.json"))
+    required_schemas = {
+        "data-manifest-v0.schema.json",
+        "experiment-manifest-v0.schema.json",
+        "human-collection-campaign-v1.schema.json",
+        "human-collection-profile-v1.schema.json",
+        "model-artifact-manifest-v0.schema.json",
+        "research-action-v0.schema.json",
+        "research-state-v0.schema.json",
+        "research-transition-v0.schema.json",
+    }
     try:
-        schema_ids = [json.loads(path.read_text(encoding="utf-8"))["$id"] for path in schemas]
-        schemas_ok = len(schemas) == 6 and len(schema_ids) == len(set(schema_ids))
+        schema_documents = [json.loads(path.read_text(encoding="utf-8")) for path in schemas]
+        schema_ids = [document["$id"] for document in schema_documents]
+        schemas_ok = (
+            required_schemas.issubset(path.name for path in schemas)
+            and all(
+                document.get("$schema")
+                == "https://json-schema.org/draft/2020-12/schema"
+                for document in schema_documents
+            )
+            and len(schema_ids) == len(set(schema_ids))
+        )
     except (json.JSONDecodeError, KeyError):
         schemas_ok = False
         schema_ids = []
@@ -132,4 +151,3 @@ def run_doctor(
             "A candidate audit is build provenance, not gameplay qualification.",
         ],
     }
-

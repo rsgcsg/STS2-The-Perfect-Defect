@@ -44,6 +44,7 @@ class ProjectStructureTest(unittest.TestCase):
             "CODE_STYLE.md",
             "INTERFACES.md",
             "DATA_AND_PROVENANCE.md",
+            "HUMAN_CORPUS.md",
             "QWEN_INTEGRATION.md",
             "BENCHMARKS.md",
             "V0_EXECUTION_PLAN.md",
@@ -58,6 +59,8 @@ class ProjectStructureTest(unittest.TestCase):
             {
                 "experiment-manifest-v0.schema.json",
                 "data-manifest-v0.schema.json",
+                "human-collection-campaign-v1.schema.json",
+                "human-collection-profile-v1.schema.json",
                 "model-artifact-manifest-v0.schema.json",
                 "research-action-v0.schema.json",
                 "research-state-v0.schema.json",

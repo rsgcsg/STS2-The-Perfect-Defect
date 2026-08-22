@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +13,7 @@ from ..contracts import ContractError
 from .b0 import B0Report, validate_b0
 from .manifest import DataFile, DataManifest, DataSource
 from .parquet import write_transition_parquet
-from .splits import assign_episode_splits
+from .splits import SplitAssignment, assign_episode_splits
 
 
 class DatasetBuildError(ContractError):
@@ -48,16 +48,33 @@ def build_canonical_dataset(
     *,
     output_dir: str | Path,
     schema_root: str | Path,
-    source: DataSource,
+    source: DataSource | None = None,
+    sources: Sequence[DataSource] | None = None,
     stpd_source_revision: str,
     created_at: str,
     split_salt: str,
+    split_assignments: Mapping[str, SplitAssignment] | None = None,
+    split_strategy: str = "seed_root_sha256_v0",
+    deduplication: Mapping[str, Any] | None = None,
 ) -> tuple[DataManifest, B0Report]:
     """Gate, split, write, and manifest one canonical dataset atomically by directory."""
 
     materialized = list(records)
-    source.validate()
-    assignments = assign_episode_splits(materialized, salt=split_salt)
+    if source is not None and sources is not None:
+        raise DatasetBuildError("provide source or sources, not both")
+    resolved_sources = tuple(sources or (() if source is None else (source,)))
+    if not resolved_sources:
+        raise DatasetBuildError("canonical dataset requires at least one source")
+    for item in resolved_sources:
+        item.validate()
+    assignments = dict(
+        split_assignments
+        if split_assignments is not None
+        else assign_episode_splits(materialized, salt=split_salt)
+    )
+    episodes = {str(record.get("episode_id", "")) for record in materialized}
+    if not episodes or set(assignments) != episodes:
+        raise DatasetBuildError("split assignments must cover exactly all dataset episodes")
     report = validate_b0(materialized, schema_root=schema_root, splits=assignments)
     if report.verdict != "pass":
         codes = sorted({finding.code for finding in report.findings})
@@ -72,7 +89,7 @@ def build_canonical_dataset(
         semantic_hash_=dataset_hash,
     )
     split_counts = Counter(assignment.split for assignment in assignments.values())
-    split_assignments = {
+    serialized_split_assignments = {
         episode: assignment.split for episode, assignment in sorted(assignments.items())
     }
     manifest = DataManifest(
@@ -80,21 +97,21 @@ def build_canonical_dataset(
         created_at=created_at,
         source_revision=stpd_source_revision,
         contract_schema="stpd/research-transition-v0",
-        sources=(source,),
+        sources=resolved_sources,
         files=(data_file,),
         row_count=row_count,
         split={
-            "strategy": "seed_root_sha256_v0",
+            "strategy": split_strategy,
             "salt_hash": semantic_hash(split_salt),
             "episode_counts": dict(sorted(split_counts.items())),
-            "assignments": split_assignments,
-            "assignments_hash": semantic_hash(split_assignments),
+            "assignments": serialized_split_assignments,
+            "assignments_hash": semantic_hash(serialized_split_assignments),
         },
-        deduplication={
+        deduplication=dict(deduplication or {
             "exact_record_duplicates": 0,
             "cross_split_semantic_duplicates": 0,
             "decision_fingerprint": "state+legal_actions+chosen_action-v0",
-        },
+        }),
         eligibility_counts=report.eligibility_counts,
         truncation_applied=False,
         non_claims=(

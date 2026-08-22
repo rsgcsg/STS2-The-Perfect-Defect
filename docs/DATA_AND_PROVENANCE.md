@@ -112,6 +112,21 @@ player-visible contract does not expose the game seed, the importer records an
 explicit `human-root:` key rather than inventing a seed. Raw recordings remain
 private local data and are never committed.
 
+Multi-worker collection uses immutable
+`sts2.human-annotator/session-bundle-1` directories. Each bundle binds raw
+evidence, independent audit, deterministic export, exact collection profile,
+pseudonymous worker/campaign fields, explicit human-origin attestation and a
+complete checksum inventory. `stpd.data.human_corpus` verifies the whole bundle,
+then invokes this same strict importer for every session.
+
+Corpus construction rejects duplicate session/bundle/export identities and
+global record/transition collisions. It groups complete runs and any
+cross-session semantic duplicates into the same deterministic split component,
+writes multi-source provenance and canonical Parquet, runs corpus-level B0, and
+optionally profiles Standard serialized state/action pairs with an exact local
+tokenizer. Snapshots and smoke handoffs are content-addressed and immutable.
+See [Human Corpus Lane](HUMAN_CORPUS.md).
+
 ## Current external-source admission
 
 The exact `AlayaLab/AgenticSTS-trajectories` revision

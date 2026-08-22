@@ -44,10 +44,13 @@ catalogs or fabricating provenance. See
 
 ## Next action
 
-Collect at least 1,000 current-teacher decisions with exact game/Host/Player Environment
-identity, authoritative complete catalogs, exact chosen-action mapping, stable successors,
-whole-run seed roots, and declared behavior-policy provenance. Admit them through the
-existing importer/normalizer, whole-root split, deduplication/leakage, and B0 boundaries.
+The multi-worker Human Corpus lane is implemented. First pack/register and build
+the latest exact owner session through the immutable bundle/corpus path. Then
+collect at least 1,000 exact-profile human decisions with authoritative complete
+catalogs, exact chosen-action mapping, stable successors, whole-run roots and
+declared provenance. Rebuild and inspect strict per-session admission,
+whole-run/semantic-component split, B0 and Standard token profiling after each
+batch.
 
 Only after at least 1,000 rows pass may an `S1-1K-2K-SMOKE` preparation be created. It must
 still stop for separate owner authorization; scientific training remains unstarted.
