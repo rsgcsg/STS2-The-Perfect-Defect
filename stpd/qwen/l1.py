@@ -161,6 +161,14 @@ class QwenL1Pin:
     def file_by_name(self) -> dict[str, PinnedFile]:
         return {file.name: file for file in self.files}
 
+    @property
+    def config_sha256(self) -> str:
+        return self.file_by_name["config.json"].sha256
+
+    @property
+    def tokenizer_bundle_sha256(self) -> str:
+        return _file_bundle_sha256(tuple(file for file in self.files if file.kind == "tokenizer"))
+
     def to_dict(self) -> dict[str, Any]:
         self.validate()
         return {
@@ -168,6 +176,8 @@ class QwenL1Pin:
             "model_id": self.model_id,
             "repo_revision": self.repo_revision,
             "files": [file.to_dict() for file in self.files],
+            "config_sha256": self.config_sha256,
+            "tokenizer_bundle_sha256": self.tokenizer_bundle_sha256,
             "special_tokens": [token.to_dict() for token in self.special_tokens],
             "special_tokens_sha256": self.special_tokens_sha256,
             "config_expectations": dict(self.config_expectations),
@@ -211,6 +221,8 @@ class QwenL1Artifact:
 
     def to_dict(self) -> dict[str, Any]:
         self.validate()
+        config_sha256 = next(file.sha256 for file in self.files if file.name == "config.json")
+        tokenizer_files = tuple(file for file in self.files if file.kind == "tokenizer")
         return {
             "schema": MANIFEST_SCHEMA,
             "model_id": self.model_id,
@@ -218,6 +230,8 @@ class QwenL1Artifact:
             "cache_mode": "metadata_tokenizer_only",
             "weights_downloaded": False,
             "files": [file.to_dict() for file in self.files],
+            "config_sha256": config_sha256,
+            "tokenizer_bundle_sha256": _file_bundle_sha256(tokenizer_files),
             "special_tokens": [token.to_dict() for token in self.special_tokens],
             "special_tokens_sha256": self.special_tokens_sha256,
             "rejected_remote_weight_files": list(self.rejected_remote_files),
@@ -230,6 +244,10 @@ def _canonical_bytes(value: Any) -> bytes:
 
 def _sha256_bytes(value: Any) -> str:
     return hashlib.sha256(_canonical_bytes(value)).hexdigest()
+
+
+def _file_bundle_sha256(files: Sequence[PinnedFile]) -> str:
+    return _sha256_bytes([{"name": file.name, "sha256": file.sha256} for file in files])
 
 
 def sha256_file(path: Path) -> str:
@@ -332,6 +350,16 @@ def load_pin(path: Path | None = None) -> QwenL1Pin:
     except (KeyError, TypeError, ValueError) as exc:
         raise QwenL1Error(f"invalid Qwen L1 pin: {path or DEFAULT_PIN_PATH}") from exc
     pin.validate()
+    if value.get("config_sha256") is not None and value["config_sha256"] != pin.config_sha256:
+        raise QwenL1Error("config_sha256 does not match the config.json file pin")
+    if (
+        value.get("tokenizer_bundle_sha256") is not None
+        and value["tokenizer_bundle_sha256"] != pin.tokenizer_bundle_sha256
+    ):
+        raise QwenL1Error("tokenizer_bundle_sha256 does not match tokenizer file pins")
+    thresholds = value.get("thresholds", {})
+    if thresholds.get("silent_truncation") is True:
+        raise QwenL1Error("silent tokenizer truncation is forbidden")
     return pin
 
 

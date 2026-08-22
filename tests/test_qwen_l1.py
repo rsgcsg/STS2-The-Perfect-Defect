@@ -39,6 +39,11 @@ class QwenL1Test(unittest.TestCase):
         self.assertEqual(tuple(pin.profiles[PROFILE_IDS[0]]["families"]), DECISION_FAMILIES)
         self.assertEqual(pin.p95_limit, 4096)
         self.assertEqual(pin.hard_limit, 8192)
+        self.assertEqual(pin.config_sha256, pin.file_by_name["config.json"].sha256)
+        self.assertEqual(
+            pin.tokenizer_bundle_sha256,
+            "449850978552b1ac9a70045410c1a615814263f13476a4c88c66f01f3df9283a",
+        )
 
     def test_weight_names_are_rejected(self):
         self.assertTrue(is_weight_file("model.safetensors"))

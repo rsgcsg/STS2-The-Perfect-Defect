@@ -16,7 +16,8 @@ revision: da87bfb608c14b7cf20ba1ce41287e8de496c0cd
 
 The pin records the SHA-256 and byte size of `config.json`,
 `generation_config.json`, `tokenizer_config.json`, `tokenizer.json`, `vocab.json`,
-and `merges.txt`, plus the ordered special-token ID/role digest. The remote revision
+and `merges.txt`, plus explicit config SHA, tokenizer-bundle SHA, and the ordered
+special-token ID/role digest. The remote revision
 also advertises `model.safetensors`; that file is explicitly excluded and is never
 requested by the fetch command.
 
