@@ -136,13 +136,57 @@ def action_descriptor(snapshot: Mapping[str, Any], action: Mapping[str, Any]) ->
     }
 
 
+def _referent_policy_descriptor(
+    snapshot: Mapping[str, Any], referent_id: Any
+) -> Mapping[str, Any] | None:
+    if referent_id is None:
+        return None
+    referent = next(
+        (item for item in snapshot.get("referents", []) if item.get("referent_id") == referent_id),
+        None,
+    )
+    if not isinstance(referent, Mapping):
+        return {"missing_referent": True}
+    properties = referent.get("properties", {})
+    stable_properties = {
+        key: properties[key]
+        for key in (
+            "definition_id", "type", "cost", "rarity", "is_upgraded",
+            "target_type", "point_type", "row", "col", "option_id", "index",
+        )
+        if isinstance(properties, Mapping) and key in properties
+    }
+    return {
+        "role": referent.get("role"),
+        "kind": referent.get("kind"),
+        "properties": stable_properties,
+    }
+
+
+def action_policy_descriptor(
+    snapshot: Mapping[str, Any], action: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Return a strategy-free ordering key without localized presentation text."""
+    return {
+        "verb": action.get("verb"),
+        "subject": _referent_policy_descriptor(snapshot, action.get("subject_referent_id")),
+        "arguments": [
+            {
+                "role": argument.get("role"),
+                "referent": _referent_policy_descriptor(snapshot, argument.get("referent_id")),
+            }
+            for argument in action.get("arguments", [])
+        ],
+    }
+
+
 def _ordered_actions(
     snapshot: Mapping[str, Any], actions: list[Mapping[str, Any]]
 ) -> list[Mapping[str, Any]]:
     return sorted(
         actions,
         key=lambda action: json.dumps(
-            action_descriptor(snapshot, action), sort_keys=True, separators=(",", ":")
+            action_policy_descriptor(snapshot, action), sort_keys=True, separators=(",", ":")
         ),
     )
 

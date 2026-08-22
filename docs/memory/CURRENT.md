@@ -12,6 +12,11 @@ a regression/qualification lane.
 - v0 core uses frozen Qwen3-0.6B-Base and Standard input.
 - ResearchState/ModelState/ModelAction/ResearchTransition are not yet frozen.
 - No Scheme 1, S2-Simple, S2-SDT, Human Gold, or B0-B7 production pipeline exists yet.
+- The exact operational environment baseline is Headless `v1.0.0`, Managed
+  Host `a884b104.../5b6adbd6...`, Connector `v1.1.0-rc.1/e065102...`
+  `c1877f1a.../64765ea1...`, protocol/SDK `1.0.0/1.0.0`.
+- This baseline is STPD-ready but not formal H1.0; long qualification campaigns
+  are deferred until a concrete environment regression reopens them.
 
 ## Immediate priorities
 

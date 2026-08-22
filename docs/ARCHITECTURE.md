@@ -112,6 +112,9 @@ The linear-Q learner is intentionally simpler than v0. It exercises:
 - Candidate-to-Reference execution.
 
 It is a qualification baseline and future regression test, not a discarded dead end.
+The pre-training environment smoke is deliberately cheaper than full
+qualification and rejects incomplete authority, unknown delivery, missing
+successor, provenance/identity drift and Receipt mismatch.
 
 ## Failure policy
 

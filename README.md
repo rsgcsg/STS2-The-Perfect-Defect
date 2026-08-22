@@ -71,12 +71,23 @@ python3 -m compileall -q stpd tests
 A real environment run additionally requires a prepared `STS2-headless` candidate:
 
 ```bash
+PYTHONPATH=../STS2-headless/consumers/python \
+  python3 -m sts2_headless.smoke \
+  --candidate ../STS2-headless/.local/candidates/<exact-candidate> \
+  --max-actions 64 \
+  --evidence-file .local/evidence/environment-smoke/report.json
+
 PYTHONPATH=../STS2-headless/consumers/python:. python3 -m stpd.training_smoke \
   --headless ../STS2-headless \
   --candidate ../STS2-headless/.local/candidates/<exact-candidate>
 ```
 
 Raw evidence is local and must not be committed.
+
+The frozen environment baseline is Headless `v1.0.0`, Managed Host
+`a884b104.../5b6adbd6...`, Connector `v1.1.0-rc.1`
+`e065102.../c1877f1a.../64765ea1...`, and Player Environment protocol/SDK
+`1.0.0/1.0.0`. A changed identity is a requalification event.
 
 ## Repository navigation
 

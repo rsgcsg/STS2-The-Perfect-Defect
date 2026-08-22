@@ -5,6 +5,11 @@
 The repository has been initialized as a full STPD research project while retaining the
 existing H1 learning/transfer smoke as a useful qualification baseline.
 
+The Headless/Connector lane is frozen as an exact STPD operational dependency.
+Run the cheap environment smoke before training; do not repeat the full
+historical qualification campaign unless an identity or hard-shell regression
+occurs.
+
 ## Source baseline
 
 Pre-initialization remote baseline:
@@ -21,7 +26,7 @@ Pre-initialization remote baseline:
 
 ## Next action
 
-Review the draft contracts against several real combat transitions, then freeze
+After the cheap environment smoke, review the draft contracts against several real combat transitions, then freeze
 ResearchState, ResearchAction, ModelState profiles, and ResearchTransition before collecting
 or converting a large dataset.
 

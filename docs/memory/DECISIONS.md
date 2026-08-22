@@ -41,3 +41,13 @@ frozen Scheme 1 and Scheme 2 winners.
 Data records keep `rank`, `transition`, and `return` eligibility separate. Teacher choice is
 behavior supervision, not optimal-Q truth; exploratory actions may train dynamics without
 training imitation.
+
+## D-006 — Consume the exact Headless v1.0 operational baseline
+
+**Status:** accepted
+
+STPD pins Headless `v1.0.0`, its exact Managed Host tuple and Connector
+`v1.1.0-rc.1` protocol `1.0.0` as the current environment dependency.
+Formal H1.0 and exhaustive qualification are not implied. Identity change or
+an environment-invalid episode reopens only the affected gates; routine
+training starts with the cheap fail-closed environment smoke.

@@ -12,6 +12,7 @@ from stpd.contention_smoke import (
     validate_ready_identities,
 )
 from stpd.training_smoke import (
+    action_policy_descriptor,
     action_list,
     choose_noncombat_action,
     learning_verdict,
@@ -286,6 +287,47 @@ class LinearQTest(unittest.TestCase):
         self.assertEqual(
             choose_noncombat_action(reward_claim, [proceed, claim])["bound_action_id"],
             "claim",
+        )
+
+    def test_policy_ordering_excludes_localized_presentation_text(self):
+        action = {
+            "bound_action_id": "take",
+            "verb": "select",
+            "label": "Take Strike",
+            "subject_referent_id": "card",
+            "arguments": [],
+        }
+        english = {
+            "referents": [{
+                "referent_id": "card",
+                "role": "card",
+                "kind": "entity",
+                "label": "Strike",
+                "properties": {
+                    "definition_id": "STRIKE",
+                    "name": "Strike",
+                    "type": "Attack",
+                    "cost": "1",
+                },
+            }]
+        }
+        localized = {
+            "referents": [{
+                "referent_id": "card",
+                "role": "card",
+                "kind": "entity",
+                "label": "打击",
+                "properties": {
+                    "definition_id": "STRIKE",
+                    "name": "打击",
+                    "type": "Attack",
+                    "cost": "1",
+                },
+            }]
+        }
+        self.assertEqual(
+            action_policy_descriptor(english, action),
+            action_policy_descriptor(localized, {**action, "label": "选择打击"}),
         )
 
     def test_episode_supervision_recovers_stale_without_retrying_the_old_action(self):

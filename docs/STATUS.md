@@ -17,6 +17,12 @@ P0: project system and contract initialization
 H1 environment/consumer qualification
 ```
 
+The environment lane is aligned to Headless `v1.0.0`, Managed patch
+`ed9248b...` / Host `a884b104.../5b6adbd6...`, Connector
+`v1.1.0-rc.1/e065102...` / Host `c1877f1a.../64765ea1...`, STS2
+`v0.111.0/41cef1ea`, and Player Environment protocol/SDK `1.0.0/1.0.0`.
+This is an operational baseline, not formal H1.0 qualification.
+
 The predecessor code baseline was `1b4039fe3933b408e31dd92e9fbe1454bdd7672e`.
 This initialization adds canonical documentation, draft machine-readable contracts, and
 typed insertion points; runtime claims remain bound to the exact reports that produced them.
@@ -31,6 +37,9 @@ typed insertion points; runtime claims remain bound to the exact reports that pr
 - model freeze/load path for the smoke learner;
 - Managed-to-shipped-Reference execution harness;
 - seed derivation, exact Host provenance, temporal settling/stale supervision;
+- locale-neutral action ordering for the qualification policy while retaining
+  localized labels in evidence;
+- a cheap fail-closed environment smoke before training;
 - pure unit tests for the current smoke lane;
 - project document map, memory/ADR workflow, draft schemas, and typed ports.
 
@@ -57,6 +66,8 @@ typed insertion points; runtime claims remain bound to the exact reports that pr
   has been measured by this repository yet.
 - No raw data, Qwen weights, proprietary game files, or private runtime evidence are part of
   the source tree.
+- Long soak, exhaustive semantics, broad changed-build/fault and cross-platform
+  qualification remain deferred non-claims rather than STPD v0 blockers.
 
 ## Immediate priorities
 

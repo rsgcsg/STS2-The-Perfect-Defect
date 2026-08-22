@@ -23,6 +23,19 @@ Requirements:
 - stale refusal causes a fresh observation and new selection, not replay;
 - the successor is the next stable interactive state or terminal;
 - Host/session/native identifiers never become model inputs.
+- localized labels may be evidence/model text but cannot be the sole action
+  identity or deterministic policy-ordering key.
+
+An episode and every derived transition are environment-invalid after any
+`unknown` delivery, incomplete catalog, settling timeout, missing successor,
+replayed stale authority, mid-episode runtime/environment identity change,
+request/action/Receipt mismatch, or unexpected environment exception. Invalid
+data is quarantined; it is never silently retained for training.
+
+Failure ownership starts with the same exact scenario: both Reference and
+Managed failing points to Connector/game contract; Reference passing and
+Managed failing points to Headless; both environments passing points to STPD.
+Any identity change is a requalification event.
 
 ## 2. ResearchState v0
 
