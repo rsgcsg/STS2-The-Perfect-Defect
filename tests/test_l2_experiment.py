@@ -55,7 +55,7 @@ def test_tiny_subset_fails_closed_without_two_rank_eligible_train_rows() -> None
 def test_tiny_retry_config_changes_only_bounded_budget_identity() -> None:
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
 
-    assert config["protocol_version"] == "stpd-v0-l2-2026-08-22-r1"
+    assert config["protocol_version"] == "stpd-v0-l2-2026-08-22-r2"
     assert config["architecture_id"] == "scheme1-linear-pretrained"
     assert config["input_profile"] == "stpd-combat-v0-standard"
     assert config["qwen_control"] == "pretrained"
@@ -67,9 +67,9 @@ def test_tiny_retry_config_changes_only_bounded_budget_identity() -> None:
         "grad_clip_norm": 1.0,
     }
     assert config["budget"] == {
-        "optimizer_steps": 256,
+        "optimizer_steps": 512,
         "evaluation_interval_steps": 1,
-        "checkpoint_steps": [0, 256],
+        "checkpoint_steps": [0, 512],
     }
     assert config["pass_criteria"] == {
         "memorized_top1_fraction": 1.0,
@@ -90,7 +90,7 @@ def test_tiny_retry_config_changes_only_bounded_budget_identity() -> None:
 def test_core_matrix_is_exactly_ten_configs_three_seeds_and_no_fake_qwen() -> None:
     matrix = json.loads((ROOT / "configs" / "v0" / "models" / "core.json").read_text())
     architectures = matrix["architectures"]
-    assert matrix["plan_version"] == "stpd-v0-l2-2026-08-22-r1"
+    assert matrix["plan_version"] == "stpd-v0-l2-2026-08-22-r2"
     assert len(architectures) == 10
     assert len(matrix["training_seeds"]) == 3
     assert matrix["expected_core_run_count"] == 30
