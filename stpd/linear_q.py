@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 import math
 import random
+from collections.abc import Mapping
 from typing import Any
 
 
 def _combat(snapshot: Mapping[str, Any]) -> Mapping[str, Any] | None:
     if snapshot.get("interaction", {}).get("kind") != "combat_turn":
         return None
-    return snapshot.get("interaction", {}).get("content", {}).get("context")
+    context = snapshot.get("interaction", {}).get("content", {}).get("context")
+    return context if isinstance(context, Mapping) else None
 
 
 def _player_hp(snapshot: Mapping[str, Any]) -> float:
@@ -23,7 +24,10 @@ def _floor(snapshot: Mapping[str, Any]) -> int:
 def _enemy_hp(context: Mapping[str, Any] | None) -> float:
     if context is None:
         return 0.0
-    return sum(float(enemy.get("hp", 0)) + float(enemy.get("block", 0)) for enemy in context.get("enemies", []))
+    return sum(
+        float(enemy.get("hp", 0)) + float(enemy.get("block", 0))
+        for enemy in context.get("enemies", [])
+    )
 
 
 def combat_reward(before: Mapping[str, Any], after: Mapping[str, Any]) -> float:
@@ -37,7 +41,10 @@ def combat_reward(before: Mapping[str, Any], after: Mapping[str, Any]) -> float:
     if after_combat is None and after.get("interaction", {}).get("kind") != "game_over":
         reward += 1.0
     if after.get("interaction", {}).get("kind") == "game_over":
-        victory = after.get("interaction", {}).get("content", {}).get("surface", {}).get("victory") is True
+        victory = (
+            after.get("interaction", {}).get("content", {}).get("surface", {}).get("victory")
+            is True
+        )
         reward += 10.0 if victory else -5.0
     return reward
 
@@ -59,7 +66,9 @@ def features(snapshot: Mapping[str, Any], action: Mapping[str, Any]) -> dict[str
     for enemy in context.get("enemies", []):
         for intent in enemy.get("intents", []):
             if intent.get("type") == "Attack":
-                digits = "".join(character for character in str(intent.get("label", "")) if character.isdigit())
+                digits = "".join(
+                    character for character in str(intent.get("label", "")) if character.isdigit()
+                )
                 incoming += int(digits or 0)
     incoming_bucket = min(4, incoming // 5)
     values = {
@@ -85,7 +94,10 @@ class LinearQ:
         self.updates = 0
 
     def score(self, snapshot: Mapping[str, Any], action: Mapping[str, Any]) -> float:
-        return sum(self.weights.get(name, 0.0) * value for name, value in features(snapshot, action).items())
+        return sum(
+            self.weights.get(name, 0.0) * value
+            for name, value in features(snapshot, action).items()
+        )
 
     def choose(
         self,
@@ -98,7 +110,9 @@ class LinearQ:
             raise ValueError("Cannot choose from an empty action set.")
         if rng.random() < epsilon:
             return rng.choice(actions)
-        scored = [(self.score(snapshot, action), index, action) for index, action in enumerate(actions)]
+        scored = [
+            (self.score(snapshot, action), index, action) for index, action in enumerate(actions)
+        ]
         best = max(score for score, _, _ in scored)
         return rng.choice([action for score, _, action in scored if math.isclose(score, best)])
 
@@ -111,7 +125,9 @@ class LinearQ:
         successor_actions: list[Mapping[str, Any]],
     ) -> float:
         prediction = self.score(snapshot, action)
-        continuation = max((self.score(successor, candidate) for candidate in successor_actions), default=0.0)
+        continuation = max(
+            (self.score(successor, candidate) for candidate in successor_actions), default=0.0
+        )
         delta = max(-10.0, min(10.0, reward + self.gamma * continuation - prediction))
         for name, value in features(snapshot, action).items():
             self.weights[name] = self.weights.get(name, 0.0) + self.alpha * delta * value
@@ -128,7 +144,7 @@ class LinearQ:
         }
 
     @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> "LinearQ":
+    def from_dict(cls, value: Mapping[str, Any]) -> LinearQ:
         if value.get("algorithm") != "linear_q_learning":
             raise ValueError("Unsupported frozen policy algorithm.")
         weights = value.get("weights")

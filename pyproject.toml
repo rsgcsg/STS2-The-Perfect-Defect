@@ -3,12 +3,57 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "stpd-training-smoke"
+name = "sts2-the-perfect-defect"
 version = "0.1.0"
-description = "Pre-alpha STPD research system; current package provides H1 integration and learning smoke gates"
+description = "Reproducible STPD research, data, model, training, and evaluation system"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "numpy>=2.0,<3",
+  "pyarrow>=18,<24",
+]
+
+[project.optional-dependencies]
+l1 = [
+  "huggingface-hub>=0.34,<2",
+  "tokenizers>=0.21,<1",
+]
+ml = [
+  "torch>=2.7,<3",
+]
+
+[dependency-groups]
+dev = [
+  "jsonschema>=4.23,<5",
+  "mypy>=1.16,<2",
+  "pytest>=8.4,<10",
+  "ruff>=0.12,<1",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["stpd*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+exclude = ["data/", "artifacts/"]
+
+[[tool.mypy.overrides]]
+module = "sts2_headless"
+ignore_missing_imports = true

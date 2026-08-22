@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 from types import ModuleType
 
 
@@ -11,9 +11,7 @@ def activate_headless_client(headless: Path) -> Path:
     package_root = headless.resolve() / "consumers" / "python"
     package = package_root / "sts2_headless" / "__init__.py"
     if not package.is_file():
-        raise FileNotFoundError(
-            f"Headless checkout does not contain its Python client: {package}"
-        )
+        raise FileNotFoundError(f"Headless checkout does not contain its Python client: {package}")
 
     loaded: ModuleType | None = sys.modules.get("sts2_headless")
     if loaded is not None:

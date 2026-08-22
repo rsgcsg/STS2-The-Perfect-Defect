@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 
-
 _UNAMBIGUOUS_ALPHABET = frozenset("0123456789ABCDEFGHJKLMNPQRSTUVWXYZ")
 
 

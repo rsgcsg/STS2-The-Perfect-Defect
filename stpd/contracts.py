@@ -7,8 +7,9 @@ must preserve without importing Headless or Connector implementation details.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional, Protocol, Sequence, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 class ContractError(ValueError):
@@ -91,25 +92,20 @@ class PlayerEnvironmentPort(Protocol):
 
     ready: Mapping[str, Any]
 
-    def reset(self, seed: str) -> Mapping[str, Any]:
-        ...
+    def reset(self, seed: str) -> Mapping[str, Any]: ...
 
-    def observe(self) -> Mapping[str, Any]:
-        ...
+    def observe(self) -> Mapping[str, Any]: ...
 
-    def read(self, read_id: str, snapshot_id: str) -> Mapping[str, Any]:
-        ...
+    def read(self, read_id: str, snapshot_id: str) -> Mapping[str, Any]: ...
 
     def step(
         self,
         bound_action_id: str,
         snapshot_id: str,
-        mutation_request_id: Optional[str] = None,
-    ) -> Mapping[str, Any]:
-        ...
+        mutation_request_id: str | None = None,
+    ) -> Mapping[str, Any]: ...
 
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
 
 @runtime_checkable
@@ -120,11 +116,9 @@ class ResearchProjector(Protocol):
         self,
         snapshot: Mapping[str, Any],
         reads: Sequence[Mapping[str, Any]],
-    ) -> Mapping[str, Any]:
-        ...
+    ) -> Mapping[str, Any]: ...
 
-    def project_actions(self, snapshot: Mapping[str, Any]) -> Sequence[Mapping[str, Any]]:
-        ...
+    def project_actions(self, snapshot: Mapping[str, Any]) -> Sequence[Mapping[str, Any]]: ...
 
 
 @runtime_checkable
@@ -133,11 +127,9 @@ class ModelSerializer(Protocol):
 
     profile_id: str
 
-    def serialize_state(self, research_state: Mapping[str, Any]) -> str:
-        ...
+    def serialize_state(self, research_state: Mapping[str, Any]) -> str: ...
 
-    def serialize_action(self, research_action: Mapping[str, Any]) -> str:
-        ...
+    def serialize_action(self, research_action: Mapping[str, Any]) -> str: ...
 
 
 @runtime_checkable
@@ -150,22 +142,18 @@ class QwenBackend(Protocol):
         self,
         state_texts: Sequence[str],
         action_texts: Sequence[str],
-    ) -> Any:
-        ...
+    ) -> Any: ...
 
-    def encode_state(self, state_texts: Sequence[str], *, return_sequence: bool) -> Any:
-        ...
+    def encode_state(self, state_texts: Sequence[str], *, return_sequence: bool) -> Any: ...
 
-    def embed_action_tokens(self, action_texts: Sequence[str]) -> Any:
-        ...
+    def embed_action_tokens(self, action_texts: Sequence[str]) -> Any: ...
 
 
 @runtime_checkable
 class ActionScorer(Protocol):
     """Returns one scalar score for each current legal candidate."""
 
-    def score(self, model_state: str, model_actions: Sequence[str]) -> Sequence[float]:
-        ...
+    def score(self, model_state: str, model_actions: Sequence[str]) -> Sequence[float]: ...
 
 
 def ensure_score_alignment(scores: Sequence[float], actions: Sequence[Any]) -> None:

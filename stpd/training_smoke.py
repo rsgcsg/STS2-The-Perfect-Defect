@@ -3,12 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import platform
 import random
 import subprocess
 import time
-from typing import Any, Mapping
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from .game_seed import derive_game_seed
@@ -80,7 +81,12 @@ def source_identity(root: Path) -> dict[str, Any]:
 
 
 def driver_command(headless: Path, candidate: Path) -> list[str]:
-    return ["node", str(headless / "tools" / "managed-pe-driver.mjs"), "--candidate", str(candidate)]
+    return [
+        "node",
+        str(headless / "tools" / "managed-pe-driver.mjs"),
+        "--candidate",
+        str(candidate),
+    ]
 
 
 def action_list(snapshot: Mapping[str, Any]) -> list[Mapping[str, Any]]:
@@ -109,8 +115,17 @@ def _referent_descriptor(snapshot: Mapping[str, Any], referent_id: Any) -> Mappi
     stable_properties = {
         key: properties[key]
         for key in (
-            "definition_id", "name", "type", "cost", "rarity", "is_upgraded",
-            "target_type", "point_type", "row", "col", "option_id",
+            "definition_id",
+            "name",
+            "type",
+            "cost",
+            "rarity",
+            "is_upgraded",
+            "target_type",
+            "point_type",
+            "row",
+            "col",
+            "option_id",
         )
         if isinstance(properties, Mapping) and key in properties
     }
@@ -152,8 +167,17 @@ def _referent_policy_descriptor(
     stable_properties = {
         key: properties[key]
         for key in (
-            "definition_id", "type", "cost", "rarity", "is_upgraded",
-            "target_type", "point_type", "row", "col", "option_id", "index",
+            "definition_id",
+            "type",
+            "cost",
+            "rarity",
+            "is_upgraded",
+            "target_type",
+            "point_type",
+            "row",
+            "col",
+            "option_id",
+            "index",
         )
         if isinstance(properties, Mapping) and key in properties
     }
@@ -263,8 +287,11 @@ def run_episode(
             break
         combat = snapshot.get("interaction", {}).get("kind") == "combat_turn"
         inference_started = time.perf_counter()
-        selected = model.choose(snapshot, actions, rng, epsilon if train and combat else 0.0) \
-            if combat else choose_noncombat_action(snapshot, actions)
+        selected = (
+            model.choose(snapshot, actions, rng, epsilon if train and combat else 0.0)
+            if combat
+            else choose_noncombat_action(snapshot, actions)
+        )
         inference_seconds += time.perf_counter() - inference_started
         step_started = time.perf_counter()
         mutation_request_id = uuid4().hex
@@ -286,7 +313,8 @@ def run_episode(
                 successor_advances += advances
                 continue
             raise EpisodeExecutionError(
-                f"Environment delivery failed: {receipt.get('delivery')}:{receipt.get('reason_code')}",
+                "Environment delivery failed: "
+                f"{receipt.get('delivery')}:{receipt.get('reason_code')}",
                 {
                     "before": _snapshot_marker(snapshot),
                     "action": action_descriptor(snapshot, selected),
@@ -323,7 +351,8 @@ def run_episode(
             observed = environment.observe()
             if not _same_session(successor, observed):
                 raise EpisodeExecutionError(
-                    "Receipt successor and independent observation have different environment identity.",
+                    "Receipt successor and independent observation have different "
+                    "environment identity.",
                     {
                         "before": _snapshot_marker(snapshot),
                         "action": action_descriptor(snapshot, selected),
@@ -351,28 +380,33 @@ def run_episode(
         successor, advances = _observe_until_stable(environment, successor)
         successor_advances += advances
         if record_steps:
-            steps.append({
-                "index": delivered,
-                "before_snapshot_id": snapshot.get("snapshot_id"),
-                "before_interaction_kind": snapshot.get("interaction", {}).get("kind"),
-                "bound_action_id": selected.get("bound_action_id"),
-                "action": action_descriptor(snapshot, selected),
-                "available_actions": [
-                    action_descriptor(snapshot, action) for action in actions
-                ],
-                "mutation_request_id": mutation_request_id,
-                "delivery": receipt.get("delivery"),
-                "successor_snapshot_id": successor.get("snapshot_id"),
-                "successor_interaction_kind": successor.get("interaction", {}).get("kind"),
-            })
+            steps.append(
+                {
+                    "index": delivered,
+                    "before_snapshot_id": snapshot.get("snapshot_id"),
+                    "before_interaction_kind": snapshot.get("interaction", {}).get("kind"),
+                    "bound_action_id": selected.get("bound_action_id"),
+                    "action": action_descriptor(snapshot, selected),
+                    "available_actions": [
+                        action_descriptor(snapshot, action) for action in actions
+                    ],
+                    "mutation_request_id": mutation_request_id,
+                    "delivery": receipt.get("delivery"),
+                    "successor_snapshot_id": successor.get("snapshot_id"),
+                    "successor_interaction_kind": successor.get("interaction", {}).get("kind"),
+                }
+            )
         delivered += 1
         if combat:
             combat_decisions += 1
             reward = combat_reward(snapshot, successor)
             total_reward += reward
             if train:
-                next_actions = action_list(successor) \
-                    if successor.get("interaction", {}).get("kind") == "combat_turn" else []
+                next_actions = (
+                    action_list(successor)
+                    if successor.get("interaction", {}).get("kind") == "combat_turn"
+                    else []
+                )
                 losses.append(model.update(snapshot, selected, reward, successor, next_actions))
         snapshot = successor
     persistent = snapshot.get("persistent", {}).get("content", {})
@@ -413,15 +447,14 @@ def summarize(episodes: list[dict[str, Any]]) -> dict[str, Any]:
         "combat_decisions": sum(episode["combat_decisions"] for episode in episodes),
         "mean_td_loss": sum(
             episode["mean_td_loss"] for episode in episodes if episode["mean_td_loss"] is not None
-        ) / max(1, sum(episode["mean_td_loss"] is not None for episode in episodes)),
+        )
+        / max(1, sum(episode["mean_td_loss"] is not None for episode in episodes)),
         "inference_seconds": sum(episode["inference_seconds"] for episode in episodes),
         "host_step_wait_seconds": sum(episode["step_seconds"] for episode in episodes),
     }
 
 
-def learning_verdict(
-    baseline: Mapping[str, Any], trained: Mapping[str, Any]
-) -> dict[str, Any]:
+def learning_verdict(baseline: Mapping[str, Any], trained: Mapping[str, Any]) -> dict[str, Any]:
     terminal_complete = (
         baseline["terminal_episodes"] == baseline["episodes"]
         and trained["terminal_episodes"] == trained["episodes"]
@@ -513,7 +546,9 @@ def main() -> None:
     baseline_summary = summarize(baseline)
     trained_summary = summarize(trained)
     verdict = learning_verdict(baseline_summary, trained_summary)
-    total_samples = training_summary["delivered"] + baseline_summary["delivered"] + trained_summary["delivered"]
+    total_samples = (
+        training_summary["delivered"] + baseline_summary["delivered"] + trained_summary["delivered"]
+    )
     report = {
         "schema": "stpd/real-learner-smoke-1",
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -549,9 +584,10 @@ def main() -> None:
             "learner_processes": 1,
         },
         "non_claims": [
-            "This linear shaped-reward learner is an H1 integration smoke, not the planned Qwen STPD model.",
+            "This linear shaped-reward learner is an H1 integration smoke, not the planned "
+            "Qwen STPD model.",
             "Candidate-only learning does not prove shipped Reference transfer.",
-            "A single training seed and short run do not establish reproducible learning validity."
+            "A single training seed and short run do not establish reproducible learning validity.",
         ],
     }
     output = Path(args.output)
@@ -559,15 +595,22 @@ def main() -> None:
         output = root / output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    (output.parent / "model.json").write_text(json.dumps(model.to_dict(), indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({
-        "status": report["status"],
-        "report_file": str(output),
-        "training": training_summary,
-        "baseline": baseline_summary,
-        "trained": trained_summary,
-        "pipeline": report["pipeline"],
-    }, indent=2))
+    (output.parent / "model.json").write_text(
+        json.dumps(model.to_dict(), indent=2) + "\n", encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {
+                "status": report["status"],
+                "report_file": str(output),
+                "training": training_summary,
+                "baseline": baseline_summary,
+                "trained": trained_summary,
+                "pipeline": report["pipeline"],
+            },
+            indent=2,
+        )
+    )
     if report["status"] != "learning_smoke_pass":
         raise SystemExit(2)
 

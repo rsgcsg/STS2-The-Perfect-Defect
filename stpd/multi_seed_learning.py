@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import random
 import time
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import Any
 
 from .game_seed import derive_game_seed
 from .headless_client import activate_headless_client
@@ -23,23 +24,18 @@ from .training_smoke import (
 
 def _provenance_pass(episodes: Sequence[Mapping[str, Any]]) -> bool:
     return all(
-        episode.get("episode_identity", {})
-        .get("episode_provenance", {})
-        .get("verdict") == "provenance_pass"
+        episode.get("episode_identity", {}).get("episode_provenance", {}).get("verdict")
+        == "provenance_pass"
         for episode in episodes
     )
 
 
 def multi_seed_verdict(trials: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     learning_passes = sum(
-        trial.get("verdict", {}).get("status") == "learning_smoke_pass"
-        for trial in trials
+        trial.get("verdict", {}).get("status") == "learning_smoke_pass" for trial in trials
     )
     provenance = all(trial.get("provenance_pass") is True for trial in trials)
-    terminal = all(
-        trial.get("verdict", {}).get("terminal_complete") is True
-        for trial in trials
-    )
+    terminal = all(trial.get("verdict", {}).get("terminal_complete") is True for trial in trials)
     return {
         "status": "multi_seed_learning_pass"
         if trials and learning_passes == len(trials) and provenance and terminal
@@ -53,7 +49,9 @@ def multi_seed_verdict(trials: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Train independent frozen policies and require improvement for every learner seed."
+        description=(
+            "Train independent frozen policies and require improvement for every learner seed."
+        )
     )
     parser.add_argument("--headless", required=True)
     parser.add_argument("--candidate", required=True)
@@ -74,8 +72,7 @@ def main() -> None:
     if len(set(learner_seeds)) != len(learner_seeds):
         raise SystemExit("learner seeds must be unique")
     evaluation_seeds = [
-        derive_game_seed("STPD_MULTI_EVAL", index + 1)
-        for index in range(args.eval_episodes)
+        derive_game_seed("STPD_MULTI_EVAL", index + 1) for index in range(args.eval_episodes)
     ]
     output = Path(args.output)
     if not output.is_absolute():
@@ -138,16 +135,18 @@ def main() -> None:
             all_episodes = [*training, *baseline, *trained]
             model_file = output.parent / f"model-{learner_seed}.json"
             model_file.write_text(json.dumps(model.to_dict(), indent=2) + "\n", encoding="utf-8")
-            trials.append({
-                "learner_seed": learner_seed,
-                "training": {"summary": summarize(training), "episodes": training},
-                "baseline": {"summary": baseline_summary, "episodes": baseline},
-                "trained": {"summary": trained_summary, "episodes": trained},
-                "verdict": verdict,
-                "provenance_pass": _provenance_pass(all_episodes),
-                "model_file": str(model_file),
-                "model": model.to_dict(),
-            })
+            trials.append(
+                {
+                    "learner_seed": learner_seed,
+                    "training": {"summary": summarize(training), "episodes": training},
+                    "baseline": {"summary": baseline_summary, "episodes": baseline},
+                    "trained": {"summary": trained_summary, "episodes": trained},
+                    "verdict": verdict,
+                    "provenance_pass": _provenance_pass(all_episodes),
+                    "model_file": str(model_file),
+                    "model": model.to_dict(),
+                }
+            )
 
     verdict = multi_seed_verdict(trials)
     report = {
@@ -167,27 +166,33 @@ def main() -> None:
         "verdict": verdict,
         "wall_seconds": time.perf_counter() - wall_started,
         "non_claims": [
-            "This proves a small independent learner can improve on fixed Managed Exact evaluation seeds.",
+            "This proves a small independent learner can improve on fixed Managed Exact "
+            "evaluation seeds.",
             "It does not prove shipped Reference transfer, victory, or production policy quality.",
             "The learner and reward remain STPD-owned; they do not define Host semantics.",
         ],
     }
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({
-        "status": report["status"],
-        "report_file": str(output),
-        "verdict": verdict,
-        "trials": [
+    print(
+        json.dumps(
             {
-                "learner_seed": trial["learner_seed"],
-                "baseline": trial["baseline"]["summary"],
-                "trained": trial["trained"]["summary"],
-                "verdict": trial["verdict"],
-                "model_file": trial["model_file"],
-            }
-            for trial in trials
-        ],
-    }, indent=2))
+                "status": report["status"],
+                "report_file": str(output),
+                "verdict": verdict,
+                "trials": [
+                    {
+                        "learner_seed": trial["learner_seed"],
+                        "baseline": trial["baseline"]["summary"],
+                        "trained": trial["trained"]["summary"],
+                        "verdict": trial["verdict"],
+                        "model_file": trial["model_file"],
+                    }
+                    for trial in trials
+                ],
+            },
+            indent=2,
+        )
+    )
     if report["status"] != "multi_seed_learning_pass":
         raise SystemExit(2)
 

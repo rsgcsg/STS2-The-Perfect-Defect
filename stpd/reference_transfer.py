@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import random
 import time
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import Any
 
 from .game_seed import require_canonical_game_seed
 from .headless_client import activate_headless_client
@@ -30,10 +31,9 @@ def _reference_driver_command(
 
 
 def _episode_provenance_pass(episode: Mapping[str, Any]) -> bool:
-    return (
-        episode.get("episode_identity", {})
-        .get("episode_provenance", {})
-        .get("verdict") == "provenance_pass"
+    return bool(
+        episode.get("episode_identity", {}).get("episode_provenance", {}).get("verdict")
+        == "provenance_pass"
     )
 
 
@@ -43,7 +43,7 @@ def transfer_verdict(
 ) -> dict[str, Any]:
     same_seed_count = len(candidate) == len(reference) and all(
         left.get("seed") == right.get("seed")
-        for left, right in zip(candidate, reference)
+        for left, right in zip(candidate, reference, strict=True)
     )
     candidate_terminal = bool(candidate) and all(
         episode.get("terminal") == "game_over" for episode in candidate
@@ -57,25 +57,24 @@ def transfer_verdict(
         left.get("victory") == right.get("victory")
         and left.get("floor") == right.get("floor")
         and left.get("hp") == right.get("hp")
-        for left, right in zip(candidate, reference)
+        for left, right in zip(candidate, reference, strict=True)
     )
     execution_pass = (
-        same_seed_count
-        and candidate_terminal
-        and reference_terminal
-        and provenance
-        and delivered
+        same_seed_count and candidate_terminal and reference_terminal and provenance and delivered
     )
     return {
         "status": "reference_transfer_execution_pass"
-        if execution_pass else "reference_transfer_failed",
+        if execution_pass
+        else "reference_transfer_failed",
         "same_seed_count": same_seed_count,
         "candidate_terminal_complete": candidate_terminal,
         "reference_terminal_complete": reference_terminal,
         "all_episode_provenance_pass": provenance,
         "all_episodes_delivered_actions": delivered,
         "exact_terminal_outcomes_match": exact_outcomes,
-        "semantic_parity_claim": "exact_terminal_outcomes_match" if exact_outcomes else "not_claimed",
+        "semantic_parity_claim": "exact_terminal_outcomes_match"
+        if exact_outcomes
+        else "not_claimed",
     }
 
 
@@ -102,12 +101,14 @@ def _evaluate(
 
 
 def _summary_or_none(episodes: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:
-    return summarize(list(episodes)) if episodes else None
+    return summarize([dict(episode) for episode in episodes]) if episodes else None
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run one Candidate-trained frozen policy on Managed Exact and shipped Reference."
+        description=(
+            "Run one Candidate-trained frozen policy on Managed Exact and shipped Reference."
+        )
     )
     parser.add_argument("--headless", required=True)
     parser.add_argument("--candidate", required=True)
@@ -195,7 +196,8 @@ def main() -> None:
         "wall_seconds": time.perf_counter() - started,
         "non_claims": [
             "Execution transfer does not by itself prove policy quality or broad semantic parity.",
-            "Exact terminal outcome parity is claimed only when the recorded per-seed outcomes match.",
+            "Exact terminal outcome parity is claimed only when the recorded per-seed "
+            "outcomes match.",
             "This sequential smoke is not a throughput or resource-density benchmark.",
             "A partial report records evidence reached before a fail-closed driver or Host error.",
         ],
@@ -205,14 +207,19 @@ def main() -> None:
         output = root / output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({
-        "status": report["status"],
-        "report_file": str(output),
-        "managed": report["managed"]["summary"],
-        "reference": report["reference"]["summary"],
-        "verdict": verdict,
-        "wall_seconds": report["wall_seconds"],
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "status": report["status"],
+                "report_file": str(output),
+                "managed": report["managed"]["summary"],
+                "reference": report["reference"]["summary"],
+                "verdict": verdict,
+                "wall_seconds": report["wall_seconds"],
+            },
+            indent=2,
+        )
+    )
     if report["status"] != "reference_transfer_execution_pass":
         raise SystemExit(2)
 

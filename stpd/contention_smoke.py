@@ -8,28 +8,31 @@ unit-testable without starting a game candidate.
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 import json
 import os
-from pathlib import Path
 import platform
 import random
 import subprocess
 import threading
 import time
-from typing import Any, Callable, Mapping, Sequence
-
-try:
-    import resource
-except ImportError:  # pragma: no cover - Windows has no resource module.
-    resource = None
+from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from .game_seed import derive_game_seed
 from .headless_client import activate_headless_client
 from .linear_q import LinearQ, combat_reward
 from .training_smoke import choose_noncombat_action
 
+resource: Any
+try:
+    import resource as resource_module
+except ImportError:  # pragma: no cover - Windows has no resource module.
+    resource = None
+else:
+    resource = resource_module
 
 REQUIRED_READY_FIELDS = (
     "headless",
@@ -96,11 +99,7 @@ def _shared_runtime_identity(value: Any) -> Any:
 
     if not isinstance(value, Mapping):
         return value
-    return {
-        key: item
-        for key, item in value.items()
-        if key != "process_id"
-    }
+    return {key: item for key, item in value.items() if key != "process_id"}
 
 
 def validate_ready_identities(readies: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
@@ -121,8 +120,10 @@ def validate_ready_identities(readies: Sequence[Mapping[str, Any]]) -> dict[str,
     comparable_fields = ("headless", "candidate_build")
     comparable = [
         tuple(
-            [*(_identity_value(ready[field]) for field in comparable_fields),
-             _identity_value(_shared_runtime_identity(ready["runtime_identity"]))]
+            [
+                *(_identity_value(ready[field]) for field in comparable_fields),
+                _identity_value(_shared_runtime_identity(ready["runtime_identity"])),
+            ]
         )
         for ready in readies
     ]
@@ -134,9 +135,8 @@ def validate_ready_identities(readies: Sequence[Mapping[str, Any]]) -> dict[str,
     ]
     consistent = len(set(comparable)) == 1
     unique_instances = len(instances) == len(set(instances))
-    unique_processes = (
-        not process_ids
-        or (len(process_ids) == len(readies) and len(process_ids) == len(set(process_ids)))
+    unique_processes = not process_ids or (
+        len(process_ids) == len(readies) and len(process_ids) == len(set(process_ids))
     )
     return {
         "status": "valid" if consistent and unique_instances and unique_processes else "invalid",
@@ -234,8 +234,7 @@ def run_contention_seed(
     episodes: list[dict[str, Any]] = []
     for episode_index in range(config.episodes_per_seed):
         seeds = [
-            _episode_seed(seed, episode_index, worker_id)
-            for worker_id in range(config.workers)
+            _episode_seed(seed, episode_index, worker_id) for worker_id in range(config.workers)
         ]
         vector = vector_factory(environments)
         snapshots = list(vector.reset(seeds))
@@ -252,46 +251,76 @@ def run_contention_seed(
             for worker_id in active_ids:
                 snapshot = snapshots[worker_id]
                 if action_counts[worker_id] >= config.max_actions:
-                    episodes.append(_episode_record(
-                        seeds[worker_id], worker_id, "action_limit", snapshot, delivered[worker_id],
-                        combat_decisions[worker_id], shaped_returns[worker_id], losses[worker_id],
-                        environments[worker_id],
-                    ))
+                    episodes.append(
+                        _episode_record(
+                            seeds[worker_id],
+                            worker_id,
+                            "action_limit",
+                            snapshot,
+                            delivered[worker_id],
+                            combat_decisions[worker_id],
+                            shaped_returns[worker_id],
+                            losses[worker_id],
+                            environments[worker_id],
+                        )
+                    )
                     active.remove(worker_id)
                     continue
                 if snapshot.get("interaction", {}).get("kind") == "game_over":
-                    episodes.append(_episode_record(
-                        seeds[worker_id], worker_id, "game_over", snapshot, delivered[worker_id],
-                        combat_decisions[worker_id], shaped_returns[worker_id], losses[worker_id],
-                        environments[worker_id],
-                    ))
+                    episodes.append(
+                        _episode_record(
+                            seeds[worker_id],
+                            worker_id,
+                            "game_over",
+                            snapshot,
+                            delivered[worker_id],
+                            combat_decisions[worker_id],
+                            shaped_returns[worker_id],
+                            losses[worker_id],
+                            environments[worker_id],
+                        )
+                    )
                     active.remove(worker_id)
                     continue
                 actions = action_list(snapshot)
                 if not actions:
-                    episodes.append(_episode_record(
-                        seeds[worker_id], worker_id, "no_action", snapshot, delivered[worker_id],
-                        combat_decisions[worker_id], shaped_returns[worker_id], losses[worker_id],
-                        environments[worker_id],
-                    ))
+                    episodes.append(
+                        _episode_record(
+                            seeds[worker_id],
+                            worker_id,
+                            "no_action",
+                            snapshot,
+                            delivered[worker_id],
+                            combat_decisions[worker_id],
+                            shaped_returns[worker_id],
+                            losses[worker_id],
+                            environments[worker_id],
+                        )
+                    )
                     active.remove(worker_id)
                     continue
                 combat = snapshot.get("interaction", {}).get("kind") == "combat_turn"
-                selected_action = model.choose(
-                    snapshot,
-                    actions,
-                    random.Random(f"{seed}:{episode_index}:{worker_id}:{delivered[worker_id]}"),
-                    config.epsilon if combat else 0.0,
-                ) if combat else choose_noncombat_action(snapshot, actions)
+                selected_action = (
+                    model.choose(
+                        snapshot,
+                        actions,
+                        random.Random(f"{seed}:{episode_index}:{worker_id}:{delivered[worker_id]}"),
+                        config.epsilon if combat else 0.0,
+                    )
+                    if combat
+                    else choose_noncombat_action(snapshot, actions)
+                )
                 selected[worker_id] = selected_action
-                action_inputs.append((str(selected_action["bound_action_id"]), str(snapshot["snapshot_id"])))
+                action_inputs.append(
+                    (str(selected_action["bound_action_id"]), str(snapshot["snapshot_id"]))
+                )
             if not action_inputs:
                 continue
             live_ids = [worker_id for worker_id in active_ids if worker_id in selected]
             live_vector = vector_factory([environments[worker_id] for worker_id in live_ids])
             receipts = live_vector.step(action_inputs)
             update_jobs = []
-            for worker_id, receipt in zip(live_ids, receipts):
+            for worker_id, receipt in zip(live_ids, receipts, strict=True):
                 if receipt.get("delivery") != "delivered" or receipt.get("successor") is None:
                     raise RuntimeError(
                         f"worker {worker_id} delivery failed: "
@@ -311,26 +340,36 @@ def run_contention_seed(
                 next_actions = []
                 if successor.get("interaction", {}).get("kind") == "combat_turn":
                     next_actions = action_list(successor)
-                update_jobs.append((
-                    f"{seed}:{episode_index}:{worker_id}",
-                    before,
-                    selected[worker_id],
-                    reward,
-                    successor,
-                    next_actions,
-                    worker_id,
-                ))
+                update_jobs.append(
+                    (
+                        f"{seed}:{episode_index}:{worker_id}",
+                        before,
+                        selected[worker_id],
+                        reward,
+                        successor,
+                        next_actions,
+                        worker_id,
+                    )
+                )
             with ThreadPoolExecutor(max_workers=max(1, len(update_jobs))) as executor:
                 futures = [executor.submit(contender.update, *job[:-1]) for job in update_jobs]
-                for future, job in zip(futures, update_jobs):
+                for future, job in zip(futures, update_jobs, strict=True):
                     losses[job[-1]].append(future.result())
             for worker_id in list(active):
                 if snapshots[worker_id].get("interaction", {}).get("kind") == "game_over":
-                    episodes.append(_episode_record(
-                        seeds[worker_id], worker_id, "game_over", snapshots[worker_id], delivered[worker_id],
-                        combat_decisions[worker_id], shaped_returns[worker_id], losses[worker_id],
-                        environments[worker_id],
-                    ))
+                    episodes.append(
+                        _episode_record(
+                            seeds[worker_id],
+                            worker_id,
+                            "game_over",
+                            snapshots[worker_id],
+                            delivered[worker_id],
+                            combat_decisions[worker_id],
+                            shaped_returns[worker_id],
+                            losses[worker_id],
+                            environments[worker_id],
+                        )
+                    )
                     active.remove(worker_id)
     return episodes, contender.metrics
 
@@ -373,20 +412,30 @@ def contention_verdict(
         "seed_coverage": len(reports) == len(config.training_seeds)
         and {report.get("seed") for report in reports} == set(config.training_seeds),
         "worker_coverage": len(all_episodes) == expected
-        and all(sum(item.get("worker_id") == worker for item in report.get("episodes", [])) == config.episodes_per_seed
-                for report in reports for worker in range(config.workers)),
-        "terminal_complete": bool(all_episodes) and all(item.get("terminal") == "game_over" for item in all_episodes),
+        and all(
+            sum(item.get("worker_id") == worker for item in report.get("episodes", []))
+            == config.episodes_per_seed
+            for report in reports
+            for worker in range(config.workers)
+        ),
+        "terminal_complete": bool(all_episodes)
+        and all(item.get("terminal") == "game_over" for item in all_episodes),
         "no_unknown_or_failed": all(item.get("terminal") == "game_over" for item in all_episodes),
-        "learner_update_parity": updates == sum(item.get("combat_decisions", 0) for item in all_episodes),
+        "learner_update_parity": updates
+        == sum(item.get("combat_decisions", 0) for item in all_episodes),
         "identity_valid": identity.get("status") == "valid",
         "multi_actor": config.workers >= 2 and len(all_episodes) >= config.workers,
-        "updates_from_all_workers": len({
-            actor_id
-            for report in reports
-            for actor_id in report.get("contention", {}).get("actor_ids", [])
-        }) >= config.workers,
+        "updates_from_all_workers": len(
+            {
+                actor_id
+                for report in reports
+                for actor_id in report.get("contention", {}).get("actor_ids", [])
+            }
+        )
+        >= config.workers,
         "samples_present": delivered > 0,
-        "episode_provenance": bool(all_episodes) and all(
+        "episode_provenance": bool(all_episodes)
+        and all(
             item.get("episode_identity", {}).get("episode_provenance", {}).get("verdict")
             == "provenance_pass"
             for item in all_episodes
@@ -425,7 +474,11 @@ def _resource_snapshot() -> dict[str, Any]:
         "platform": platform.platform(),
         "logical_cpus": os.cpu_count(),
         "max_rss": usage.ru_maxrss if usage is not None else None,
-        "max_rss_unit": "bytes" if platform.system() == "Darwin" else "kib" if usage is not None else None,
+        "max_rss_unit": "bytes"
+        if platform.system() == "Darwin"
+        else "kib"
+        if usage is not None
+        else None,
         "python_cpu_seconds": time.process_time(),
     }
 
@@ -436,8 +489,12 @@ def _resource_delta(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict
     before_rss = before.get("max_rss")
     after_rss = after.get("max_rss")
     return {
-        "python_cpu_seconds": after_cpu - before_cpu if before_cpu is not None and after_cpu is not None else None,
-        "max_rss": after_rss - before_rss if before_rss is not None and after_rss is not None else None,
+        "python_cpu_seconds": after_cpu - before_cpu
+        if before_cpu is not None and after_cpu is not None
+        else None,
+        "max_rss": after_rss - before_rss
+        if before_rss is not None and after_rss is not None
+        else None,
         "max_rss_unit": after.get("max_rss_unit"),
     }
 
@@ -479,13 +536,15 @@ def run_contention(
                 episodes, contention = run_contention_seed(
                     environments, seed, model, config, vector_factory
                 )
-                reports.append({
-                    "seed": seed,
-                    "episodes": episodes,
-                    "summary": _summary(episodes),
-                    "contention": contention,
-                    "model": model.to_dict(),
-                })
+                reports.append(
+                    {
+                        "seed": seed,
+                        "episodes": episodes,
+                        "summary": _summary(episodes),
+                        "contention": contention,
+                        "model": model.to_dict(),
+                    }
+                )
     except Exception as error:
         errors.append(f"{type(error).__name__}: {error}")
     finally:
@@ -496,7 +555,7 @@ def run_contention(
                 errors.append(f"close {type(error).__name__}: {error}")
     verdict = contention_verdict(reports, config, identity)
     wall_seconds = time.perf_counter() - started
-    report = {
+    report: dict[str, Any] = {
         "schema": "stpd/multi-seed-contention-smoke-1",
         "status": "contention_smoke_failed" if errors else verdict["status"],
         "stpd": None,
@@ -515,13 +574,16 @@ def run_contention(
             "topology": "threaded_vector_multi_actor_shared_learner",
             "actor_workers": config.workers,
             "learner_threads": sum(
-                item.get("contention", {}).get("learner_update_threads", 0)
-                for item in reports
+                item.get("contention", {}).get("learner_update_threads", 0) for item in reports
             ),
             "wall_seconds": wall_seconds,
             "usable_samples": verdict["delivered"],
-            "usable_samples_per_second": verdict["delivered"] / wall_seconds if wall_seconds > 0 else None,
-            "learner_updates_per_second": verdict["learner_updates"] / wall_seconds if wall_seconds > 0 else None,
+            "usable_samples_per_second": verdict["delivered"] / wall_seconds
+            if wall_seconds > 0
+            else None,
+            "learner_updates_per_second": verdict["learner_updates"] / wall_seconds
+            if wall_seconds > 0
+            else None,
             "policy_version_lag": 0,
             "queue_depth": 0,
             "trajectory_age_seconds": 0.0,
@@ -533,7 +595,8 @@ def run_contention(
             "workers": config.workers,
         },
         "non_claims": [
-            "This is a contention and integration smoke, not a training-quality or policy-transfer result.",
+            "This is a contention and integration smoke, not a training-quality "
+            "or policy-transfer result.",
             "It does not prove Reference-host parity, long-run reliability, or H1 admission.",
             "No Headless/Connector semantic code is owned or modified by STPD.",
         ],
@@ -546,7 +609,10 @@ def run_contention(
 
 def main() -> None:
     import argparse
-    parser = argparse.ArgumentParser(description="Fail-closed multi-seed actor/learner contention smoke.")
+
+    parser = argparse.ArgumentParser(
+        description="Fail-closed multi-seed actor/learner contention smoke."
+    )
     parser.add_argument("--headless", required=True)
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--training-seed", action="append", dest="training_seeds")
@@ -561,6 +627,7 @@ def main() -> None:
     candidate = Path(args.candidate).resolve()
     activate_headless_client(headless)
     from sts2_headless import ManagedPlayerEnvironment, ThreadedVectorPlayerEnvironment
+
     seeds = tuple(args.training_seeds or ("STPDCONTEND01", "STPDCONTEND02", "STPDCONTEND03"))
     config = ContentionConfig(
         training_seeds=seeds,
@@ -569,7 +636,12 @@ def main() -> None:
         max_actions=args.max_actions,
         epsilon=args.epsilon,
     )
-    command = ["node", str(headless / "tools" / "managed-pe-driver.mjs"), "--candidate", str(candidate)]
+    command = [
+        "node",
+        str(headless / "tools" / "managed-pe-driver.mjs"),
+        "--candidate",
+        str(candidate),
+    ]
 
     def env_factory(_: int) -> Any:
         return ManagedPlayerEnvironment(command)
@@ -584,12 +656,17 @@ def main() -> None:
     if not output.is_absolute():
         output = root / output
     write_report(output, report)
-    print(json.dumps({
-        "status": report["status"],
-        "report_file": str(output),
-        "verdict": report["verdict"],
-        "pipeline": report["pipeline"],
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "status": report["status"],
+                "report_file": str(output),
+                "verdict": report["verdict"],
+                "pipeline": report["pipeline"],
+            },
+            indent=2,
+        )
+    )
     if report["status"] != "contention_smoke_pass":
         raise SystemExit(2)
 
