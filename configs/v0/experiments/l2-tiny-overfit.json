@@ -1,6 +1,6 @@
 {
   "schema": "stpd/l2-tiny-overfit-config-v0",
-  "protocol_version": "stpd-v0-l2-2026-08-22-r1",
+  "protocol_version": "stpd-v0-l2-2026-08-22-r2",
   "architecture_id": "scheme1-linear-pretrained",
   "input_profile": "stpd-combat-v0-standard",
   "qwen_control": "pretrained",
@@ -21,9 +21,9 @@
     "grad_clip_norm": 1.0
   },
   "budget": {
-    "optimizer_steps": 256,
+    "optimizer_steps": 512,
     "evaluation_interval_steps": 1,
-    "checkpoint_steps": [0, 256]
+    "checkpoint_steps": [0, 512]
   },
   "pass_criteria": {
     "memorized_top1_fraction": 1.0,
