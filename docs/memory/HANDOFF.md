@@ -27,6 +27,7 @@ Pre-initialization remote baseline:
 - canonical Parquet storage, checksummed data manifests, seed-root splits, and B0 checks;
 - trainable Scheme 1/S2-Simple/S2-SDT forward paths and N/Z objective composition;
 - typed optimizer steps, identity/checksum-bound checkpoint resume, and B1 ranking metrics;
+- source-free Player Environment projection and stable one-step transition collection;
 - structure tests that keep canonical docs and schemas discoverable.
 
 ## Next action

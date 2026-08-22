@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema": "stpd/qwen-l1-config-v0",
+  "model_id": "Qwen/Qwen3-0.6B-Base",
+  "repo_revision": "da87bfb608c14b7cf20ba1ce41287e8de496c0cd",
+  "files": [
+    {
+      "name": "config.json",
+      "kind": "metadata",
+      "size_bytes": 727,
+      "sha256": "504a6b58c4271583724e66584b6b7698aea18450209df6b2f7582df0e89cee59"
+    },
+    {
+      "name": "generation_config.json",
+      "kind": "metadata",
+      "size_bytes": 138,
+      "sha256": "8c970692323e3ea0e9b8b0a4dca79388d31226e41f83c9fd6014804280ebf6e8"
+    },
+    {
+      "name": "tokenizer_config.json",
+      "kind": "metadata",
+      "size_bytes": 9678,
+      "sha256": "3c04ed3ca964ea2f6b2b5faf0dc4d31aec1cb1e8b4bcf63f402d295046b422b5"
+    },
+    {
+      "name": "tokenizer.json",
+      "kind": "tokenizer",
+      "size_bytes": 7031645,
+      "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+    },
+    {
+      "name": "vocab.json",
+      "kind": "tokenizer",
+      "size_bytes": 2776833,
+      "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    },
+    {
+      "name": "merges.txt",
+      "kind": "tokenizer",
+      "size_bytes": 1671853,
+      "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+    }
+  ],
+  "special_tokens": [
+    {"content": "<|endoftext|>", "id": 151643, "roles": ["eos_token", "pad_token"]},
+    {"content": "<|im_start|>", "id": 151644, "roles": ["additional_special_tokens"]},
+    {"content": "<|im_end|>", "id": 151645, "roles": ["additional_special_tokens"]},
+    {"content": "<|object_ref_start|>", "id": 151646, "roles": ["additional_special_tokens"]},
+    {"content": "<|object_ref_end|>", "id": 151647, "roles": ["additional_special_tokens"]},
+    {"content": "<|box_start|>", "id": 151648, "roles": ["additional_special_tokens"]},
+    {"content": "<|box_end|>", "id": 151649, "roles": ["additional_special_tokens"]},
+    {"content": "<|quad_start|>", "id": 151650, "roles": ["additional_special_tokens"]},
+    {"content": "<|quad_end|>", "id": 151651, "roles": ["additional_special_tokens"]},
+    {"content": "<|vision_start|>", "id": 151652, "roles": ["additional_special_tokens"]},
+    {"content": "<|vision_end|>", "id": 151653, "roles": ["additional_special_tokens"]},
+    {"content": "<|vision_pad|>", "id": 151654, "roles": ["additional_special_tokens"]},
+    {"content": "<|image_pad|>", "id": 151655, "roles": ["additional_special_tokens"]},
+    {"content": "<|video_pad|>", "id": 151656, "roles": ["additional_special_tokens"]}
+  ],
+  "special_tokens_sha256": "c64ac7dacf9fe74281a09155c8f3e32423e95e7325728503ff7d079c2468946f",
+  "config_expectations": {
+    "architectures": ["Qwen3ForCausalLM"],
+    "hidden_size": 1024,
+    "model_type": "qwen3",
+    "num_hidden_layers": 28,
+    "torch_dtype": "bfloat16",
+    "vocab_size": 151936
+  },
+  "profiles": {
+    "stpd-combat-v0-lite": {
+      "families": ["turn_action", "card_selection", "card_choice"]
+    },
+    "stpd-combat-v0-standard": {
+      "families": ["turn_action", "card_selection", "card_choice"]
+    },
+    "stpd-combat-v0-full": {
+      "families": ["turn_action", "card_selection", "card_choice"]
+    }
+  },
+  "thresholds": {
+    "p95_max_tokens": 4096,
+    "hard_max_tokens": 8192,
+    "silent_truncation": false
+  },
+  "cache_policy": {
+    "mode": "metadata_tokenizer_only",
+    "allowed_files": ["config.json", "generation_config.json", "tokenizer_config.json", "tokenizer.json", "vocab.json", "merges.txt"],
+    "weight_files": "reject_if_local_and_never_download"
+  }
+}

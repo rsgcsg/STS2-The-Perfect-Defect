@@ -52,6 +52,9 @@ remain bound to the exact reports that produced them.
   ranking, successor/anchor losses, learned world tokens, and EMA target resampling.
 - typed RankBatch/DynamicsBatch optimizer steps, identity-bound atomic checkpoint/resume,
   and independent Top-1/MRR/listwise-NLL/pairwise/per-source ranking evaluation.
+- source-free Player Environment projector and one-step collector that separate semantic
+  candidates from exact BoundAction envelopes and fail closed on partial Reads/catalogs,
+  unknown delivery, receipt mismatch, missing successor, settling timeout, or runtime drift.
 
 ## Not yet implemented
 
@@ -77,8 +80,8 @@ remain bound to the exact reports that produced them.
 
 ## Immediate priorities
 
-1. Build the Headless collector and AgenticSTS importer against the frozen contracts.
-2. Exercise the data/B0 pipeline on source-representative local samples.
+1. Exercise the collector and data/B0 pipeline on source-representative current Headless samples.
+2. Audit source-representative AgenticSTS samples through its fail-closed importer.
 3. Implement a pinned frozen-Qwen backend with pretrained and random controls.
 4. Extend independent evaluation into the remaining B1-B7 fixture/report tooling.
 5. Keep the current smoke lane green as an environment regression gate.
