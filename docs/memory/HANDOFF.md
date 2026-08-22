@@ -2,101 +2,59 @@
 
 ## Checkpoint
 
-The repository has completed the Windows L2 engineering implementation: exact full-weight
-Qwen pin/acquisition/inspection, frozen pretrained and same-architecture random backends,
-cache, real-Qwen smokes, contracts, data, collector/importer, three model families,
-training/checkpoint/evaluation, and B0-B7 mechanics are implemented.
+Windows L2 engineering and the bounded tiny-overfit admission are complete. Exact
+full-weight Qwen pin/acquisition/inspection, pretrained and same-architecture random frozen
+backends, contracts, data boundaries, three model families, training/checkpoint/evaluation,
+and B0-B7 mechanics remain implemented.
 
-The first owner-authorized bounded real-data optimizer run has also occurred. Original
-`L2-TINY-OVERFIT attempt-001` used the 64-step v0 engineering budget and failed only the
-unchanged final-NLL and relative-loss-reduction thresholds while reaching 100% memorized
-Top-1 and continuing to reduce loss through step 64. Protocol r1 therefore prepares a
-strict 256-step `attempt-002` retry with no other experiment-variable change.
+The first two owner-authorized tiny-overfit attempts failed their unchanged confidence
+thresholds despite memorized Top-1 `1.0`. The final budget-only `attempt-003` passed every
+engineering check. This closes optimizer-plumbing admission; it does not establish model
+quality, pretrained advantage, policy quality, or Gate 1.
 
-The Headless/Connector lane remains an exact STPD operational dependency and separate
-qualification concern. Do not repeat broad historical qualification unless an identity or
-hard-shell regression requires it.
+The exact pinned AgenticSTS release was then audited as the intended 1k-2k ranking bootstrap.
+It provides zero strictly rank-eligible rows, so no extractor, S1 dataset/configuration, or
+owner training command was created.
 
-## Source lineage
+## Tiny-overfit lineage
 
-Windows L2 parent baseline before the full-weight implementation:
-`2b918c3f5d3108b4b49cfc030588eb5cc0724bbe`.
+| Attempt | Steps | Source | Final NLL | Relative reduction | Top-1 | Status |
+|---|---:|---|---:|---:|---:|---|
+| 001 | 64 | `a95ab022b8d81e6e697e8784893ece9c5eb1f59d` | `0.902236595749855` | `0.49559681576255216` | `1.0` | fail |
+| 002 | 256 | `d837edeb82958fc115143d34c969e90b62cf8d19` | `0.23855026811361313` | `0.8666364062331122` | `1.0` | fail |
+| 003 | 512 | `938199aec4768f27c7231a26335abe66f2d8d12e` | `0.08508938737213612` | `0.9524300409255195` | `1.0` | pass |
 
-First owner attempt source:
-`a95ab022b8d81e6e697e8784893ece9c5eb1f59d`.
+Attempt-003 preparation SHA-256:
+`2945ec1edf3938f9f12eba91183c284f8cb124f783d6b83a4e6959e36803dcee`.
+Its result SHA-256 is
+`df174a8a2cd254e89cc928b230f64e3467f72c66076329c9554fb8d2fe55189c`.
+All three attempt directories must remain retained.
 
-First owner preparation SHA-256:
-`7da5ad0bf8df8c422f2affeaf6a89fb041231aac2a0d59709228c6311253302e`.
+## AgenticSTS blocker
 
-## Current experiment interpretation
+The audited source is `AlayaLab/AgenticSTS-trajectories` revision
+`20f5170c420584935ec20e004498b4d4a3621f8b`. Its CC-BY-4.0 trajectory subset contains
+3,090,155 raw events, 198,600 decisions, and 139,211 combat decisions across 305 logs.
+It contains zero explicit complete legal-action catalogs, zero game seeds/declared split
+roots, zero exact environment identities, and therefore zero rank-eligible records.
 
-Owner-reported attempt-001:
-
-```text
-initial mean listwise NLL      1.7887210548
-final mean listwise NLL        0.9022365957
-relative loss reduction        49.5596816%
-memorized Top-1                25% -> 100%
-finite values                  pass
-Qwen gradients                 absent/pass
-status                         fail
-```
-
-The final trace remained smoothly descending. This is evidence that the first fixed
-64-step memorization budget was too short for its own strong confidence thresholds; it is
-not a scientific architecture result and does not satisfy Gate 1.
-
-## Current r1 retry
-
-Protocol: `stpd-v0-l2-2026-08-22-r1`.
-
-The retry keeps fixed:
-
-```text
-same rank-eligible fixture-selection rule
-same pretrained frozen Qwen
-same Scheme 1 linear head
-same Standard input
-same seed 20260822
-same AdamW
-same learning rate 0.001
-same weight decay 0.0
-same grad clip 1.0
-same pass thresholds
-same Gold/B6 prohibitions
-```
-
-Only the bounded optimizer budget changes:
-
-```text
-64 -> 256 optimizer steps
-attempt-001 -> attempt-002
-checkpoint 0/64 -> 0/256
-```
-
-The failed attempt-001 local artifacts must remain retained.
+Detailed states and sequential result/next-state pairs do not authorize reconstructing
+catalogs or fabricating provenance. See
+[the data-admission audit](../evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md).
 
 ## Next action
 
-On the Windows owner machine:
+Collect at least 1,000 current-teacher decisions with exact game/Host/Player Environment
+identity, authoritative complete catalogs, exact chosen-action mapping, stable successors,
+whole-run seed roots, and declared behavior-policy provenance. Admit them through the
+existing importer/normalizer, whole-root split, deduplication/leakage, and B0 boundaries.
 
-1. pull current `origin/main` with a clean worktree;
-2. reuse only the old preparation's dataset-manifest path and Qwen-cache path;
-3. create a new r1 preparation output directory;
-4. verify the new preparation says protocol r1, 256 steps, `attempt-002`, and final checkpoint
-   `checkpoint-step-256.pt`;
-5. stop for owner authorization;
-6. execute only the exact `owner_command` persisted by the new preparation;
-7. return `result.json`, checks and trace summary for audit before any further training.
+Only after at least 1,000 rows pass may an `S1-1K-2K-SMOKE` preparation be created. It must
+still stop for separate owner authorization; scientific training remains unstarted.
 
 ## Risks and non-claims
 
-- Attempt-001 and any r1 retry are memorization/optimizer plumbing evidence only.
-- They do not prove pretrained > random, Scheme 1 viability, policy quality, Gold quality or
-  closed-loop combat performance.
-- The four selected attempt-001 rows each had six candidates and target index 5. This remains
-  a fixture-selection diagnostic to audit with candidate-permutation/leakage controls, not a
-  proven defect.
-- FakeQwen does not prove real Qwen representations.
-- `card_selection` and `card_choice` token groups remain naturally unexercised.
-- No Core 30-run scientific matrix, Human Gold result, B6 result or v0 winner exists.
+- Tiny-overfit attempts are memorization/optimizer-plumbing evidence only.
+- AgenticSTS historical game versions are not current-patch evidence.
+- No Core 30-run scientific matrix, Human Gold result, B6 result, or v0 winner exists.
+- Headless/Connector operational authority remains a separate qualification concern.

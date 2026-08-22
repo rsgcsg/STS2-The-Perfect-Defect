@@ -1,0 +1,46 @@
+{
+  "schema": "stpd/agenticsts-source-pin-v0",
+  "dataset": "AgenticSTS-trajectories",
+  "repo_id": "AlayaLab/AgenticSTS-trajectories",
+  "source_url": "https://huggingface.co/datasets/AlayaLab/AgenticSTS-trajectories",
+  "revision": "20f5170c420584935ec20e004498b4d4a3621f8b",
+  "license": "CC-BY-4.0",
+  "license_scope": {
+    "admitted": [
+      "trajectories/*.jsonl.gz",
+      "runs_history.jsonl"
+    ],
+    "excluded": [
+      "competitors/*.tar.gz"
+    ]
+  },
+  "metadata_files": [
+    {
+      "path": "README.md",
+      "bytes": 4418,
+      "sha256": "45b2673f48273dbcd7e2a83a7cf71219b526d5226af1a0f8494efd4ce9e8048b"
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 124959,
+      "sha256": "59ce409e38c45506831083c28b7730609d292d3d349ad42a51c9d270a44ff3cb"
+    },
+    {
+      "path": "runs_history.jsonl",
+      "bytes": 460124,
+      "sha256": "c36b759c12543795121cf93891277ebdb5dff87878c779f0bc57d557848822f3"
+    }
+  ],
+  "representative_sample": {
+    "path": "trajectories/20260416_143704_dc06f6a4.jsonl.gz",
+    "bytes": 3186669,
+    "sha256": "d80bea2b7c7a3f9b44010c86d78a56c87aa5da82ccf88cc2d51c611faaaa18eb"
+  },
+  "expected_manifest_runs": 312,
+  "expected_trajectory_files": 305,
+  "non_claims": [
+    "This pin does not make historical AgenticSTS rows current-patch evidence.",
+    "The CC-BY-4.0 admission does not extend to mixed-license competitor archives.",
+    "A source pin does not establish complete legal-action, successor, or environment evidence."
+  ]
+}

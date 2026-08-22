@@ -46,13 +46,17 @@ report tooling, a pinned metadata/tokenizer Qwen L1 gate, and an exact full-weig
 CUDA/BF16 Qwen L2 adapter with a same-architecture frozen random control. FakeQwen remains
 the cheap CI backend. Real-Qwen forward/profile/backward smokes are engineering evidence.
 
-A first bounded owner-run `L2-TINY-OVERFIT attempt-001` has occurred. It reached 100%
-memorized Top-1 but failed the unchanged final-NLL and loss-reduction thresholds at the
-original 64-step budget while the loss was still decreasing. Protocol r1 therefore prepares
-a 256-step `attempt-002` retry without changing the model, data-selection rule, Qwen,
-optimizer, learning rate, pass criteria, Core matrix, Gold boundary or B6 boundary. This is
-still optimizer/plumbing evidence, not a scientific model-quality result. No Core scientific
-run, Gold test, B6 run or v0 winner exists.
+The bounded owner-run L2 tiny-overfit sequence is complete. Attempts 001 and 002 remain
+retained failures at 64 and 256 steps. Attempt 003 passed the unchanged engineering
+criteria at 512 steps: final mean listwise NLL `0.0850893874`, relative reduction
+`95.243%`, memorized Top-1 `1.0`, finite values, and zero Qwen gradients. This admits the
+optimizer/memorization plumbing only; it is not Gate 1 or model-quality evidence.
+
+The exact AgenticSTS trajectory release was also audited as the intended bootstrap source.
+It contains 198,600 decision events and 139,211 combat decisions, but no explicit complete
+legal-action catalogs, game seeds, or exact environment identities. Zero records are
+rank-eligible under the existing fail-closed contract, so no S1-1K-2K smoke configuration
+or owner command exists. Current-teacher collection is required.
 
 ## What v0 will build
 

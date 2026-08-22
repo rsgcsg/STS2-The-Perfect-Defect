@@ -7,11 +7,13 @@ offline CUDA/BF16 engineering use. Pretrained and same-architecture frozen rando
 controls pass deterministic feature extraction and backward-only integration with Scheme
 1, S2-Simple, and S2-SDT. This is not a representation-quality claim.
 
-Two bounded owner-run tiny-overfit attempts have now occurred. The original 64-step
-`attempt-001` and the 256-step `attempt-002` both reached 100% memorized Top-1, remained
-numerically finite, kept Qwen frozen, and continued reducing loss through their final step.
-They failed only the unchanged final-NLL and relative-loss-reduction thresholds. Protocol r2
-therefore makes one final budget-only retry at 512 optimizer steps as `attempt-003`.
+Three bounded owner-run tiny-overfit attempts have occurred. The original 64-step
+`attempt-001` and 256-step `attempt-002` reached 100% memorized Top-1 but failed the
+unchanged final-NLL and relative-loss-reduction thresholds. The final 512-step
+`attempt-003` passed every engineering-admission check with final mean listwise NLL
+`0.08508938737213612`, relative loss reduction `0.9524300409255195`, and memorized
+Top-1 `1.0`. This is optimizer-plumbing/memorization evidence only, not model-quality
+evidence or Gate 1.
 
 ## Immutable identity
 
@@ -65,7 +67,7 @@ It must stop with:
 
 Do not invoke the `run` subcommand without the repository owner's explicit authorization.
 
-## Attempt history and active r2 retry
+## Attempt history and completed r2 retry
 
 `attempt-001`, 64 steps:
 
@@ -102,15 +104,31 @@ step 192  0.3452932015
 step 256  0.2385502681
 ```
 
-The active config is protocol `stpd-v0-l2-2026-08-22-r2` and keeps exactly the same data
-selection, Scheme 1 linear model, Standard input, pretrained frozen Qwen, seed `20260822`,
-AdamW, learning rate `0.001`, weight decay `0.0`, grad clip `1.0`, and pass thresholds. Only
-the bounded budget changes to 512 optimizer steps with checkpoints at 0 and 512. A new
-preparation emits `attempt-003`.
+`attempt-003`, 512 steps:
 
-Attempt-003 is the final default budget-only retry. If it still fails, do not automatically
-increase to 1024/2048 steps. Audit fixture design, linear-feature separability, optimizer
-behavior and related plumbing first.
+```text
+initial mean NLL       1.7887210548
+final mean NLL         0.0850893874
+relative reduction     95.2430041%
+memorized Top-1        100%
+finite values          pass
+Qwen gradients         absent/pass
+elapsed                17.9055 s
+status                 pass
+```
+
+Protocol `stpd-v0-l2-2026-08-22-r2` kept exactly the same data selection, Scheme 1 linear
+model, Standard input, pretrained frozen Qwen, seed `20260822`, AdamW, learning rate
+`0.001`, weight decay `0.0`, grad clip `1.0`, and pass thresholds. Only the bounded budget
+changed to 512 optimizer steps with checkpoints at 0 and 512. The exact attempt source was
+`938199aec4768f27c7231a26335abe66f2d8d12e`; its preparation SHA-256 was
+`2945ec1edf3938f9f12eba91183c284f8cb124f783d6b83a4e6959e36803dcee`.
+
+The tiny-overfit admission is closed. Do not extend this engineering sequence or interpret
+its pass as pretrained advantage, policy quality, or scientific viability. The next
+scientific-data step is blocked because the pinned AgenticSTS release provides zero strictly
+rank-eligible rows; see the
+[AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md).
 
 See [Scientific Experiment Protocol](SCIENTIFIC_EXPERIMENT_PROTOCOL.md) for the exact
 revision history, frozen 10-configuration/three-seed matrix, controls, Gates 0-5, and

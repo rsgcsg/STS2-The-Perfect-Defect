@@ -9,7 +9,9 @@
 
 ## Data
 
-- Which existing trajectories are rank-, transition-, and return-eligible?
+- Which current-teacher lane will provide the first at least 1,000 rank-eligible decisions?
+- Can historical AgenticSTS logs support non-ranking analysis without inventing missing
+  catalogs, seeds, exact environment identity, or source-bound successors?
 - What redistribution/licensing constraints apply to historical and teacher data?
 - How many current-patch transitions are available before model development begins?
 - How will Human Gold annotation, disagreement, and test sealing be operated?

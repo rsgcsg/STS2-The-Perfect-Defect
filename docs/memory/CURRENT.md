@@ -2,9 +2,10 @@
 
 ## Phase
 
-Windows L2 full-weight engineering is complete. The project is at the bounded owner-training
-optimizer-plumbing retry boundary before scientific Core training, while preserving the H1
-integration smoke as an environment regression lane.
+Windows L2 full-weight engineering and the bounded tiny-overfit admission are complete.
+Scientific training has not started. The intended AgenticSTS 1k-2k ranking bootstrap is
+blocked by missing raw-source evidence, while the H1 integration smoke remains an
+environment regression lane.
 
 ## Current truths
 
@@ -28,35 +29,40 @@ integration smoke as an environment regression lane.
   same-architecture random frozen backends pass CUDA/BF16 determinism, cache, VRAM/latency,
   all-family backward-only, and zero-Qwen-gradient checks.
 - The exact 10-config/three-seed Core matrix, required controls, Gates 0-5 and Gold/B6
-  boundaries remain frozen. Protocol version is now `stpd-v0-l2-2026-08-22-r1` because the
-  first bounded owner optimizer run exposed an insufficient 64-step engineering budget.
-- Owner-reported `L2-TINY-OVERFIT attempt-001` from source `a95ab022...` reached Top-1
-  `0.25 -> 1.0`, mean NLL `1.7887 -> 0.9022`, and 49.56% relative loss reduction with no
-  numerical failure or Qwen gradients. It remains a FAIL because the unchanged NLL <= 0.1
-  and reduction >= 90% criteria were not met.
-- The attempt-001 loss was still decreasing smoothly at step 64. Protocol r1 changes only
-  the bounded retry budget to 256 steps and prepares `attempt-002`; it does not lower the
-  criteria or change data/Qwen/model/seed/optimizer/lr/Core identities.
+  boundaries remain frozen. The tiny-overfit protocol ended at
+  `stpd-v0-l2-2026-08-22-r2`.
+- `attempt-001` (64 steps) and `attempt-002` (256 steps) each reached memorized Top-1 `1.0`
+  but failed the unchanged NLL/reduction thresholds. Their artifacts remain retained.
+- Final `attempt-003` (512 steps), from source
+  `938199aec4768f27c7231a26335abe66f2d8d12e`, passed all engineering checks: final mean
+  listwise NLL `0.08508938737213612`, relative loss reduction `0.9524300409255195`, and
+  memorized Top-1 `1.0`. This is not model-quality evidence or Gate 1.
+- The exact pinned `AlayaLab/AgenticSTS-trajectories` revision
+  `20f5170c420584935ec20e004498b4d4a3621f8b` was audited sample-first and then across all
+  305 trajectory logs. Of 139,211 combat decisions, zero contain a complete legal-action
+  catalog, seed/root, and exact environment identity, so zero are rank eligible.
 - The exact operational environment baseline remains a separate Headless/Connector concern;
   Windows candidate evidence does not inherit macOS formal authority.
 
 ## Immediate priorities
 
-1. Pull the current r1 source on the Windows owner machine and keep old attempt-001 artifacts.
-2. Generate a fresh clean-source r1 preparation against the same admitted local dataset and
-   Qwen cache; verify it emits `attempt-002`, 256 steps and checkpoint step 256.
-3. Stop for owner authorization, then run only the exact prepared attempt-002 command.
-4. Audit attempt-002 before any next training. If it passes, continue non-training scientific
-   data/Gold/selector/controls readiness before the 1k-2k Scheme 1 smoke.
-5. Keep environment, FakeQwen and real-Qwen engineering smokes green.
+1. Collect at least 1,000 current-teacher combat decisions with exact game/Host/Player
+   Environment identity, complete authoritative catalogs, one-to-one chosen-action mapping,
+   stable successors, whole-run seed roots, and declared behavior-policy provenance.
+2. Run the existing import/normalization, split, deduplication/leakage, and B0 admission
+   boundaries on that source.
+3. Prepare `S1-1K-2K-SMOKE` only after at least 1,000 rows pass. Do not run it without a
+   separately authorized owner command.
+4. Keep environment, FakeQwen, and real-Qwen engineering smokes green.
 
 ## Do not do yet
 
-- delete or overwrite attempt-001;
-- lower tiny-overfit pass criteria to obtain a pass;
-- change Qwen/model/data/seed/optimizer/lr in the r1 retry;
+- delete or overwrite attempts 001, 002, or 003;
+- extend tiny-overfit or reinterpret its pass as model quality or Gate 1;
+- derive or fabricate missing AgenticSTS catalogs, seeds, environment identities, or
+  successors;
 - fine-tune Qwen before the frozen pretraining-value gate;
-- start the 1k-2k smoke or Core matrix before the r1 retry is audited;
+- prepare or start the 1k-2k smoke or Core matrix before the data threshold is admitted;
 - open Gold-test or execute B6 before architecture/input/hyperparameter freeze;
 - put reward/model/tensor semantics in Headless or Connector;
 - scale data/model complexity before B0 and scientific data readiness.

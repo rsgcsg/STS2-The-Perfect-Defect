@@ -41,7 +41,7 @@ gate; `card_selection` and `card_choice` remain `not_exercised`.
 
 ## v0 Step 1.5 — Owner optimizer-plumbing admission
 
-Status: **attempt-001 and attempt-002 completed; protocol-r2 final retry pending owner execution**.
+Status: **completed as engineering admission**.
 
 Attempt-001 used 64 optimizer steps and ended at mean NLL `0.9022365957`, relative loss
 reduction `49.56%`, and 100% memorized Top-1. Attempt-002 used 256 steps and ended at mean
@@ -52,24 +52,27 @@ reduction >= 90% thresholds.
 Attempt-002 remained smoothly decreasing through steps 64/128/192/256:
 `0.9022 / 0.5347 / 0.3453 / 0.2386`, with no observed plateau.
 
-Protocol `stpd-v0-l2-2026-08-22-r2` therefore makes one final budget-only retry at 512
-optimizer steps and emits `attempt-003`. Data selection, Qwen, architecture, seed,
-AdamW/lr, pass criteria, Core matrix and scientific Gates remain unchanged.
-
-If attempt-003 still fails, do not automatically increase to 1024/2048 steps. Audit fixture
-design, linear-feature separability and optimizer behavior first.
+Protocol `stpd-v0-l2-2026-08-22-r2` made one final budget-only retry at 512 optimizer
+steps. Attempt-003 passed with final mean listwise NLL `0.08508938737213612`, relative
+reduction `0.9524300409255195`, memorized Top-1 `1.0`, finite values, and zero Qwen
+gradients. Data selection, Qwen, architecture, seed, AdamW/lr, pass criteria, Core matrix,
+and scientific Gates remained unchanged. Attempts 001 and 002 remain retained failures.
 
 This step is a plumbing/memorization admission check. Passing it is not Gate 1 and does not
 establish pretrained representation value.
 
 ## v0 Steps 2-4 — Core architecture selection
 
-Status: **protocol r2 frozen; scientific Core training not started**. The exact 10
-configurations and three seeds are machine-readable. The bounded r2 tiny-overfit retry must
-be resolved before the first scientific Core run.
+Status: **protocol r2 frozen; scientific Core training not started; data admission blocked**.
+The exact 10 configurations and three seeds are machine-readable. Tiny-overfit engineering
+admission is complete, but the audited AgenticSTS source supplies 0 rank-eligible rows from
+198,600 decisions because complete legal catalogs, game seeds, and exact environment
+identities are absent.
 
 Before Core training, scientific data admission, Gold-dev, sealed Gold-test identity,
 required controls, selector-family coverage status and exact split/manifests must be ready.
+The next data action is a current-teacher collection of at least 1,000 exact-environment,
+complete-catalog behavior decisions; no S1 smoke is prepared until that dataset passes B0.
 
 Run Standard input for:
 

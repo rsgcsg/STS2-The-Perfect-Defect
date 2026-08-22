@@ -94,6 +94,21 @@ External processing must address:
 
 Unknown rights or provenance means exclude the source from training.
 
+## Current external-source admission
+
+The exact `AlayaLab/AgenticSTS-trajectories` revision
+`20f5170c420584935ec20e004498b4d4a3621f8b` has been audited. Its CC-BY-4.0 trajectory
+scope is immutable and usable for inspection, but none of its 139,211 combat decisions has
+the complete legal-action catalog, whole-run seed/root, and exact environment identity
+required for ranking admission. Rank-eligible acceptance is therefore `0 / 139,211`.
+
+Detailed historical states and sequential result/next-state pairs are not permission to
+invent the missing evidence. The first Scheme 1 smoke instead requires at least 1,000
+current-teacher decisions with authoritative catalogs, exact action mapping, stable
+successors, exact game/Host/Player Environment identity, whole-run roots, and declared
+behavior-policy provenance. See the
+[AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md).
+
 ## Sampling
 
 Rank batches draw primarily from rank-eligible sources and should be source-balanced.

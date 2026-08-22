@@ -5,6 +5,21 @@ game adapter and it does not establish current STS2, Headless, or Connector
 authority. The canonical output is an existing `ResearchTransition` plus a
 separate provenance/license sidecar.
 
+## Audited upstream release
+
+The official source is pinned at immutable revision
+`20f5170c420584935ec20e004498b4d4a3621f8b` in
+`configs/v0/data/agenticsts-trajectories.json`. A representative trajectory was inspected
+before all 305 trajectory logs were downloaded and counted. Across 139,211 combat
+decisions, the raw release contains zero explicit complete legal-action catalogs, zero game
+seeds or declared split roots, zero exact environment identities, and therefore zero rows
+that can satisfy the importer contract.
+
+No release-specific extractor was implemented because the missing evidence cannot be
+recovered without inventing legality or provenance. The exact counts and required
+current-teacher fields are recorded in the
+[AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md).
+
 ## Input boundary
 
 `stpd.data.agenticsts.import_agenticsts(path)` reads one JSON document, JSONL
@@ -103,5 +118,5 @@ split, leakage, deduplication, and B0 checks before training use.
 - A parsed AgenticSTS trajectory is not current-patch ground truth.
 - A complete source catalog is not proof that the source action was optimal.
 - `ResearchTransition` construction is not Headless or live-runtime evidence.
-- This slice does not download external data, verify a dataset revision, or
-  redistribute raw trajectories.
+- The audit tooling does not redistribute raw trajectories or turn an audited pin
+  into admissible training rows.

@@ -33,6 +33,10 @@ answer.
 | [Code Style](CODE_STYLE.md) | code and formatting conventions | style/test rules change |
 | [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md) | doctor, artifacts, historical L1 handoff | L1 operational identity changes |
 
+## Current evidence
+
+- [AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md)
+
 ## Working memory
 
 - [Memory instructions](memory/README.md)
