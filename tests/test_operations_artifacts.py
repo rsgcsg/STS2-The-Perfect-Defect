@@ -81,3 +81,11 @@ def test_l2_handoff_is_portable_and_records_no_weights(tmp_path: Path) -> None:
     assert handoff["qwen"]["weights"] == "required_external_not_present_in_l1"
     assert str(tmp_path) not in rendered
     assert handoff["data_manifest"]["filename"] == "manifest.json"
+    with pytest.raises(ValueError, match="absolute local path"):
+        build_l2_handoff(
+            source_revision="a" * 40,
+            uv_lock=lock,
+            qwen_pin=pin,
+            qwen_l1=artifact,
+            environment={"runtime_path": "/private/runtime"},
+        )
