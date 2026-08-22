@@ -39,29 +39,33 @@ pretrained measurement took 0.145 seconds with about 1.30 GB process peak alloca
 on the recorded RTX 4070 Laptop GPU. Current natural `turn_action` samples pass the token
 gate; `card_selection` and `card_choice` remain `not_exercised`.
 
-Measure Lite/Standard/Full token distributions, legal-action counts, frozen-Qwen latency,
-VRAM, cold compute, cached compute, and storage costs.
-
 ## v0 Step 1.5 — Owner optimizer-plumbing admission
 
-Status: **attempt-001 completed; protocol-r1 retry pending owner execution**.
+Status: **attempt-001 and attempt-002 completed; protocol-r2 final retry pending owner execution**.
 
-The original 64-step Scheme 1 linear tiny-overfit reached 100% memorized Top-1 but ended at
-mean NLL `0.9022365957` and relative loss reduction `49.56%`, so it correctly failed the
-unchanged NLL <= 0.1 and reduction >= 90% thresholds. Its loss was still decreasing through
-step 64. The failed attempt remains retained.
+Attempt-001 used 64 optimizer steps and ended at mean NLL `0.9022365957`, relative loss
+reduction `49.56%`, and 100% memorized Top-1. Attempt-002 used 256 steps and ended at mean
+NLL `0.2385502681`, relative loss reduction `86.66%`, and 100% memorized Top-1. Both kept
+finite values and zero Qwen gradients; both correctly failed the unchanged NLL <= 0.1 and
+reduction >= 90% thresholds.
 
-Protocol `stpd-v0-l2-2026-08-22-r1` changes only this bounded engineering retry budget to
-256 optimizer steps and emits `attempt-002`. Data selection, Qwen, architecture, seed,
+Attempt-002 remained smoothly decreasing through steps 64/128/192/256:
+`0.9022 / 0.5347 / 0.3453 / 0.2386`, with no observed plateau.
+
+Protocol `stpd-v0-l2-2026-08-22-r2` therefore makes one final budget-only retry at 512
+optimizer steps and emits `attempt-003`. Data selection, Qwen, architecture, seed,
 AdamW/lr, pass criteria, Core matrix and scientific Gates remain unchanged.
+
+If attempt-003 still fails, do not automatically increase to 1024/2048 steps. Audit fixture
+design, linear-feature separability and optimizer behavior first.
 
 This step is a plumbing/memorization admission check. Passing it is not Gate 1 and does not
 establish pretrained representation value.
 
 ## v0 Steps 2-4 — Core architecture selection
 
-Status: **protocol r1 frozen; scientific Core training not started**. The exact 10
-configurations and three seeds are machine-readable. The bounded r1 tiny-overfit retry must
+Status: **protocol r2 frozen; scientific Core training not started**. The exact 10
+configurations and three seeds are machine-readable. The bounded r2 tiny-overfit retry must
 be resolved before the first scientific Core run.
 
 Before Core training, scientific data admission, Gold-dev, sealed Gold-test identity,
