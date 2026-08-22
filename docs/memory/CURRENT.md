@@ -16,6 +16,8 @@ a regression/qualification lane.
   implemented and fixture-tested; no production dataset claim has been made.
 - Scheme 1, S2-Simple, and S2-SDT have real PyTorch forward/loss/gradient tests against an
   engineering backend; no real Qwen or scientific result has been measured.
+- Candidate-set optimizer, identity-bound checkpoint/resume, and independent B1 ranking
+  metrics are implemented and synthetic-tested.
 - No Scheme 1, S2-Simple, S2-SDT, Human Gold, or B0-B7 production pipeline exists yet.
 - The exact operational environment baseline is Headless `v1.0.0`, Managed
   Host `a884b104.../5b6adbd6...`, Connector `v1.1.0-rc.1/e065102...`
