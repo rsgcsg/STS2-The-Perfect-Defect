@@ -24,8 +24,8 @@ The environment lane is aligned to Headless `v1.0.0`, Managed patch
 This is an operational baseline, not formal H1.0 qualification.
 
 The predecessor code baseline was `1b4039fe3933b408e31dd92e9fbe1454bdd7672e`.
-This initialization adds canonical documentation, draft machine-readable contracts, and
-typed insertion points; runtime claims remain bound to the exact reports that produced them.
+The locked Python 3.11 baseline and first v0 contract slice are implemented; runtime claims
+remain bound to the exact reports that produced them.
 
 ## Implemented
 
@@ -41,12 +41,15 @@ typed insertion points; runtime claims remain bound to the exact reports that pr
   localized labels in evidence;
 - a cheap fail-closed environment smoke before training;
 - pure unit tests for the current smoke lane;
-- project document map, memory/ADR workflow, draft schemas, and typed ports.
+- project document map, memory/ADR workflow, and typed ports;
+- strict ResearchState, ResearchAction, ResearchTransition, policy/environment identity,
+  eligibility, and execution-envelope contracts;
+- deterministic Lite/Standard/Full ModelState and ModelAction serialization, semantic
+  hashes, model-input leakage rejection, strict schemas, and a golden transition fixture.
 
 ## Not yet implemented
 
 - frozen Qwen backend and random frozen control;
-- frozen canonical ResearchState, ModelState Lite/Standard/Full, and ModelAction v0;
 - dataset ingestion, eligibility, split, deduplication, and manifest pipeline;
 - Scheme 1 Direct Joint Scoring;
 - S2-Simple and S2-SDT;
@@ -60,7 +63,7 @@ typed insertion points; runtime claims remain bound to the exact reports that pr
 
 - The linear-Q model is not the planned STPD model.
 - Its shaped reward is not the final project objective or a calibrated win-probability Q.
-- Draft schemas are not a frozen v0 data contract.
+- The frozen structural contracts do not prove a real dataset or Headless collector.
 - A successful smoke does not prove broad semantic parity, policy quality, or H1 admission.
 - No Qwen representation, Scheme 1/Scheme 2 hypothesis, Human Gold result, or v0 benchmark
   has been measured by this repository yet.
@@ -71,8 +74,8 @@ typed insertion points; runtime claims remain bound to the exact reports that pr
 
 ## Immediate priorities
 
-1. Review and freeze the v0 research interfaces and schemas with real examples.
-2. Establish B0 dataset-contract and leakage checks.
+1. Establish the raw-to-Parquet pipeline and executable B0 dataset gate.
+2. Build the Headless collector and AgenticSTS importer against the frozen contracts.
 3. Implement a pinned frozen-Qwen backend with pretrained and random controls.
 4. Build the smallest Scheme 1 baseline before adding Scheme 2.
 5. Keep the current smoke lane green as an environment regression gate.

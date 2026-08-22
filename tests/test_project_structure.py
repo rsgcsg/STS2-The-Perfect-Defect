@@ -49,7 +49,16 @@ class ProjectStructureTest(unittest.TestCase):
 
     def test_machine_readable_schemas_parse_and_have_unique_ids(self):
         schema_paths = sorted((ROOT / "schemas").glob("*.schema.json"))
-        self.assertEqual(len(schema_paths), 3)
+        self.assertEqual(
+            {path.name for path in schema_paths},
+            {
+                "experiment-manifest-v0.schema.json",
+                "model-artifact-manifest-v0.schema.json",
+                "research-action-v0.schema.json",
+                "research-state-v0.schema.json",
+                "research-transition-v0.schema.json",
+            },
+        )
         ids = set()
         for path in schema_paths:
             value = json.loads(path.read_text(encoding="utf-8"))

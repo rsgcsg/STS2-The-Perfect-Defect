@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/schemas/research-state-v0.schema.json",
+  "title": "STPD Research State v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "information_policy_id", "game_version", "game_commit", "decision_mode", "decision_family", "surface", "facts", "reads", "state_hash"],
+  "properties": {
+    "schema": {"const": "stpd/research-state-v0"},
+    "information_policy_id": {"type": "string", "minLength": 1},
+    "game_version": {"type": "string", "minLength": 1},
+    "game_commit": {"type": "string", "minLength": 1},
+    "decision_mode": {"const": "combat"},
+    "decision_family": {"enum": ["turn_action", "card_selection", "card_choice"]},
+    "surface": {"type": "string", "minLength": 1},
+    "facts": {"type": "object"},
+    "reads": {"type": "object"},
+    "state_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

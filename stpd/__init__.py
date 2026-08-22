@@ -11,19 +11,39 @@ from .contracts import (
     ensure_score_alignment,
 )
 from .linear_q import LinearQ, combat_reward, features
+from .representation import (
+    DecisionFamily,
+    ExecutionEnvelope,
+    InputProfile,
+    ModelSerializerV0,
+    PolicyProvenance,
+    ResearchAction,
+    ResearchState,
+    ResearchTransition,
+    ensure_action_catalog_alignment,
+)
 
 __all__ = [
     "ActionScorer",
     "ContractError",
+    "DecisionFamily",
     "EnvironmentIdentity",
+    "ExecutionEnvelope",
+    "InputProfile",
     "LinearQ",
     "ModelSerializer",
+    "ModelSerializerV0",
     "PlayerEnvironmentPort",
     "QwenBackend",
     "QwenIdentity",
+    "PolicyProvenance",
+    "ResearchAction",
     "ResearchProjector",
+    "ResearchState",
+    "ResearchTransition",
     "TransitionEligibility",
     "combat_reward",
     "ensure_score_alignment",
+    "ensure_action_catalog_alignment",
     "features",
 ]

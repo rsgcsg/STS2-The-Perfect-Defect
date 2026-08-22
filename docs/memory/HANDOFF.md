@@ -2,8 +2,8 @@
 
 ## Checkpoint
 
-The repository has been initialized as a full STPD research project while retaining the
-existing H1 learning/transfer smoke as a useful qualification baseline.
+The repository has a locked Python 3.11/uv baseline and frozen first v0 contract slice while
+retaining the H1 learning/transfer smoke as a qualification baseline.
 
 The Headless/Connector lane is frozen as an exact STPD operational dependency.
 Run the cheap environment smoke before training; do not repeat the full
@@ -20,15 +20,16 @@ Pre-initialization remote baseline:
 - canonical status, roadmap, architecture, interfaces, data, Qwen, v0, and workflow docs;
 - shared Markdown memory and ADR system;
 - contributor and agent rules;
-- draft JSON schemas and typed Python ports for environment, projection, serialization,
-  Qwen, and scoring boundaries;
+- strict ResearchState/Action/Transition schemas and typed ports for environment,
+  projection, serialization, Qwen, and scoring boundaries;
+- deterministic profile serializers, semantic hashing, leakage rejection, stable-successor
+  and execution-authority separation tests;
 - structure tests that keep canonical docs and schemas discoverable.
 
 ## Next action
 
-After the cheap environment smoke, review the draft contracts against several real combat transitions, then freeze
-ResearchState, ResearchAction, ModelState profiles, and ResearchTransition before collecting
-or converting a large dataset.
+Implement the raw-to-Parquet pipeline, manifests/splits/deduplication and executable B0 gate;
+then attach the Headless collector and AgenticSTS importer to those frozen contracts.
 
 ## Risks
 

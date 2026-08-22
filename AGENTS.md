@@ -64,7 +64,7 @@ A failed gate is an engineering input, not permission to weaken the gate.
 
 ## Code rules
 
-- Python 3.9+; explicit type hints on public interfaces.
+- Python 3.11 from the locked `uv` environment; explicit type hints on public interfaces.
 - Prefer `dataclass`, `TypedDict`, and `Protocol` at boundaries.
 - Keep environment, data, representation, model, training, and evaluation concerns
   orthogonal.

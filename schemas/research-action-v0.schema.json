@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/schemas/research-action-v0.schema.json",
+  "title": "STPD Research Action v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "action_key", "kind", "subject", "arguments", "visible_cost", "visible_effect"],
+  "properties": {
+    "schema": {"const": "stpd/research-action-v0"},
+    "action_key": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "minLength": 1},
+    "subject": {"type": ["object", "null"]},
+    "arguments": {"type": "array", "items": {"type": "object"}},
+    "visible_cost": {"type": ["string", "number", "null"]},
+    "visible_effect": {"type": ["string", "null"]}
+  }
+}

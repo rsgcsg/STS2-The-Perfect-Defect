@@ -48,7 +48,8 @@ Reads. It contains semantic facts needed for research and excludes:
 - teacher/model identity or future outcome.
 
 Every ResearchState records `schema`, `information_policy`, `game_version`, and a normalized
-state hash. It is not yet frozen; Step 0 must freeze it before data collection scales.
+state hash. Its structural v0 contract is frozen in the tested Python type and JSON Schema;
+fair-player semantic facts remain extensible only inside `facts` and declared `reads`.
 
 ## 3. ResearchAction and ModelAction v0
 
@@ -59,6 +60,9 @@ a dataset-local `action_key` derived from visible semantic content. The runtime
 ModelAction is the deterministic model-facing serialization of ResearchAction. Candidate
 order is randomized or explicitly recorded for evaluation; localized display text cannot be
 the sole identity or ordering key.
+
+`ExecutionEnvelope(snapshot_id, bound_action_id, mutation_request_id)` is separate ephemeral
+authority. It is forbidden in model input and must map bijectively to the semantic catalog.
 
 ## 4. ModelState profiles
 
@@ -71,7 +75,7 @@ Serializers are deterministic and versioned.
 
 ## 5. ResearchTransition v0
 
-Canonical shape:
+Canonical shape (the machine-readable schema and tested Python type are authoritative):
 
 ```json
 {
@@ -83,29 +87,40 @@ Canonical shape:
   "environment": {
     "game_version": "...",
     "game_commit": "...",
+    "host_kind": "managed_exact",
     "host_source_revision": "...",
     "host_artifact_sha256": "...",
     "connector_version": "...",
+    "connector_source_revision": "...",
     "connector_artifact_sha256": "...",
+    "pe_protocol": "1.0.0",
     "information_policy_id": "player_visible_v1"
   },
   "policy": {
     "source": "strong_teacher",
     "version": "...",
+    "config_hash": "...",
     "teacher_confidence": 0.8
   },
+  "decision_mode": "combat",
+  "surface": "combat_turn",
   "input_profile": "stpd-combat-v0-standard",
   "eligibility": {
     "rank": true,
+    "rank_mode": "full_listwise",
     "transition": true,
-    "return": false
+    "return": false,
+    "legal_action_completeness": "complete",
+    "reason_codes": []
   },
   "state": {},
   "legal_actions": [],
   "chosen_action": {},
   "successor": {},
   "terminal": false,
-  "outcome": null
+  "scope_exit": false,
+  "outcome": null,
+  "raw_ref": "raw/...#17"
 }
 ```
 
@@ -115,7 +130,8 @@ Eligibility meanings:
 - `transition`: `(s, a, stable s')` is semantically reliable;
 - `return`: the episode has a reliable terminal outcome.
 
-Random/exploratory actions may be transition-eligible while rank-ineligible.
+Random/exploratory actions may be transition-eligible while rank-ineligible. A non-terminal,
+in-scope transition without a stable successor is rejected.
 
 ## 6. Qwen backend port
 

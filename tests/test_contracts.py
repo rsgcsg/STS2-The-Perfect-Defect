@@ -46,20 +46,23 @@ class ContractTest(unittest.TestCase):
         identity = EnvironmentIdentity(
             game_version="v0.111.0",
             game_commit="41cef1ea",
+            host_kind="managed_exact",
             host_source_revision="headless-sha",
             host_artifact_sha256="host-artifact",
             connector_version="1.0.0",
+            connector_source_revision="connector-sha",
             connector_artifact_sha256="connector-artifact",
+            pe_protocol="1.0.0",
             information_policy_id="player_visible_v1",
         )
         identity.validate()
         with self.assertRaisesRegex(ContractError, "game_version"):
-            EnvironmentIdentity("", "g", "h", "ha", "c", "ca", "p").validate()
+            EnvironmentIdentity("", "g", "hk", "h", "ha", "c", "cs", "ca", "1", "p").validate()
 
     def test_transition_eligibility_cannot_be_empty(self):
-        TransitionEligibility(rank=True, transition=False, return_=False).validate()
+        TransitionEligibility(True, "full_listwise", False, False, "complete").validate()
         with self.assertRaisesRegex(ContractError, "at least one"):
-            TransitionEligibility(False, False, False).validate()
+            TransitionEligibility(False, "none", False, False, "complete").validate()
 
     def test_qwen_v0_identity_requires_frozen_backbone(self):
         identity = QwenIdentity(

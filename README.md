@@ -36,6 +36,10 @@ are expected to remain useful as regression and qualification tools. They do not
 that linear Q-learning is the final STPD architecture or that the current reward is the
 project objective.
 
+The first v0 contract slice is also implemented: strict `ResearchState`,
+`ResearchAction`, `ResearchTransition`, execution-envelope separation, eligibility,
+Lite/Standard/Full deterministic serializers, semantic hashes, schemas, and leakage tests.
+
 ## What v0 will build
 
 STPD v0 is a combat-focused representation and architecture study. It freezes
@@ -64,8 +68,10 @@ See [v0 execution plan](docs/V0_EXECUTION_PLAN.md).
 ## Quick start: current integration smoke
 
 ```bash
-python3 -m unittest discover -s tests -v
-python3 -m compileall -q stpd tests
+uv sync --locked --all-extras
+uv run pytest
+uv run mypy stpd
+uv run ruff check stpd tests
 ```
 
 A real environment run additionally requires a prepared `STS2-headless` candidate:

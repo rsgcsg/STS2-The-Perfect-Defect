@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 
 class ContractError(ValueError):
@@ -27,20 +27,26 @@ class EnvironmentIdentity:
 
     game_version: str
     game_commit: str
+    host_kind: str
     host_source_revision: str
     host_artifact_sha256: str
     connector_version: str
+    connector_source_revision: str
     connector_artifact_sha256: str
+    pe_protocol: str
     information_policy_id: str
 
     def validate(self) -> None:
         for name, value in (
             ("game_version", self.game_version),
             ("game_commit", self.game_commit),
+            ("host_kind", self.host_kind),
             ("host_source_revision", self.host_source_revision),
             ("host_artifact_sha256", self.host_artifact_sha256),
             ("connector_version", self.connector_version),
+            ("connector_source_revision", self.connector_source_revision),
             ("connector_artifact_sha256", self.connector_artifact_sha256),
+            ("pe_protocol", self.pe_protocol),
             ("information_policy_id", self.information_policy_id),
         ):
             _require_text(name, value)
@@ -51,12 +57,29 @@ class TransitionEligibility:
     """Independent permissions for ranking, dynamics, and return supervision."""
 
     rank: bool
+    rank_mode: Literal["full_listwise", "partial_pairwise", "chosen_only", "none"]
     transition: bool
     return_: bool
+    legal_action_completeness: Literal["complete", "partial", "unknown"]
+    reason_codes: tuple[str, ...] = ()
 
     def validate(self) -> None:
         if not (self.rank or self.transition or self.return_):
             raise ContractError("a transition must be eligible for at least one use")
+        if self.rank == (self.rank_mode == "none"):
+            raise ContractError("rank and rank_mode disagree")
+        if self.rank_mode == "full_listwise" and self.legal_action_completeness != "complete":
+            raise ContractError("full_listwise ranking requires a complete legal action catalog")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "rank": self.rank,
+            "rank_mode": self.rank_mode,
+            "transition": self.transition,
+            "return": self.return_,
+            "legal_action_completeness": self.legal_action_completeness,
+            "reason_codes": list(self.reason_codes),
+        }
 
 
 @dataclass(frozen=True)
