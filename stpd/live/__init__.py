@@ -7,9 +7,11 @@ from .s1 import (
     LiveS1Error,
     ResidentS1Model,
     SnapshotAdmission,
+    StaleObservationError,
     admit_snapshot,
     apply_delivery_safety,
     load_resident_s1,
+    refresh_observation_bundle,
     validate_capabilities,
 )
 
@@ -20,8 +22,10 @@ __all__ = [
     "LiveS1Error",
     "ResidentS1Model",
     "SnapshotAdmission",
+    "StaleObservationError",
     "admit_snapshot",
     "apply_delivery_safety",
     "load_resident_s1",
+    "refresh_observation_bundle",
     "validate_capabilities",
 ]

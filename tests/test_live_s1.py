@@ -8,8 +8,10 @@ from stpd.environment import ResearchProjectorV0
 from stpd.live import (
     HandoffManager,
     LiveS1Error,
+    StaleObservationError,
     admit_snapshot,
     apply_delivery_safety,
+    refresh_observation_bundle,
     validate_capabilities,
 )
 from stpd.training import CheckpointIdentity, CheckpointManager, TrainerState
@@ -208,6 +210,79 @@ def test_stale_observes_fresh_but_unknown_delivery_never_retries() -> None:
     assert not handoff.auto_enabled
     assert not handoff.controller_acquired
     assert bridge.acquires == bridge.releases == 1
+
+
+class _StaleReadThenFreshBridge:
+    def __init__(self) -> None:
+        self.bundle_attempts = 0
+        self.action_submissions: list[str] = []
+        self.trace: list[str] = []
+
+    def observe_bundle(self) -> dict:
+        self.bundle_attempts += 1
+        if self.bundle_attempts == 1:
+            self.trace.extend(("observe:A", "read:A:409:stale_state", "discard:A"))
+            raise StaleObservationError("Read for snapshot A returned HTTP 409 stale_state")
+        self.trace.extend(("observe:B", "read:B:coherent"))
+        return {
+            "snapshot": _snapshot(),
+            "reads": {
+                "combat_piles": {"completeness": {"status": "complete"}},
+                "run_deck": {"completeness": {"status": "complete"}},
+            },
+        }
+
+    def submit(self, request_id: str) -> None:
+        self.action_submissions.append(request_id)
+
+
+def test_stale_read_discards_bundle_and_fresh_observation_becomes_available() -> None:
+    bridge = _StaleReadThenFreshBridge()
+    delays: list[float] = []
+    stale_events: list[tuple[int, float]] = []
+    bundle = refresh_observation_bundle(
+        bridge,
+        max_attempts=3,
+        base_backoff_seconds=0.05,
+        on_stale=lambda attempt, delay, _error: stale_events.append((attempt, delay)),
+        sleeper=delays.append,
+    )
+    assert bundle is not None
+    assert admit_snapshot(bundle["snapshot"]).available
+    assert bridge.trace == [
+        "observe:A",
+        "read:A:409:stale_state",
+        "discard:A",
+        "observe:B",
+        "read:B:coherent",
+    ]
+    assert bridge.bundle_attempts == 2
+    assert stale_events == [(1, 0.05)]
+    assert delays == [0.05]
+    assert bridge.action_submissions == []
+
+
+def test_stale_observation_refresh_is_bounded_without_taint_or_submission() -> None:
+    class _AlwaysStale:
+        def __init__(self) -> None:
+            self.attempts = 0
+            self.action_submissions: list[str] = []
+
+        def observe_bundle(self) -> dict:
+            self.attempts += 1
+            raise StaleObservationError("HTTP 409 stale_state")
+
+    bridge = _AlwaysStale()
+    delays: list[float] = []
+    assert refresh_observation_bundle(
+        bridge,
+        max_attempts=3,
+        base_backoff_seconds=0.01,
+        sleeper=delays.append,
+    ) is None
+    assert bridge.attempts == 3
+    assert delays == [0.01, 0.02]
+    assert bridge.action_submissions == []
 
 
 def test_inference_checkpoint_loads_model_only_and_preserves_rng(tmp_path) -> None:

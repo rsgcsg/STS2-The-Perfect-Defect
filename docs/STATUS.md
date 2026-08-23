@@ -85,6 +85,9 @@ ordinary-Combat catalogs containing `play`/`end_turn`, under the exact
 Connector-only Modset `44f2fdce...`. Unsupported catalogs and
 unknown delivery fail closed; local Receipts/successors/handoffs are append-only
 under `.local/live-s1/`.
+Transient HTTP 409 `stale_state` races during Snapshot-bound Read prefetch now
+discard and refresh the whole observation transaction with bounded backoff;
+they do not weaken coherence or taint an otherwise safe Human/Qwen handoff.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes

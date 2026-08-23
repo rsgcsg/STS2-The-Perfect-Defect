@@ -26,9 +26,11 @@ from stpd.live import (  # noqa: E402
     LiveEvidence,
     LiveS1Error,
     SnapshotAdmission,
+    StaleObservationError,
     admit_snapshot,
     apply_delivery_safety,
     load_resident_s1,
+    refresh_observation_bundle,
     validate_capabilities,
 )
 from stpd.live.s1 import DEFAULT_CONFIG  # noqa: E402
@@ -168,8 +170,44 @@ class LiveApplication:
                 return f"READ_INCOMPLETE:{kind}"
         return None
 
-    def observe(self) -> None:
-        bundle = self.bridge.observe_bundle()
+    def _stale_observation(
+        self, attempt: int, delay_seconds: float, error: StaleObservationError
+    ) -> None:
+        self.last_bundle = None
+        self.last_admission = SnapshotAdmission(
+            False,
+            "REFRESHING_STALE_OBSERVATION",
+            self.last_admission.interaction,
+            self.last_admission.surface,
+            0,
+        )
+        self.connector_status = "READY"
+        self.evidence.append(
+            "stale_observation_bundle_discarded",
+            attempt=attempt,
+            retry_delay_ms=round(delay_seconds * 1000),
+            error=str(error),
+            whole_bundle_discarded=True,
+            action_submission_attempted=False,
+            handoff=self._handoff_state(),
+        )
+        self.render()
+
+    def _fresh_bundle(self) -> dict[str, Any] | None:
+        refresh = self.config.get("observation_refresh")
+        if not isinstance(refresh, Mapping):
+            raise LiveS1Error("observation refresh policy is absent from live config")
+        return refresh_observation_bundle(
+            self.bridge,
+            max_attempts=int(refresh["max_attempts"]),
+            base_backoff_seconds=float(refresh["base_backoff_ms"]) / 1000,
+            on_stale=self._stale_observation,
+        )
+
+    def observe(self) -> bool:
+        bundle = self._fresh_bundle()
+        if bundle is None:
+            return False
         snapshot = bundle.get("snapshot")
         reads = bundle.get("reads")
         if not isinstance(snapshot, Mapping) or not isinstance(reads, Mapping):
@@ -205,11 +243,18 @@ class LiveApplication:
                 reason=admission.reason,
                 handoff=self._handoff_state(),
             )
+        return True
 
     def _stable_successor(self) -> Mapping[str, Any]:
         deadline = time.monotonic() + 20
         while True:
-            bundle = self.bridge.observe_bundle()
+            bundle = self._fresh_bundle()
+            if bundle is None:
+                if time.monotonic() >= deadline:
+                    raise LiveS1Error(
+                        "successor observation remained stale for 20 seconds"
+                    )
+                continue
             snapshot = bundle.get("snapshot")
             if not isinstance(snapshot, Mapping):
                 raise LiveS1Error("successor observation is absent")
@@ -390,10 +435,19 @@ class LiveApplication:
                 while msvcrt.kbhit():
                     self.handle_key(msvcrt.getwch())
                 try:
-                    self.observe()
+                    observed = self.observe()
                     self.connector_status = "READY"
-                    if self.handoff.auto_enabled and self.last_admission.available:
+                    if (
+                        observed
+                        and self.handoff.auto_enabled
+                        and self.last_admission.available
+                    ):
                         self.execute_one(one_step=False)
+                except StaleObservationError as error:
+                    # Defensive classification: a stale observe/read is never a
+                    # permanent handoff failure, even if a future observation
+                    # call site bypasses _fresh_bundle accidentally.
+                    self._stale_observation(1, 0, error)
                 except Exception as error:
                     self.connector_status = "FAIL-CLOSED"
                     self.handoff.fail_closed(f"RUNTIME_ERROR:{error}")

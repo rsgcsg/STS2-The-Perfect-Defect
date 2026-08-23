@@ -10,7 +10,7 @@ import queue
 import subprocess
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import suppress
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -37,6 +37,10 @@ SUPPORTED_ACTION_KINDS = frozenset({"play_card", "end_turn"})
 
 class LiveS1Error(RuntimeError):
     """A classified live boundary failure; never permission to guess or retry."""
+
+
+class StaleObservationError(LiveS1Error):
+    """One Snapshot+Reads transaction raced with a newer Connector snapshot."""
 
 
 def _sha256(path: Path) -> str:
@@ -267,7 +271,16 @@ class ConnectorSdkBridge:
                     deferred.append(response)
                     continue
                 if response.get("ok") is not True:
-                    raise LiveS1Error(f"Connector SDK {operation} failed: {response.get('error')}")
+                    detail = f"Connector SDK {operation} failed: {response.get('error')}"
+                    if (
+                        operation == "observe_bundle"
+                        and response.get("error_kind") == "transient_observation_race"
+                        and response.get("error_code") == "stale_state"
+                        and response.get("http_status") == 409
+                        and response.get("retry_scope") == "whole_observation_bundle"
+                    ):
+                        raise StaleObservationError(detail)
+                    raise LiveS1Error(detail)
                 return response.get("result")
         finally:
             for response in deferred:
@@ -309,6 +322,36 @@ class ConnectorSdkBridge:
             self._process.wait(timeout=3)
         except subprocess.TimeoutExpired:
             self._process.terminate()
+
+
+def refresh_observation_bundle(
+    bridge: Any,
+    *,
+    max_attempts: int,
+    base_backoff_seconds: float,
+    on_stale: Callable[[int, float, StaleObservationError], None] | None = None,
+    sleeper: Callable[[float], None] = time.sleep,
+) -> dict[str, Any] | None:
+    """Return one coherent bundle or defer after bounded whole-bundle refreshes.
+
+    A stale Read invalidates its Snapshot and every other Read from that attempt.
+    This function performs observation only and has no action-submission port.
+    """
+
+    if max_attempts <= 0:
+        raise ValueError("observation refresh max_attempts must be positive")
+    if base_backoff_seconds < 0:
+        raise ValueError("observation refresh backoff must be non-negative")
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return cast(dict[str, Any], bridge.observe_bundle())
+        except StaleObservationError as error:
+            delay = base_backoff_seconds * (2 ** (attempt - 1))
+            if on_stale is not None:
+                on_stale(attempt, delay, error)
+            if attempt < max_attempts and delay:
+                sleeper(delay)
+    return None
 
 
 class HandoffManager:

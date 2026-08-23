@@ -40,6 +40,13 @@ request. Unknown delivery or transport loss after submission permanently taints
 that runner process, disables auto, releases where possible and never retries.
 Connector TTL remains the crash-safe release path.
 
+An HTTP 409 `stale_state` while prefetching Snapshot-bound Reads is different:
+the entire uncommitted observation bundle is discarded, the terminal briefly
+reports `REFRESHING_STALE_OBSERVATION`, and the runner performs a bounded
+exponential-backoff fresh observe. It never reuses a Read from the stale bundle
+and this observation-only race does not taint handoff state. Repeated inability
+to verify a successor after a delivered action remains fail-closed.
+
 ## Local evidence
 
 Each run creates `.local/live-s1/<UTC timestamp>/manifest.json` and append-only

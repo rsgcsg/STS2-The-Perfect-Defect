@@ -8,6 +8,10 @@
   "checkpoint_sha256": "c70c482ca1af52c9dc5477a45623f7ad531222400ba6eefd3c17c87b7cc922d3",
   "optimizer_steps": 1659,
   "micro_batch_size": 8,
+  "observation_refresh": {
+    "max_attempts": 3,
+    "base_backoff_ms": 50
+  },
   "endpoint": "http://127.0.0.1:15526",
   "connector_sdk_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
   "live_identity": {

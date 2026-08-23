@@ -19,6 +19,7 @@ if (!sdkPath || !Number.isInteger(timeoutMs) || timeoutMs <= 0) {
 
 const {
   EnvironmentControllerSession,
+  PlayerEnvironmentHttpError,
   PlayerEnvironmentRestClient,
   prefetchPlayerEnvironmentDecisionBundle
 } = await import(pathToFileURL(sdkPath).href);
@@ -26,6 +27,29 @@ const {
 const client = new PlayerEnvironmentRestClient(endpoint, timeoutMs);
 let capabilities = null;
 let controller = null;
+
+function classifyError(error, operation) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (operation === "observe_bundle"
+      && error instanceof PlayerEnvironmentHttpError
+      && error.statusCode === 409
+      && message.includes("stale_state")) {
+    return {
+      error_kind: "transient_observation_race",
+      error_code: "stale_state",
+      http_status: 409,
+      retry_scope: "whole_observation_bundle"
+    };
+  }
+  return {
+    error_kind: "permanent_or_unclassified",
+    error_code: null,
+    http_status: error instanceof PlayerEnvironmentHttpError
+      ? (error.statusCode ?? null)
+      : null,
+    retry_scope: "none"
+  };
+}
 
 function ensureBoundRuntime(runtimeInstanceId, environmentFingerprint = null) {
   if (!capabilities) throw new Error("bridge is not connected");
@@ -124,10 +148,12 @@ for await (const line of lines) {
     process.stdout.write(`${JSON.stringify({ id: message.id, ok: true, result })}\n`);
     if (message.op === "close") break;
   } catch (error) {
+    const classification = classifyError(error, message?.op);
     process.stdout.write(`${JSON.stringify({
       id: message?.id ?? null,
       ok: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      ...classification
     })}\n`);
   }
 }
