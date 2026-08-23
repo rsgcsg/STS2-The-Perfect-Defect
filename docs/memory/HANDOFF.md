@@ -49,10 +49,12 @@ zero exact or semantic duplicates and zero split leakage; train/dev/test contain
 11/1/2 runs. B0 passes. Serializer v1 passes the unchanged Standard token gates
 at P95 2,883 and max 4,110 without truncation or raw-record changes.
 
-## Next action
+## S1 and next action
 
-Stop at `.local/training-ready/START_TRAINING.ps1`. It is the only owner command
-for `S1-1K-2K-SMOKE` and rechecks every exact identity before optimizer creation.
+The exact owner S1 behavior smoke completed all 1,659 steps from source
+`caddbcc...`. Final checkpoint `c70c482c...` passed the frozen engineering
+criteria. Experimental live v1 connects it to exact Connector authority while
+keeping Human as default and admitting only complete Defect A0 ordinary Combat.
 Human Gold is absent; Core, Gold-test and B6 remain unopened.
 
 ## Risks and non-claims

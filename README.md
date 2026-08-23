@@ -73,6 +73,14 @@ result passes B0 and the unchanged Standard P95/hard gates. A formal owner-gated
 `S1-1K-2K-SMOKE` runner consumes only its immutable Parquet handoff; Human Gold
 and scientific Core remain unavailable.
 
+The owner-run S1 smoke subsequently completed all 1,659 optimizer steps and its
+behavior engineering criteria. Its exact final Scheme1 linear checkpoint now has
+a separate fail-closed experimental live lane: the official Connector SDK keeps
+legality and controller authority, while STPD projects and scores only a whole
+complete Defect A0 `play_card`/`end_turn` catalog. Human remains the default for
+all other game decisions. See
+[Experimental Live S1 Operations](docs/LIVE_S1_OPERATIONS.md).
+
 ## What v0 will build
 
 STPD v0 is a combat-focused representation and architecture study. It freezes
@@ -141,6 +149,7 @@ inherit the macOS operational freeze. A changed identity is a requalification ev
 - [Human corpus lane](docs/HUMAN_CORPUS.md)
 - [Qwen integration](docs/QWEN_INTEGRATION.md)
 - [Qwen L2 operations and owner handoff](docs/QWEN_L2_OPERATIONS.md)
+- [Experimental Live S1 operations](docs/LIVE_S1_OPERATIONS.md)
 - [Scientific experiment protocol](docs/SCIENTIFIC_EXPERIMENT_PROTOCOL.md)
 - [Project system](docs/PROJECT_SYSTEM.md)
 - [Roadmap](docs/ROADMAP.md)

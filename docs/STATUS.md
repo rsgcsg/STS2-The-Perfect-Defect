@@ -3,8 +3,9 @@
 ## Verdict
 
 **STPD is pre-alpha; full-weight Qwen L2, bounded tiny-overfit engineering admission,
-and the 1,962-record unified Human corpus Gate-0 lane are complete. S1 smoke is ready for
-an explicit owner start; scientific Core remains blocked by missing Human Gold.**
+the 1,962-record unified Human corpus Gate-0 lane, and the owner-run S1 behavior smoke are
+complete. The exact trained checkpoint has an experimental live Connector lane;
+scientific Core remains blocked by missing Human Gold.**
 The repository contains a real frozen pretrained backend and same-architecture random
 control, but no scientific Core model result, Human Gold result, B6 result, or final STPD
 v0 claim.
@@ -68,6 +69,21 @@ combat referent rendering. Standard profiling covers 11,348 state/action samples
 and passes unchanged limits at P95 2,883 and max 4,110 tokens. B0 passes all
 1,962 records. The final local READY artifact binds the exact clean source,
 corpus and Qwen identities after all tracked changes are committed.
+
+The owner-run `S1-1K-2K-SMOKE` completed 1,659 steps from source
+`caddbcc71a990b5d0970c0bf574823f16d501eb2`. Final checkpoint SHA-256 is
+`c70c482ca1af52c9dc5477a45623f7ad531222400ba6eefd3c17c87b7cc922d3`;
+checkpoint identity is `4da5b472371330b0a6b7257f5998b079516055751f2ddea5755ce1d720249c64`.
+Behavior-dev mean listwise NLL changed from `1.7769335006` to `1.2975336015`
+and Top-1 from `0.3421052632` to `0.4473684211`. This passes only the frozen
+behavior engineering smoke criteria and makes no policy-quality or Core claim.
+
+The experimental live v1 lane loads that checkpoint with the exact frozen Qwen,
+serializer v1, Standard input and Scheme1 linear head. It uses Connector SDK
+`2a14504...` as sole action authority and admits only whole complete Defect A0
+ordinary-Combat catalogs containing `play`/`end_turn`. Unsupported catalogs and
+unknown delivery fail closed; local Receipts/successors/handoffs are append-only
+under `.local/live-s1/`.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes
@@ -156,13 +172,13 @@ strictly admitted unified Human corpus.
   successors, or current-patch identities.
 - Natural selector action families remain unsupported and were not admitted.
 - Human Gold is unavailable, so scientific Core and Gold/B6 remain blocked even
-  though the behavior S1 smoke environment is ready.
+  though the behavior S1 smoke completed.
 - Annotator audit and explicit owner attestation do not machine-prove operator
   identity or non-interference. Existing owner-completed sessions validate only
   the exact ordinary-combat source envelope, not other workers, platforms or
   unsupported families.
 
-The immediate next step is the owner-gated `S1-1K-2K-SMOKE`; do not start the
-Core matrix or open Gold-test. See the
+The immediate bounded step is an owner-operated experimental Human + Qwen live
+smoke; do not interpret it as Core/B6 or open Gold-test. See the
 [AgenticSTS audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md),
 [Data and Provenance](DATA_AND_PROVENANCE.md), and [Roadmap](ROADMAP.md).

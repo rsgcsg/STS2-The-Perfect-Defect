@@ -1,0 +1,40 @@
+{
+  "schema": "stpd/s1-human-combat-live-config-v1",
+  "experiment_id": "S1-HUMAN-QWEN-LIVE-V1",
+  "training_source_revision": "caddbcc71a990b5d0970c0bf574823f16d501eb2",
+  "ready_path": ".local/training-ready/READY_TO_TRAIN.json",
+  "ready_sha256": "3a657a9cb69159442a6e2127c46531e5905145ad9215c72bb94da2858081b0a4",
+  "checkpoint_path": ".local/training-ready/s1-smoke-output/source-caddbcc71a99/checkpoint-step-1659.pt",
+  "checkpoint_sha256": "c70c482ca1af52c9dc5477a45623f7ad531222400ba6eefd3c17c87b7cc922d3",
+  "optimizer_steps": 1659,
+  "micro_batch_size": 8,
+  "endpoint": "http://127.0.0.1:15526",
+  "connector_sdk_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
+  "live_identity": {
+    "protocol_version": "1.0.0",
+    "host_kind": "live_ui",
+    "connector_source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
+    "connector_artifact_sha256": "c6da375d0ae8a094c4fdea6b907176884316af23b596c6c75e02395702321a51",
+    "connector_artifact_mvid": "ec292515-8b89-4cd7-9af2-f60676e76a8b",
+    "game_version": "v0.111.0",
+    "game_commit": "41cef1ea",
+    "modset_status": "canary_exact_observer_modset",
+    "modset_fingerprint": "406fdabf464ae3bae5cb154a8f8ea62da57770ad6d1bca9a97db12ab43adc54c"
+  },
+  "admission": {
+    "character_definition_id": "DEFECT",
+    "ascension": 0,
+    "interaction_kind": "combat_turn",
+    "context_kind": "combat",
+    "allowed_connector_verbs": ["play", "end_turn"],
+    "allowed_research_action_kinds": ["play_card", "end_turn"],
+    "catalog_policy": "whole_complete_catalog_or_human"
+  },
+  "boundaries": {
+    "experimental_live_smoke_only": true,
+    "scientific_core_claim": false,
+    "gold_opened": false,
+    "unknown_delivery_retry": false,
+    "raw_runtime_ids_in_model_input": false
+  }
+}

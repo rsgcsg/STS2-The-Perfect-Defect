@@ -72,3 +72,15 @@ unchanged. Cross-platform training data is combined only through the exact
 profile digests in `human-combat-unified-v2`, then globally re-split and gated.
 
 See [ADR-0002](../adr/0002-versioned-unified-human-serialization.md).
+
+## D-009 — Keep live S1 authority in Connector and handoff whole catalogs
+
+**Status:** accepted for experimental live v1
+
+The trained STPD policy may score only the exact current Connector catalog after
+research projection. It never reconstructs legality, filters unsupported
+candidates, or sends native input. Human is the default owner; a controller lease
+exists only for admitted Qwen execution and is released on handoff. Stale means
+fresh observation without request retry; unknown delivery permanently stops
+automation for that runner process. Live evidence is local and explicitly
+non-scientific.

@@ -2,9 +2,10 @@
 
 ## Phase
 
-Windows L2 full-weight engineering, bounded tiny-overfit admission and unified Human
-corpus Gate 0 are complete. Scientific training has not started. The formal
-`S1-1K-2K-SMOKE` is prepared for a separate owner start; Human Gold and Core remain blocked.
+Windows L2 full-weight engineering, bounded tiny-overfit admission, unified Human
+corpus Gate 0 and the owner-run S1 behavior smoke are complete. The exact final
+checkpoint now has a fail-closed experimental live Connector lane. Human Gold and
+scientific Core remain blocked.
 
 ## Current truths
 
@@ -52,10 +53,16 @@ corpus Gate 0 are complete. Scientific training has not started. The formal
   P95 2,883 and max 4,110 under the frozen 4,096/8,192 gates.
 - The owner-gated S1 runner consumes only the immutable unified Parquet and
   revalidates source/data/Qwen/config/runtime identities before optimizer creation.
+- The S1 smoke completed 1,659 steps at source `caddbcc...`; exact checkpoint
+  `c70c482c...` passed its frozen behavior criteria without a scientific claim.
+- Experimental live v1 keeps Qwen/head resident, uses the exact official Connector
+  SDK for authority, defaults to Human and admits only whole complete Defect A0
+  `play_card`/`end_turn` catalogs. Unknown delivery is never retried.
 
 ## Immediate priorities
 
-1. Stop at the generated owner handoff; only the owner starts `S1-1K-2K-SMOKE`.
+1. Run the bounded owner-operated experimental Human + Qwen live smoke and retain its
+   gitignored Receipt/successor/handoff evidence.
 2. Retain raw recordings, source archives, rejected sessions and every immutable snapshot.
 3. Keep environment, FakeQwen and real-Qwen engineering smokes green.
 4. Do not claim scientific readiness until real Human Gold exists and Core is authorized.
@@ -67,7 +74,7 @@ corpus Gate 0 are complete. Scientific training has not started. The formal
 - derive or fabricate missing AgenticSTS catalogs, seeds, environment identities, or
   successors;
 - fine-tune Qwen before the frozen pretraining-value gate;
-- start the 1k-2k smoke without the exact generated owner command, or start Core;
+- retrain or reinterpret the completed S1 behavior smoke as scientific Core;
 - open Gold-test or execute B6 before architecture/input/hyperparameter freeze;
 - put reward/model/tensor semantics in Headless or Connector;
 - scale data/model complexity before B0 and scientific data readiness.

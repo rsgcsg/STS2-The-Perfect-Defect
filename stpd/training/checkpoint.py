@@ -120,3 +120,34 @@ class CheckpointManager:
         optimizer.load_state_dict(payload["optimizer"])
         torch.set_rng_state(payload["torch_rng_state"])
         return TrainerState(**payload["trainer_state"])
+
+    def load_model_for_inference(
+        self,
+        path: str | Path,
+        *,
+        model: nn.Module,
+        expected_identity: CheckpointIdentity,
+    ) -> TrainerState:
+        """Load only immutable model state after the normal identity/checksum gates.
+
+        Live inference must not construct or restore an optimizer and must not
+        mutate the process RNG state.  The tensor payload is still admitted by
+        the same manifest, checksum, format, and experiment identity as resume.
+        """
+
+        source = Path(path)
+        manifest_path = source.with_suffix(source.suffix + ".manifest.json")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        expected_identity.validate()
+        if manifest["identity_hash"] != expected_identity.identity_hash:
+            raise ContractError("checkpoint identity does not match the requested experiment")
+        actual_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+        if actual_sha != manifest["checkpoint_sha256"]:
+            raise ContractError("checkpoint checksum mismatch")
+        payload = cast(dict[str, Any], torch.load(source, map_location="cpu", weights_only=True))
+        if payload["format"] != "stpd/pytorch-checkpoint-v0":
+            raise ContractError("unsupported checkpoint format")
+        if payload["identity_hash"] != expected_identity.identity_hash:
+            raise ContractError("checkpoint payload identity mismatch")
+        model.load_state_dict(payload["model"], strict=True)
+        return TrainerState(**payload["trainer_state"])
