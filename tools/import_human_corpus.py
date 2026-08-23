@@ -20,6 +20,7 @@ from stpd.data.human_corpus import (
     inspect_corpus_snapshot,
     register_session_bundle,
 )
+from stpd.representation import ModelSerializerV0
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -72,6 +73,7 @@ def main() -> int:
     build.add_argument("--tokenizer-file", type=Path)
     build.add_argument("--tokenizer-revision")
     build.add_argument("--stpd-source-revision", default=None)
+    build.add_argument("--serializer-version", default=ModelSerializerV0.version)
 
     combine = commands.add_parser("combine")
     combine.add_argument("--plan", type=Path, required=True)
@@ -120,6 +122,7 @@ def main() -> int:
                 split_salt=arguments.split_salt,
                 tokenizer_path=arguments.tokenizer_file,
                 tokenizer_revision=arguments.tokenizer_revision,
+                serializer_version=arguments.serializer_version,
             )
             result = {
                 "status": built.status,

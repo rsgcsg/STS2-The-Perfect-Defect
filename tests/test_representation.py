@@ -14,6 +14,7 @@ from stpd.representation import (
     ExecutionEnvelope,
     InputProfile,
     ModelSerializerV0,
+    ModelSerializerV1,
     PolicyProvenance,
     ResearchAction,
     ResearchState,
@@ -82,6 +83,31 @@ def test_serializer_accepts_verified_frozen_contract_mappings() -> None:
     drifted["state_hash"] = "0" * 64
     with pytest.raises(ContractError, match="hash mismatch"):
         serializer.serialize_state(drifted)
+
+
+def test_v1_standard_removes_only_redundant_turn_action_referents() -> None:
+    state = _state()
+    state = ResearchState(
+        state.information_policy_id,
+        state.game_version,
+        state.game_commit,
+        state.decision_mode,
+        state.decision_family,
+        state.surface,
+        {
+            **state.facts,
+            "interaction": {"content": {"context": {"kind": "combat"}}},
+            "referents": [{"local_ref": "H0", "properties": {"name": "Defend"}}],
+        },
+        state.reads,
+    )
+
+    v0 = ModelSerializerV0().serialize_state(state)
+    v1 = ModelSerializerV1().serialize_state(state)
+
+    assert "REFERENTS=" in v0
+    assert "REFERENTS=" not in v1
+    assert "INTERACTION=" in v1
 
 
 def test_model_input_leakage_fails_closed() -> None:

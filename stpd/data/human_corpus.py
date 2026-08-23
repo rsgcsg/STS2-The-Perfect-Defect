@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from ..canonical import canonical_json, semantic_hash
-from ..representation import InputProfile, ModelSerializerV0
+from ..contracts import ContractError
+from ..representation import InputProfile, ModelSerializerV0, model_serializer
 from .human_annotator import HumanImportReport, import_human_recording
 from .manifest import DataSource
 from .parquet import read_transition_parquet
@@ -159,6 +160,7 @@ class CorpusCombinationPlan:
     combination_id: str
     sha256: str
     target_accepted_records: int
+    serializer_version: str
     admitted_profiles: Mapping[str, str]
 
     @classmethod
@@ -175,6 +177,13 @@ class CorpusCombinationPlan:
         _text(value, "player_environment_protocol")
         _digest(value, "connector_source_digest_sha256")
         _text(value, "record_schema")
+        serializer_version = str(
+            value.get("serializer_version", ModelSerializerV0.version)
+        )
+        try:
+            model_serializer(serializer_version)
+        except ContractError as error:
+            raise HumanCorpusError(str(error)) from error
         families = _string_sequence(value, "allowed_action_families")
         if not families or len(families) != len(set(families)):
             raise HumanCorpusError("combination action families must be non-empty and unique")
@@ -192,7 +201,15 @@ class CorpusCombinationPlan:
             admitted[profile_id] = profile_sha
         if not admitted:
             raise HumanCorpusError("combination requires at least one admitted profile")
-        return cls(source, value, combination_id, semantic_hash(value), target, admitted)
+        return cls(
+            source,
+            value,
+            combination_id,
+            semantic_hash(value),
+            target,
+            serializer_version,
+            admitted,
+        )
 
 
 @dataclass(frozen=True)
@@ -498,6 +515,7 @@ def build_human_corpus(
     split_salt: str,
     tokenizer_path: str | Path | None = None,
     tokenizer_revision: str | None = None,
+    serializer_version: str = ModelSerializerV0.version,
 ) -> CorpusBuildResult:
     if not _COMMIT.fullmatch(stpd_source_revision):
         raise HumanCorpusError("STPD source revision must be an exact Git SHA")
@@ -505,6 +523,10 @@ def build_human_corpus(
         raise HumanCorpusError("corpus split salt must be explicit")
     if campaign.profile_id != profile.profile_id:
         raise HumanCorpusError("campaign and collection profile differ")
+    try:
+        model_serializer(serializer_version)
+    except ContractError as error:
+        raise HumanCorpusError(str(error)) from error
     entries = _read_registry(registry_directory)
     if not entries:
         raise HumanCorpusError("session registry is empty")
@@ -607,6 +629,7 @@ def build_human_corpus(
                 transitions,
                 Path(tokenizer_path),
                 tokenizer_revision=tokenizer_revision,
+                serializer_version=serializer_version,
             )
             _write_canonical(temporary / "token-profile-report.json", token_report)
         corpus_report = _corpus_report(
@@ -636,7 +659,7 @@ def build_human_corpus(
             "tokenizer_revision": (
                 None if token_report is None else token_report["tokenizer_revision"]
             ),
-            "serializer_version": ModelSerializerV0.version,
+            "serializer_version": serializer_version,
         }
         corpus_id = semantic_hash(identity)
         identity = {**identity, "corpus_id": corpus_id}
@@ -774,6 +797,7 @@ def combine_human_corpora(
             records,
             tokenizer,
             tokenizer_revision=tokenizer_revision,
+            serializer_version=plan.serializer_version,
         )
         _write_canonical(temporary / "b0-report.json", b0.to_dict())
         _write_canonical(temporary / "token-profile-report.json", token_report)
@@ -809,7 +833,7 @@ def combine_human_corpora(
             "token_profile_sha256": _sha256_file(temporary / "token-profile-report.json"),
             "tokenizer_sha256": token_report["tokenizer_sha256"],
             "tokenizer_revision": token_report["tokenizer_revision"],
-            "serializer_version": ModelSerializerV0.version,
+            "serializer_version": plan.serializer_version,
         }
         corpus_id = semantic_hash(identity)
         identity = {**identity, "corpus_id": corpus_id}
@@ -883,7 +907,7 @@ def _load_admitted_corpus_input(
         raise HumanCorpusError("combination input has an unsupported dataset manifest")
     if manifest.get("contract_schema") != plan.value["research_contract_schema"]:
         raise HumanCorpusError("combination input research contract drift")
-    if identity.get("serializer_version") != ModelSerializerV0.version:
+    if identity.get("serializer_version") != plan.serializer_version:
         raise HumanCorpusError("combination input serializer drift")
     if identity.get("tokenizer_sha256") != tokenizer_sha256:
         raise HumanCorpusError("combination input tokenizer digest drift")
@@ -1316,10 +1340,14 @@ def _profile_standard_tokens(
     tokenizer_path: Path,
     *,
     tokenizer_revision: str | None,
+    serializer_version: str = ModelSerializerV0.version,
 ) -> dict[str, Any]:
     from ..qwen.l1 import QwenL1Error, profile_records
 
-    serializer = ModelSerializerV0(InputProfile.STANDARD)
+    try:
+        serializer = model_serializer(serializer_version, InputProfile.STANDARD)
+    except ContractError as error:
+        raise HumanCorpusError(str(error)) from error
     samples = []
     for transition in transitions:
         if isinstance(transition, Mapping):

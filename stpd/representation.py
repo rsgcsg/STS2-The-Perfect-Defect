@@ -318,6 +318,40 @@ class ModelSerializerV0:
         return result
 
 
+class ModelSerializerV1(ModelSerializerV0):
+    """Standard serializer without duplicated turn-action referent payloads."""
+
+    version = "stpd-model-serialization-v1"
+
+    def _profile_facts(self, state: ResearchState) -> dict[str, Any]:
+        profiled = super()._profile_facts(state)
+        facts = profiled["facts"]
+        interaction = facts.get("interaction")
+        content = interaction.get("content") if isinstance(interaction, Mapping) else None
+        context = content.get("context") if isinstance(content, Mapping) else None
+        if (
+            self.profile is InputProfile.STANDARD
+            and state.decision_family is DecisionFamily.TURN_ACTION
+            and isinstance(context, Mapping)
+            and context.get("kind") == "combat"
+        ):
+            facts.pop("referents", None)
+        return profiled
+
+
+def model_serializer(
+    version: str, profile: InputProfile = InputProfile.STANDARD
+) -> ModelSerializerV0:
+    serializers = {
+        ModelSerializerV0.version: ModelSerializerV0,
+        ModelSerializerV1.version: ModelSerializerV1,
+    }
+    serializer_type = serializers.get(version)
+    if serializer_type is None:
+        raise ContractError(f"unsupported model serializer version: {version}")
+    return serializer_type(profile)
+
+
 def _counts_only(value: Any) -> Any:
     """Retain visible collection sizes while omitting verbose inspectable contents."""
 

@@ -7,6 +7,7 @@
   "player_environment_protocol": "1.0.0",
   "connector_source_digest_sha256": "d6faf7f01844786896a9db75d80b97caf35b0cf99049d4c200a3ab59e85ac6df",
   "record_schema": "sts2.human-annotator/decision-record-1",
+  "serializer_version": "stpd-model-serialization-v1",
   "allowed_action_families": [
     "ordinary_combat.play_card",
     "ordinary_combat.end_turn"

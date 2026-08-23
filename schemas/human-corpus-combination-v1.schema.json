@@ -25,6 +25,9 @@
     "player_environment_protocol": { "type": "string", "minLength": 1 },
     "connector_source_digest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "record_schema": { "type": "string", "minLength": 1 },
+    "serializer_version": {
+      "enum": ["stpd-model-serialization-v0", "stpd-model-serialization-v1"]
+    },
     "allowed_action_families": {
       "type": "array",
       "minItems": 1,
