@@ -338,9 +338,15 @@ def prepare_s1_smoke(
         "pretrained.runtime",
     )
     qwen_identity = _object(pretrained_runtime.get("identity"), "qwen.identity")
+    tokenizer_file = next(
+        (file for file in artifact.files if file.name == "tokenizer.json"), None
+    )
+    if tokenizer_file is None:
+        raise S1PreparationError("Qwen artifact is missing the exact tokenizer file")
     if (
         qwen_identity.get("model_revision") != pin.repo_revision
-        or qwen_identity.get("tokenizer_sha256") != identity.get("tokenizer_sha256")
+        or qwen_identity.get("tokenizer_sha256") != artifact.tokenizer_bundle_sha256
+        or tokenizer_file.sha256 != identity.get("tokenizer_sha256")
         or qwen_identity.get("weights_sha256") != artifact.weights_sha256
         or qwen_identity.get("frozen") is not True
         or qwen_identity.get("control") != "pretrained"
