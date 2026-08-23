@@ -18,8 +18,9 @@
     "connector_artifact_mvid": "ec292515-8b89-4cd7-9af2-f60676e76a8b",
     "game_version": "v0.111.0",
     "game_commit": "41cef1ea",
-    "modset_status": "canary_exact_observer_modset",
-    "modset_fingerprint": "406fdabf464ae3bae5cb154a8f8ea62da57770ad6d1bca9a97db12ab43adc54c"
+    "modset_status": "exact_player_environment_only",
+    "modset_fingerprint": "44f2fdce56b910af6a2532ee385e92c3b7e5fd6ef283033997fb21001ce6e78d",
+    "loaded_mod_ids": ["STS2_MCP"]
   },
   "admission": {
     "character_definition_id": "DEFECT",

@@ -81,7 +81,8 @@ behavior engineering smoke criteria and makes no policy-quality or Core claim.
 The experimental live v1 lane loads that checkpoint with the exact frozen Qwen,
 serializer v1, Standard input and Scheme1 linear head. It uses Connector SDK
 `2a14504...` as sole action authority and admits only whole complete Defect A0
-ordinary-Combat catalogs containing `play`/`end_turn`. Unsupported catalogs and
+ordinary-Combat catalogs containing `play`/`end_turn`, under the exact
+Connector-only Modset `44f2fdce...`. Unsupported catalogs and
 unknown delivery fail closed; local Receipts/successors/handoffs are append-only
 under `.local/live-s1/`.
 

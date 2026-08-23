@@ -5,7 +5,13 @@ import torch
 
 from stpd.contracts import QwenIdentity
 from stpd.environment import ResearchProjectorV0
-from stpd.live import HandoffManager, admit_snapshot, apply_delivery_safety
+from stpd.live import (
+    HandoffManager,
+    LiveS1Error,
+    admit_snapshot,
+    apply_delivery_safety,
+    validate_capabilities,
+)
 from stpd.training import CheckpointIdentity, CheckpointManager, TrainerState
 
 
@@ -115,6 +121,48 @@ def test_noncombat_and_wrong_run_identity_fail_closed() -> None:
     snapshot = _snapshot()
     snapshot["persistent"]["content"]["run"]["ascension"] = 1
     assert admit_snapshot(snapshot).reason == "REQUIRES_ASCENSION_0"
+
+
+def test_live_capabilities_bind_exact_connector_only_modset() -> None:
+    expected = {
+        "protocol_version": "1.0.0",
+        "host_kind": "live_ui",
+        "connector_source_revision": "source",
+        "connector_artifact_sha256": "a" * 64,
+        "connector_artifact_mvid": "mvid",
+        "game_version": "v0.111.0",
+        "game_commit": "41cef1ea",
+        "modset_status": "exact_player_environment_only",
+        "modset_fingerprint": "fingerprint",
+        "loaded_mod_ids": ["STS2_MCP"],
+    }
+    capabilities = {
+        "protocol_version": "1.0.0",
+        "host": {
+            "host_kind": "live_ui",
+            "runtime_instance_id": "runtime",
+            "implementation": {
+                "source_revision": "source",
+                "artifact_sha256": "a" * 64,
+                "module_version_id": "mvid",
+            },
+        },
+        "game": {
+            "version": "v0.111.0",
+            "commit": "41cef1ea",
+            "modset": {
+                "status": "exact_player_environment_only",
+                "fingerprint": "fingerprint",
+                "loaded_mod_ids": ["STS2_MCP"],
+            },
+        },
+        "execution_available": True,
+        "single_controller": True,
+    }
+    validate_capabilities(capabilities, expected)
+    capabilities["game"]["modset"]["loaded_mod_ids"].append("OTHER")
+    with pytest.raises(LiveS1Error, match="loaded_mod_ids drift"):
+        validate_capabilities(capabilities, expected)
 
 
 class _Bridge:

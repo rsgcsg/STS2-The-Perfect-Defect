@@ -9,7 +9,7 @@ live smoke, not scientific Core, B6, Human Gold, or a model-quality result.
 `configs/v0/experiments/s1-human-combat-live-v1.json` binds the trained source,
 READY file, checkpoint SHA-256, Scheme1 linear head, serializer v1, Standard
 profile, frozen Qwen identity, exact Connector artifact, exact game release and
-observer Modset. The runner refuses any drift. Qwen and the linear head load once
+Connector-only Modset. The runner refuses any drift. Qwen and the linear head load once
 and remain resident for the process.
 
 The runner imports the exact built sibling Connector SDK through a small NDJSON
@@ -58,10 +58,14 @@ uv run pytest -q tests\test_live_s1.py tests\test_environment_collector.py
 uv run python tools\live_s1.py model-check
 ```
 
-Cold-launch through the exact Annotator deployment so its Connector/game/Modset
-canaries remain process-local inputs, verify the loaded seal, then run:
+The two-observer Human Annotator Modset intentionally has no mutation authority.
+With STS2 closed, use the sibling Annotator workstation tool to back up native
+settings, keep its artifact installed-but-disabled, enable only Connector, and
+cold-launch with exact Connector/game canaries:
 
 ```powershell
+npm --prefix ..\STS2-human-Annotator run prepare:live-connector
+npm --prefix ..\STS2-human-Annotator run launch:live-connector
 uv run python tools\live_s1.py run
 ```
 

@@ -171,6 +171,12 @@ def validate_capabilities(
             raise LiveS1Error(
                 f"live capability {name} drift: expected {expected.get(name)!r}, got {actual!r}"
             )
+    loaded_mod_ids = modset.get("loaded_mod_ids")
+    if loaded_mod_ids != expected.get("loaded_mod_ids"):
+        raise LiveS1Error(
+            "live capability loaded_mod_ids drift: "
+            f"expected {expected.get('loaded_mod_ids')!r}, got {loaded_mod_ids!r}"
+        )
     if capabilities.get("execution_available") is not True:
         raise LiveS1Error("Connector mutation authority is unavailable")
     if capabilities.get("single_controller") is not True:
