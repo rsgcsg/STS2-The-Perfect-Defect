@@ -337,13 +337,55 @@ def _counts_only(value: Any) -> Any:
 def _coerce_state(value: Mapping[str, Any] | ResearchState) -> ResearchState:
     if isinstance(value, ResearchState):
         return value
-    raise ContractError("ModelSerializerV0 requires a ResearchState instance")
+    if value.get("schema") != "stpd/research-state-v0":
+        raise ContractError("ModelSerializerV0 received an unsupported ResearchState schema")
+    facts = value.get("facts")
+    reads = value.get("reads", {})
+    if not isinstance(facts, Mapping) or not isinstance(reads, Mapping):
+        raise ContractError("serialized ResearchState facts/reads must be objects")
+    try:
+        state = ResearchState(
+            information_policy_id=str(value["information_policy_id"]),
+            game_version=str(value["game_version"]),
+            game_commit=str(value["game_commit"]),
+            decision_mode=str(value["decision_mode"]),
+            decision_family=DecisionFamily(str(value["decision_family"])),
+            surface=str(value["surface"]),
+            facts=facts,
+            reads=reads,
+        )
+    except (KeyError, ValueError) as error:
+        raise ContractError("serialized ResearchState is incomplete") from error
+    expected_hash = value.get("state_hash")
+    if expected_hash is not None and expected_hash != state.state_hash:
+        raise ContractError("serialized ResearchState hash mismatch")
+    return state
 
 
 def _coerce_action(value: Mapping[str, Any] | ResearchAction) -> ResearchAction:
     if isinstance(value, ResearchAction):
         return value
-    raise ContractError("ModelSerializerV0 requires a ResearchAction instance")
+    if value.get("schema") != "stpd/research-action-v0":
+        raise ContractError("ModelSerializerV0 received an unsupported ResearchAction schema")
+    arguments = value.get("arguments", ())
+    subject = value.get("subject")
+    if not isinstance(arguments, Sequence) or isinstance(arguments, (str, bytes)):
+        raise ContractError("serialized ResearchAction arguments must be an array")
+    if subject is not None and not isinstance(subject, Mapping):
+        raise ContractError("serialized ResearchAction subject must be an object or null")
+    if not all(isinstance(argument, Mapping) for argument in arguments):
+        raise ContractError("serialized ResearchAction argument must be an object")
+    try:
+        return ResearchAction(
+            action_key=str(value["action_key"]),
+            kind=str(value["kind"]),
+            subject=cast(Mapping[str, Any] | None, subject),
+            arguments=tuple(cast(Sequence[Mapping[str, Any]], arguments)),
+            visible_cost=cast(str | int | float | None, value.get("visible_cost")),
+            visible_effect=cast(str | None, value.get("visible_effect")),
+        )
+    except KeyError as error:
+        raise ContractError("serialized ResearchAction is incomplete") from error
 
 
 def ensure_action_catalog_alignment(

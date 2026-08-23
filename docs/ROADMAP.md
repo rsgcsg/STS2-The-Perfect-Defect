@@ -37,6 +37,12 @@ Automated tests cover drift, tampering, collisions, retries, input reordering an
 snapshot immutability. The real corpus remains below the campaign target; this
 implementation status is not data admission or permission to train.
 
+The final cross-profile layer is implemented. It accepts only immutable
+admitted profile snapshots, checks a versioned compatibility plan, preserves
+source/platform/session provenance and globally reruns collision/dedup,
+whole-run splitting, B0 and Standard profiling. It is data plumbing, not proof
+that Windows evidence exists or that a final smoke corpus is admitted.
+
 The first 20-record real corpus canary passes strict admission and B0, but
 Standard token profiling fails at P95 4907 versus the frozen 4096 gate. Before a
 smoke handoff, collect the campaign corpus and resolve this representation/pin

@@ -10,6 +10,10 @@ is closed and versioned.
 - `data-manifest-v0.schema.json`: checksummed source, split, deduplication, and file lineage;
 - `experiment-manifest-v0.schema.json`: one reproducible training or benchmark run;
 - `model-artifact-manifest-v0.schema.json`: one frozen model/checkpoint artifact.
+- `human-collection-profile-v1.schema.json`: one exact collection envelope;
+- `human-collection-campaign-v1.schema.json`: one profile's worker and row target;
+- `human-corpus-combination-v1.schema.json`: exact cross-profile compatibility
+  and the final combined-corpus target.
 
 Rules:
 

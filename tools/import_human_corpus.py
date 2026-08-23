@@ -12,8 +12,10 @@ from typing import Any
 from stpd.data.human_corpus import (
     CollectionCampaign,
     CollectionProfile,
+    CorpusCombinationPlan,
     HumanCorpusError,
     build_human_corpus,
+    combine_human_corpora,
     freeze_smoke_handoff,
     inspect_corpus_snapshot,
     register_session_bundle,
@@ -71,6 +73,16 @@ def main() -> int:
     build.add_argument("--tokenizer-revision")
     build.add_argument("--stpd-source-revision", default=None)
 
+    combine = commands.add_parser("combine")
+    combine.add_argument("--plan", type=Path, required=True)
+    combine.add_argument("--snapshot", type=Path, action="append", required=True)
+    combine.add_argument("--profile-root", type=Path, required=True)
+    combine.add_argument("--output-root", type=Path, required=True)
+    combine.add_argument("--split-salt", required=True)
+    combine.add_argument("--tokenizer-file", type=Path, required=True)
+    combine.add_argument("--tokenizer-revision", required=True)
+    combine.add_argument("--stpd-source-revision", default=None)
+
     inspect = commands.add_parser("inspect")
     inspect.add_argument("snapshot", type=Path)
 
@@ -102,6 +114,27 @@ def main() -> int:
                 registry_directory=arguments.registry,
                 profile=profile,
                 campaign=campaign,
+                output_root=arguments.output_root,
+                schema_root=ROOT / "schemas",
+                stpd_source_revision=arguments.stpd_source_revision or _source_revision(),
+                split_salt=arguments.split_salt,
+                tokenizer_path=arguments.tokenizer_file,
+                tokenizer_revision=arguments.tokenizer_revision,
+            )
+            result = {
+                "status": built.status,
+                "corpus_id": built.corpus_id,
+                "snapshot_directory": str(built.snapshot_directory),
+                "accepted_records": built.accepted_records,
+                "sessions": built.sessions,
+                "b0_verdict": built.b0_verdict,
+            }
+        elif arguments.command == "combine":
+            _assert_clean_source()
+            built = combine_human_corpora(
+                snapshot_directories=arguments.snapshot,
+                plan=CorpusCombinationPlan.load(arguments.plan),
+                profile_root=arguments.profile_root,
                 output_root=arguments.output_root,
                 schema_root=ROOT / "schemas",
                 stpd_source_revision=arguments.stpd_source_revision or _source_revision(),

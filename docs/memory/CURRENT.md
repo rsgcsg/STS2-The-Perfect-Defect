@@ -49,15 +49,19 @@ environment regression lane.
   strict import and B0. Collection profiles, immutable bundles/registry/corpus,
   whole-run/duplicate-component splits, B0, Standard profiling and smoke handoff
   are automated, but the real corpus remains below the 1,500-record campaign target.
-- A 20-record real offline canary passes bundle verification, strict import,
-  immutable corpus rebuild and B0. Standard profiling covers 159 legal
-  state/action pairs but fails P95 at `4907 > 4096`; smoke handoff remains
-  correctly blocked independently of the 1,500-record campaign target.
+- Two real macOS bundles (20 + 28 rows) pass verification, strict import,
+  immutable corpus rebuild and B0 as corpus `291afe89...`. Standard profiling
+  covers 414 legal state/action pairs but fails P95 at `4806 > 4096`; 48/1,500
+  rows are admitted and smoke handoff remains blocked by both gates.
+- The final merger consumes only immutable admitted profile snapshots and
+  globally reruns collision/dedup, whole-run splitting, B0 and Standard
+  profiling under a versioned cross-profile compatibility plan. No Windows
+  corpus snapshot is present on this Mac yet.
 
 ## Immediate priorities
 
-1. Pack/register and offline-build the current exact session, then collect at
-   least 1,500 human combat decisions with exact game/Host/Player
+1. Audit/pack/register the current exact sessions, then collect at least 1,500
+   human combat decisions with exact game/Host/Player
    Environment identity, complete authoritative catalogs, one-to-one chosen-action mapping,
    stable successors, whole-run seed roots, and declared behavior-policy provenance.
 2. Rebuild the immutable corpus and inspect strict per-session admission,

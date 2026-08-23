@@ -72,6 +72,18 @@ def test_model_action_is_semantic_and_excludes_execution_authority() -> None:
     assert "bound_action_id" not in rendered and "snapshot_id" not in rendered
 
 
+def test_serializer_accepts_verified_frozen_contract_mappings() -> None:
+    serializer = ModelSerializerV0()
+    state = _state()
+    action = _action()
+    assert serializer.serialize_state(state.to_dict()) == serializer.serialize_state(state)
+    assert serializer.serialize_action(action.to_dict()) == serializer.serialize_action(action)
+    drifted = state.to_dict()
+    drifted["state_hash"] = "0" * 64
+    with pytest.raises(ContractError, match="hash mismatch"):
+        serializer.serialize_state(drifted)
+
+
 def test_model_input_leakage_fails_closed() -> None:
     state = _state()
     poisoned = ResearchState(

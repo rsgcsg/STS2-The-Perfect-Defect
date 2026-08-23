@@ -22,6 +22,7 @@ from ..canonical import canonical_json, semantic_hash
 from ..representation import InputProfile, ModelSerializerV0
 from .human_annotator import HumanImportReport, import_human_recording
 from .manifest import DataSource
+from .parquet import read_transition_parquet
 from .pipeline import build_canonical_dataset
 from .splits import SplitAssignment
 
@@ -31,6 +32,9 @@ BUNDLE_SCHEMA = "sts2.human-annotator/session-bundle-1"
 REGISTRY_SCHEMA = "stpd/human-session-registry-entry-v1"
 CORPUS_IDENTITY_SCHEMA = "stpd/human-corpus-identity-v1"
 CORPUS_REPORT_SCHEMA = "stpd/human-corpus-report-v1"
+COMBINATION_SCHEMA = "stpd/human-corpus-combination-v1"
+COMBINED_CORPUS_IDENTITY_SCHEMA = "stpd/human-combined-corpus-identity-v1"
+COMBINED_SOURCE_REGISTRY_SCHEMA = "stpd/human-combined-corpus-source-registry-v1"
 SMOKE_HANDOFF_SCHEMA = "stpd/human-smoke-handoff-v1"
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9_-]{2,63}$")
 _OPAQUE_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$")
@@ -149,6 +153,49 @@ class CollectionCampaign:
 
 
 @dataclass(frozen=True)
+class CorpusCombinationPlan:
+    path: Path
+    value: Mapping[str, Any]
+    combination_id: str
+    sha256: str
+    target_accepted_records: int
+    admitted_profiles: Mapping[str, str]
+
+    @classmethod
+    def load(cls, path: str | Path) -> CorpusCombinationPlan:
+        source = Path(path).resolve()
+        value = _load_object(source)
+        if _text(value, "schema") != COMBINATION_SCHEMA:
+            raise HumanCorpusError("unsupported corpus combination schema")
+        combination_id = _identifier(value, "combination_id")
+        target = _positive_int(value, "target_accepted_records")
+        _text(value, "created_at")
+        if _text(value, "research_contract_schema") != "stpd/research-transition-v0":
+            raise HumanCorpusError("combination requires the frozen ResearchTransition contract")
+        _text(value, "player_environment_protocol")
+        _digest(value, "connector_source_digest_sha256")
+        _text(value, "record_schema")
+        families = _string_sequence(value, "allowed_action_families")
+        if not families or len(families) != len(set(families)):
+            raise HumanCorpusError("combination action families must be non-empty and unique")
+        profiles = value.get("admitted_profiles")
+        if not isinstance(profiles, Sequence) or isinstance(profiles, (str, bytes)):
+            raise HumanCorpusError("combination admitted_profiles must be an array")
+        admitted: dict[str, str] = {}
+        for item in profiles:
+            if not isinstance(item, Mapping):
+                raise HumanCorpusError("combination admitted profile must be an object")
+            profile_id = _identifier(item, "profile_id")
+            profile_sha = _digest(item, "profile_sha256")
+            if profile_id in admitted:
+                raise HumanCorpusError(f"duplicate admitted profile: {profile_id}")
+            admitted[profile_id] = profile_sha
+        if not admitted:
+            raise HumanCorpusError("combination requires at least one admitted profile")
+        return cls(source, value, combination_id, semantic_hash(value), target, admitted)
+
+
+@dataclass(frozen=True)
 class VerifiedSessionBundle:
     directory: Path
     manifest: Mapping[str, Any]
@@ -229,6 +276,18 @@ class CorpusBuildResult:
     accepted_records: int
     sessions: int
     b0_verdict: str
+
+
+@dataclass(frozen=True)
+class _AdmittedCorpusInput:
+    directory: Path
+    identity: Mapping[str, Any]
+    report: Mapping[str, Any]
+    manifest: Mapping[str, Any]
+    source_registry: Mapping[str, Any]
+    profile: CollectionProfile
+    records: tuple[dict[str, Any], ...]
+    checksums_sha256: str
 
 
 class LocalDirectorySessionStore:
@@ -608,6 +667,395 @@ def build_human_corpus(
         raise
 
 
+def combine_human_corpora(
+    *,
+    snapshot_directories: Sequence[str | Path],
+    plan: CorpusCombinationPlan,
+    profile_root: str | Path,
+    output_root: str | Path,
+    schema_root: str | Path,
+    stpd_source_revision: str,
+    split_salt: str,
+    tokenizer_path: str | Path,
+    tokenizer_revision: str,
+) -> CorpusBuildResult:
+    """Merge independently admitted profile corpora into one immutable corpus."""
+
+    if not _COMMIT.fullmatch(stpd_source_revision):
+        raise HumanCorpusError("STPD source revision must be an exact Git SHA")
+    if not split_salt:
+        raise HumanCorpusError("combined corpus split salt must be explicit")
+    if not tokenizer_revision:
+        raise HumanCorpusError("combined corpus tokenizer revision must be explicit")
+    tokenizer = Path(tokenizer_path).resolve()
+    if not tokenizer.is_file():
+        raise HumanCorpusError("combined corpus tokenizer file is absent")
+    if len(snapshot_directories) < 2:
+        raise HumanCorpusError("combined corpus requires at least two admitted snapshots")
+
+    admitted = [
+        _load_admitted_corpus_input(
+            directory,
+            plan=plan,
+            profile_root=profile_root,
+            tokenizer_sha256=_sha256_file(tokenizer),
+            tokenizer_revision=tokenizer_revision,
+        )
+        for directory in snapshot_directories
+    ]
+    admitted.sort(key=lambda item: _text(item.identity, "corpus_id"))
+    corpus_ids = [_text(item.identity, "corpus_id") for item in admitted]
+    if len(corpus_ids) != len(set(corpus_ids)):
+        raise HumanCorpusError("duplicate input corpus snapshot")
+
+    unique_records: dict[str, dict[str, Any]] = {}
+    record_origins: dict[str, str] = {}
+    exact_duplicates_removed = 0
+    input_contributions: Counter[str] = Counter()
+    for item in admitted:
+        corpus_id = _text(item.identity, "corpus_id")
+        for record in item.records:
+            transition_id = _text(record, "transition_id")
+            digest = semantic_hash(record)
+            previous = unique_records.get(transition_id)
+            if previous is not None:
+                if semantic_hash(previous) != digest:
+                    raise HumanCorpusError(
+                        f"combined corpus transition collision: {transition_id}"
+                    )
+                exact_duplicates_removed += 1
+                continue
+            unique_records[transition_id] = record
+            record_origins[transition_id] = corpus_id
+            input_contributions[corpus_id] += 1
+    records = sorted(
+        unique_records.values(),
+        key=lambda item: (
+            _text(item, "episode_id"),
+            int(item.get("step_index", -1)),
+            _text(item, "transition_id"),
+        ),
+    )
+    assignments, duplicate_report = _assign_corpus_splits(records, split_salt)
+    duplicate_report = {
+        **duplicate_report,
+        "exact_input_duplicates_removed": exact_duplicates_removed,
+        "input_corpus_duplicates": 0,
+    }
+    sources = tuple(
+        DataSource(
+            source_id=f"human-corpus-{_text(item.identity, 'corpus_id')[:16]}",
+            kind="admitted_human_corpus_snapshot",
+            source_revision=_text(item.identity, "corpus_id"),
+            license_spdx="LicenseRef-Private-Human-Data",
+            provenance_uri=f"human-corpus://{_text(item.identity, 'corpus_id')}",
+        )
+        for item in admitted
+    )
+
+    output = Path(output_root).resolve()
+    snapshots = output / plan.combination_id / "snapshots"
+    snapshots.mkdir(parents=True, exist_ok=True)
+    temporary = Path(tempfile.mkdtemp(prefix=".combined-tmp-", dir=snapshots))
+    try:
+        manifest, b0 = build_canonical_dataset(
+            records,
+            output_dir=temporary,
+            schema_root=schema_root,
+            sources=sources,
+            stpd_source_revision=stpd_source_revision,
+            created_at=_text(plan.value, "created_at"),
+            split_salt=split_salt,
+            split_assignments=assignments,
+            split_strategy="whole_run_semantic_component_sha256_v1",
+            deduplication=duplicate_report,
+        )
+        token_report = _profile_standard_tokens(
+            records,
+            tokenizer,
+            tokenizer_revision=tokenizer_revision,
+        )
+        _write_canonical(temporary / "b0-report.json", b0.to_dict())
+        _write_canonical(temporary / "token-profile-report.json", token_report)
+
+        source_registry = _combined_source_registry(admitted, input_contributions)
+        _write_canonical(temporary / "source-registry.json", source_registry)
+        corpus_report = _combined_corpus_report(
+            admitted,
+            records,
+            assignments,
+            duplicate_report,
+            b0.to_dict(),
+            token_report,
+            plan.target_accepted_records,
+            record_origins,
+        )
+        identity = {
+            "schema": COMBINED_CORPUS_IDENTITY_SCHEMA,
+            "combination_id": plan.combination_id,
+            "combination_plan_sha256": plan.sha256,
+            "target_accepted_records": plan.target_accepted_records,
+            "input_corpus_ids": corpus_ids,
+            "input_corpus_checksums_sha256": sorted(
+                item.checksums_sha256 for item in admitted
+            ),
+            "stpd_source_revision": stpd_source_revision,
+            "split_salt_sha256": semantic_hash(split_salt),
+            "split_assignments_sha256": manifest.split["assignments_hash"],
+            "dataset_manifest_sha256": _sha256_file(temporary / "manifest.json"),
+            "parquet_sha256": _sha256_file(temporary / "transitions.parquet"),
+            "source_registry_sha256": _sha256_file(temporary / "source-registry.json"),
+            "b0_report_sha256": _sha256_file(temporary / "b0-report.json"),
+            "token_profile_sha256": _sha256_file(temporary / "token-profile-report.json"),
+            "tokenizer_sha256": token_report["tokenizer_sha256"],
+            "tokenizer_revision": token_report["tokenizer_revision"],
+            "serializer_version": ModelSerializerV0.version,
+        }
+        corpus_id = semantic_hash(identity)
+        identity = {**identity, "corpus_id": corpus_id}
+        corpus_report = {**corpus_report, "corpus_id": corpus_id}
+        _write_canonical(temporary / "corpus-identity.json", identity)
+        _write_canonical(temporary / "corpus-report.json", corpus_report)
+        _write_checksums(temporary)
+        destination = snapshots / f"corpus-{corpus_id[:16]}"
+        if destination.exists():
+            if not _directories_equal(temporary, destination):
+                raise HumanCorpusError("immutable combined corpus ID exists with different bytes")
+            shutil.rmtree(temporary)
+            status: Literal["built", "reused"] = "reused"
+        else:
+            os.replace(temporary, destination)
+            status = "built"
+        sessions = sum(len(_registry_sessions(item.source_registry)) for item in admitted)
+        return CorpusBuildResult(
+            status,
+            corpus_id,
+            destination,
+            len(records),
+            sessions,
+            b0.verdict,
+        )
+    except Exception:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+        raise
+
+
+def _load_admitted_corpus_input(
+    snapshot_directory: str | Path,
+    *,
+    plan: CorpusCombinationPlan,
+    profile_root: str | Path,
+    tokenizer_sha256: str,
+    tokenizer_revision: str,
+) -> _AdmittedCorpusInput:
+    directory = Path(snapshot_directory).resolve()
+    _verify_checksums(directory)
+    identity = _load_object(directory / "corpus-identity.json")
+    report = _load_object(directory / "corpus-report.json")
+    manifest = _load_object(directory / "manifest.json")
+    source_registry = _load_object(directory / "source-registry.json")
+    token_report = _load_object(directory / "token-profile-report.json")
+    if _text(identity, "schema") != CORPUS_IDENTITY_SCHEMA:
+        raise HumanCorpusError("combination input must be an admitted single-profile corpus")
+    corpus_id = _digest(identity, "corpus_id")
+    if directory.name != f"corpus-{corpus_id[:16]}":
+        raise HumanCorpusError("input corpus directory name differs from content identity")
+    profile_id = _identifier(identity, "collection_profile_id")
+    expected_profile_sha = plan.admitted_profiles.get(profile_id)
+    if expected_profile_sha is None:
+        raise HumanCorpusError(f"input profile is not admitted by combination: {profile_id}")
+    profile_path = Path(profile_root).resolve() / f"{profile_id}.json"
+    profile = CollectionProfile.load(profile_path)
+    if profile.sha256 != expected_profile_sha or profile.sha256 != _digest(
+        identity, "collection_profile_sha256"
+    ):
+        raise HumanCorpusError(f"input collection profile digest drift: {profile_id}")
+    _validate_profile_for_combination(profile, plan)
+
+    if report.get("corpus_id") != corpus_id:
+        raise HumanCorpusError("input corpus report differs from content identity")
+    if report.get("b0", {}).get("verdict") != "pass":
+        raise HumanCorpusError("combination input has not passed corpus B0")
+    if report.get("deduplication", {}).get("cross_split_semantic_duplicates") != 0:
+        raise HumanCorpusError("combination input contains cross-split semantic duplicates")
+    if manifest.get("schema") != "stpd/data-manifest-v0":
+        raise HumanCorpusError("combination input has an unsupported dataset manifest")
+    if manifest.get("contract_schema") != plan.value["research_contract_schema"]:
+        raise HumanCorpusError("combination input research contract drift")
+    if identity.get("serializer_version") != ModelSerializerV0.version:
+        raise HumanCorpusError("combination input serializer drift")
+    if identity.get("tokenizer_sha256") != tokenizer_sha256:
+        raise HumanCorpusError("combination input tokenizer digest drift")
+    if identity.get("tokenizer_revision") != tokenizer_revision:
+        raise HumanCorpusError("combination input tokenizer revision drift")
+    if token_report.get("tokenizer_sha256") != tokenizer_sha256:
+        raise HumanCorpusError("combination input token report digest drift")
+    if token_report.get("tokenizer_revision") != tokenizer_revision:
+        raise HumanCorpusError("combination input token report revision drift")
+    if _sha256_file(directory / "manifest.json") != _digest(
+        identity, "dataset_manifest_sha256"
+    ):
+        raise HumanCorpusError("combination input manifest digest drift")
+    if _sha256_file(directory / "transitions.parquet") != _digest(identity, "parquet_sha256"):
+        raise HumanCorpusError("combination input Parquet digest drift")
+    if source_registry.get("collection_profile_id") != profile_id:
+        raise HumanCorpusError("combination input source registry profile drift")
+
+    try:
+        records = tuple(read_transition_parquet(directory / "transitions.parquet"))
+    except (OSError, TypeError, ValueError) as error:
+        raise HumanCorpusError(f"cannot read admitted corpus Parquet: {error}") from error
+    if len(records) != manifest.get("row_count") or len(records) != report.get(
+        "accepted_records"
+    ):
+        raise HumanCorpusError("combination input row counts disagree")
+    for record in records:
+        family = _research_action_family(record)
+        if family not in plan.value["allowed_action_families"]:
+            raise HumanCorpusError(f"input record action family is incompatible: {family}")
+    return _AdmittedCorpusInput(
+        directory,
+        identity,
+        report,
+        manifest,
+        source_registry,
+        profile,
+        records,
+        _sha256_file(directory / "checksums.sha256"),
+    )
+
+
+def _validate_profile_for_combination(
+    profile: CollectionProfile, plan: CorpusCombinationPlan
+) -> None:
+    expected = plan.value
+    if profile.value["player_environment_protocol"] != expected[
+        "player_environment_protocol"
+    ]:
+        raise HumanCorpusError("combination profile Player Environment protocol drift")
+    if profile.value["connector"]["source_digest_sha256"] != expected[
+        "connector_source_digest_sha256"
+    ]:
+        raise HumanCorpusError("combination profile Connector semantics drift")
+    if profile.value["record_schema"] != expected["record_schema"]:
+        raise HumanCorpusError("combination profile record schema drift")
+    if set(profile.value["allowed_action_families"]) != set(
+        expected["allowed_action_families"]
+    ):
+        raise HumanCorpusError("combination profile action-family envelope drift")
+
+
+def _registry_sessions(source_registry: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    sessions = source_registry.get("sessions")
+    if not isinstance(sessions, Sequence) or isinstance(sessions, (str, bytes)):
+        raise HumanCorpusError("input source registry has no session array")
+    if not all(isinstance(item, Mapping) for item in sessions):
+        raise HumanCorpusError("input source registry session is not an object")
+    return [cast(Mapping[str, Any], item) for item in sessions]
+
+
+def _combined_source_registry(
+    admitted: Sequence[_AdmittedCorpusInput], contributions: Mapping[str, int]
+) -> dict[str, Any]:
+    inputs = []
+    seen_sessions: set[tuple[str, str]] = set()
+    for item in admitted:
+        corpus_id = _text(item.identity, "corpus_id")
+        sessions = _registry_sessions(item.source_registry)
+        for session in sessions:
+            key = (item.profile.profile_id, _text(session, "session_id"))
+            if key in seen_sessions:
+                raise HumanCorpusError(
+                    f"duplicate source session across input corpora: {key[0]}/{key[1]}"
+                )
+            seen_sessions.add(key)
+        inputs.append({
+            "corpus_id": corpus_id,
+            "corpus_checksums_sha256": item.checksums_sha256,
+            "profile_id": item.profile.profile_id,
+            "profile_sha256": item.profile.sha256,
+            "platform": item.profile.value["platform"],
+            "accepted_records": item.report["accepted_records"],
+            "unique_records_contributed": int(contributions.get(corpus_id, 0)),
+            "source_registry_sha256": _sha256_file(item.directory / "source-registry.json"),
+            "source_registry": item.source_registry,
+        })
+    return {
+        "schema": COMBINED_SOURCE_REGISTRY_SCHEMA,
+        "inputs": inputs,
+    }
+
+
+def _combined_corpus_report(
+    admitted: Sequence[_AdmittedCorpusInput],
+    records: Sequence[Mapping[str, Any]],
+    assignments: Mapping[str, SplitAssignment],
+    duplicate_report: Mapping[str, Any],
+    b0: Mapping[str, Any],
+    token_report: Mapping[str, Any],
+    target_accepted_records: int,
+    record_origins: Mapping[str, str],
+) -> dict[str, Any]:
+    input_by_id = {_text(item.identity, "corpus_id"): item for item in admitted}
+    platforms: Counter[str] = Counter()
+    profiles: Counter[str] = Counter()
+    sources: Counter[str] = Counter()
+    actions: Counter[str] = Counter()
+    catalog_sizes: list[int] = []
+    for record in records:
+        corpus_id = record_origins[_text(record, "transition_id")]
+        item = input_by_id[corpus_id]
+        platforms[_text(item.profile.value, "platform")] += 1
+        profiles[item.profile.profile_id] += 1
+        sources[corpus_id] += 1
+        actions[_research_action_family(record)] += 1
+        legal_actions = record.get("legal_actions")
+        if not isinstance(legal_actions, Sequence):
+            raise HumanCorpusError("combined record legal_actions is not an array")
+        catalog_sizes.append(len(legal_actions))
+    sessions = [
+        (item.profile.profile_id, session)
+        for item in admitted
+        for session in _registry_sessions(item.source_registry)
+    ]
+    workers = {
+        (profile_id, _text(session, "worker_id")) for profile_id, session in sessions
+    }
+    split_counts = Counter(assignment.split for assignment in assignments.values())
+    return {
+        "schema": "stpd/human-combined-corpus-report-v1",
+        "accepted_records": len(records),
+        "target_accepted_records": target_accepted_records,
+        "records_remaining": max(0, target_accepted_records - len(records)),
+        "input_corpora": len(admitted),
+        "profiles": len(profiles),
+        "platforms": len(platforms),
+        "sessions": len(sessions),
+        "runs": len(assignments),
+        "workers": len(workers),
+        "environments": int(b0["environment_count"]),
+        "records_by_input_corpus": dict(sorted(sources.items())),
+        "records_by_profile": dict(sorted(profiles.items())),
+        "records_by_platform": dict(sorted(platforms.items())),
+        "records_by_action_family": dict(sorted(actions.items())),
+        "catalog_size": _distribution(catalog_sizes),
+        "split_episode_counts": dict(sorted(split_counts.items())),
+        "deduplication": dict(duplicate_report),
+        "b0": dict(b0),
+        "standard_token_profile": dict(token_report),
+    }
+
+
+def _research_action_family(record: Mapping[str, Any]) -> str:
+    state = _object(record, "state")
+    action = _object(record, "chosen_action")
+    family = _text(state, "decision_family")
+    kind = _text(action, "kind")
+    scope = "ordinary_combat" if family == "turn_action" else family
+    return f"{scope}.{kind}"
+
+
 def freeze_smoke_handoff(
     *, snapshot_directory: str | Path, output_root: str | Path, minimum_records: int
 ) -> Path:
@@ -619,8 +1067,27 @@ def freeze_smoke_handoff(
     token_report = _load_object(snapshot / "token-profile-report.json")
     if report.get("b0", {}).get("verdict") != "pass":
         raise HumanCorpusError("smoke handoff requires corpus-level B0 pass")
-    campaign_target = _positive_int(identity, "campaign_target_accepted_records")
-    required_records = max(minimum_records, campaign_target)
+    identity_schema = _text(identity, "schema")
+    if identity_schema == CORPUS_IDENTITY_SCHEMA:
+        committed_target = _positive_int(identity, "campaign_target_accepted_records")
+        scope_identity = {
+            "collection_profile_id": _text(identity, "collection_profile_id"),
+            "collection_profile_sha256": _digest(identity, "collection_profile_sha256"),
+            "campaign_id": _text(identity, "campaign_id"),
+            "campaign_sha256": _digest(identity, "campaign_sha256"),
+            "campaign_target_accepted_records": committed_target,
+        }
+    elif identity_schema == COMBINED_CORPUS_IDENTITY_SCHEMA:
+        committed_target = _positive_int(identity, "target_accepted_records")
+        scope_identity = {
+            "combination_id": _text(identity, "combination_id"),
+            "combination_plan_sha256": _digest(identity, "combination_plan_sha256"),
+            "input_corpus_ids": list(_string_sequence(identity, "input_corpus_ids")),
+            "target_accepted_records": committed_target,
+        }
+    else:
+        raise HumanCorpusError("smoke handoff received an unsupported corpus identity")
+    required_records = max(minimum_records, committed_target)
     if int(report.get("accepted_records", 0)) < required_records:
         raise HumanCorpusError(
             f"smoke handoff requires at least {required_records} accepted records"
@@ -633,12 +1100,8 @@ def freeze_smoke_handoff(
         "schema": SMOKE_HANDOFF_SCHEMA,
         "corpus_id": _digest(identity, "corpus_id"),
         "corpus_directory_name": snapshot.name,
-        "collection_profile_id": _text(identity, "collection_profile_id"),
-        "collection_profile_sha256": _digest(identity, "collection_profile_sha256"),
-        "campaign_id": _text(identity, "campaign_id"),
-        "campaign_sha256": _digest(identity, "campaign_sha256"),
+        **scope_identity,
         "accepted_records": int(report["accepted_records"]),
-        "campaign_target_accepted_records": campaign_target,
         "minimum_records": required_records,
         "parquet_sha256": _sha256_file(snapshot / "transitions.parquet"),
         "manifest_sha256": _sha256_file(snapshot / "manifest.json"),
@@ -690,8 +1153,24 @@ def inspect_corpus_snapshot(snapshot_directory: str | Path) -> dict[str, Any]:
         raise HumanCorpusError("corpus report differs from content identity")
     if manifest.get("row_count") != report.get("accepted_records"):
         raise HumanCorpusError("corpus report row count differs from dataset manifest")
+    identity_schema = _text(identity, "schema")
+    if identity_schema not in {CORPUS_IDENTITY_SCHEMA, COMBINED_CORPUS_IDENTITY_SCHEMA}:
+        raise HumanCorpusError("unsupported Human corpus identity schema")
+    if identity_schema == COMBINED_CORPUS_IDENTITY_SCHEMA:
+        for field, filename in (
+            ("dataset_manifest_sha256", "manifest.json"),
+            ("parquet_sha256", "transitions.parquet"),
+            ("source_registry_sha256", "source-registry.json"),
+            ("b0_report_sha256", "b0-report.json"),
+            ("token_profile_sha256", "token-profile-report.json"),
+        ):
+            if _sha256_file(snapshot / filename) != _digest(identity, field):
+                raise HumanCorpusError(f"combined corpus identity digest drift: {filename}")
     return {
         "status": "pass",
+        "corpus_kind": (
+            "combined" if identity_schema == COMBINED_CORPUS_IDENTITY_SCHEMA else "profile"
+        ),
         "snapshot_directory": str(snapshot),
         "corpus_id": identity["corpus_id"],
         "accepted_records": report["accepted_records"],
@@ -843,11 +1322,25 @@ def _profile_standard_tokens(
     serializer = ModelSerializerV0(InputProfile.STANDARD)
     samples = []
     for transition in transitions:
-        state = serializer.serialize_state(transition.state)
-        for action in transition.legal_actions:
+        if isinstance(transition, Mapping):
+            state_value = _object(transition, "state")
+            action_values = transition.get("legal_actions")
+            if not isinstance(action_values, Sequence) or isinstance(
+                action_values, (str, bytes)
+            ):
+                raise HumanCorpusError("transition legal_actions must be an array")
+        else:
+            state_value = transition.state
+            action_values = transition.legal_actions
+        state = serializer.serialize_state(state_value)
+        for action in action_values:
             samples.append({
                 "profile": InputProfile.STANDARD.value,
-                "family": transition.state.decision_family.value,
+                "family": (
+                    _text(state_value, "decision_family")
+                    if isinstance(state_value, Mapping)
+                    else state_value.decision_family.value
+                ),
                 "text": f"{state}\n{serializer.serialize_action(action)}",
             })
     try:

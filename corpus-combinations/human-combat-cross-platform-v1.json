@@ -1,0 +1,24 @@
+{
+  "schema": "stpd/human-corpus-combination-v1",
+  "combination_id": "human-combat-cross-platform-v1",
+  "target_accepted_records": 1500,
+  "created_at": "2026-08-23T03:30:00Z",
+  "research_contract_schema": "stpd/research-transition-v0",
+  "player_environment_protocol": "1.0.0",
+  "connector_source_digest_sha256": "d6faf7f01844786896a9db75d80b97caf35b0cf99049d4c200a3ab59e85ac6df",
+  "record_schema": "sts2.human-annotator/decision-record-1",
+  "allowed_action_families": [
+    "ordinary_combat.play_card",
+    "ordinary_combat.end_turn"
+  ],
+  "admitted_profiles": [
+    {
+      "profile_id": "human-mac-combat-v1",
+      "profile_sha256": "2e1045aec7700327aedf24dcb6d6a70cca3889a5f77b9a51b5fda072559d7098"
+    },
+    {
+      "profile_id": "human-windows-combat-v1",
+      "profile_sha256": "0384ab6f77113c7135fc41fb37c81fc3c79ee04d7aab9a0b0031dfeec83bd099"
+    }
+  ]
+}

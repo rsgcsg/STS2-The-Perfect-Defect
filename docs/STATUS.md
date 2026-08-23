@@ -35,6 +35,9 @@ inherit the macOS operational freeze or formal H1.0 authority.
   immutable corpus snapshots, Standard token profiling and frozen smoke handoff;
 - an independent exact Windows x64 human collection profile/campaign bound to
   the cold-loaded game, Connector, Annotator and observer Modset identities;
+- a thin final cross-profile merger that consumes only admitted immutable
+  snapshots, preserves nested provenance and globally reruns collision/dedup,
+  whole-run splitting, B0 and Standard profiling;
 - Scheme 1, S2-Simple and S2-SDT with ranking/successor/anchor objectives;
 - optimizer/checkpoint/evaluation mechanics and B1-B7 report/gate tooling;
 - immutable Qwen3-0.6B-Base L1/L2 pin, exact full-weight CUDA/BF16 backend and random control;
@@ -69,6 +72,14 @@ legal state/action pairs and failed its unchanged P95 gate at `4907 > 4096`
 the frozen smoke handoff correctly remains unavailable for both independent
 reasons. This canary was built by STPD source `e0a0334...`; later documentation
 commits do not transfer its evidence to another source identity.
+
+The second same-profile bundle (`cf57b6b1...`, export `55885767...`) registered
+idempotently and expanded the latest offline macOS corpus to 48 accepted rows
+across two sessions and two whole runs. Corpus `291afe89...` passes strict
+admission and B0 with zero exact/semantic duplicates; it contains 22 targeted
+plays, 17 untargeted plays and 9 end turns. Its unchanged Standard profile still
+fails at P95 `4806 > 4096` (max 5478), and 1,452 rows remain to the 1,500-row
+target. This is offline corpus evidence, not training authorization.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes

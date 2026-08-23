@@ -61,6 +61,7 @@ class ProjectStructureTest(unittest.TestCase):
                 "data-manifest-v0.schema.json",
                 "human-collection-campaign-v1.schema.json",
                 "human-collection-profile-v1.schema.json",
+                "human-corpus-combination-v1.schema.json",
                 "model-artifact-manifest-v0.schema.json",
                 "research-action-v0.schema.json",
                 "research-state-v0.schema.json",
