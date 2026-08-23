@@ -468,6 +468,9 @@ def prepare_s1_smoke(
     ready_sha = _sha256(ready_path)
     uv = shutil.which("uv")
     if uv is None:
+        user_uv = Path.home() / ".local" / "bin" / ("uv.exe" if os.name == "nt" else "uv")
+        uv = str(user_uv) if user_uv.is_file() else None
+    if uv is None:
         raise S1PreparationError("uv executable is unavailable")
     command = (
         f"& {_powershell_literal(str(Path(uv).resolve()))} run python "
