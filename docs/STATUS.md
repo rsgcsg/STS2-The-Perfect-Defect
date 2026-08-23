@@ -33,6 +33,8 @@ inherit the macOS operational freeze or formal H1.0 authority.
   bundles, pseudonymous multi-worker registry, strict multi-session corpus
   admission, whole-run/semantic-component splits, multi-source provenance,
   immutable corpus snapshots, Standard token profiling and frozen smoke handoff;
+- an independent exact Windows x64 human collection profile/campaign bound to
+  the cold-loaded game, Connector, Annotator and observer Modset identities;
 - Scheme 1, S2-Simple and S2-SDT with ranking/successor/anchor objectives;
 - optimizer/checkpoint/evaluation mechanics and B1-B7 report/gate tooling;
 - immutable Qwen3-0.6B-Base L1/L2 pin, exact full-weight CUDA/BF16 backend and random control;

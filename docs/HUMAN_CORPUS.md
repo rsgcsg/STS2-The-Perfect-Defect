@@ -37,6 +37,12 @@ families. `collection-campaigns/human-combat-smoke-2026-08.json` pins the target
 record count and pseudonymous worker IDs. Profile or environment drift fails
 closed; it never silently starts a new population.
 
+Windows collection is a separate population. The exact loaded Windows x64
+envelope is pinned by `collection-profiles/human-windows-combat-v1.json`, and
+`collection-campaigns/human-windows-combat-smoke-2026-08.json` uses independent
+worker IDs and the same 1,500-record target. Windows records must never be
+packed against the macOS profile or campaign.
+
 ## Commands
 
 Pack a closed, audited native-human session directly into the local collection:

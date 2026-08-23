@@ -1,0 +1,18 @@
+{
+  "schema": "stpd/human-collection-campaign-v1",
+  "campaign_id": "human-windows-combat-smoke-2026-08",
+  "collection_profile_id": "human-windows-combat-v1",
+  "target_accepted_records": 1500,
+  "scope": "ordinary_combat_play_card_and_end_turn",
+  "allowed_workers": [
+    "human-win-001",
+    "human-win-002",
+    "human-win-003",
+    "human-win-004",
+    "human-win-005",
+    "human-win-006",
+    "human-win-007",
+    "human-win-008"
+  ],
+  "created_at": "2026-08-23T02:00:00Z"
+}

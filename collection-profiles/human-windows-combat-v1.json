@@ -1,0 +1,33 @@
+{
+  "schema": "stpd/human-collection-profile-v1",
+  "profile_id": "human-windows-combat-v1",
+  "platform": "win-x64",
+  "game": {
+    "version": "v0.111.0",
+    "commit": "41cef1ea",
+    "main_assembly_sha256": "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+    "main_assembly_mvid": "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e"
+  },
+  "connector": {
+    "source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
+    "source_digest_sha256": "d6faf7f01844786896a9db75d80b97caf35b0cf99049d4c200a3ab59e85ac6df",
+    "artifact_sha256": "c6da375d0ae8a094c4fdea6b907176884316af23b596c6c75e02395702321a51",
+    "mvid": "ec292515-8b89-4cd7-9af2-f60676e76a8b"
+  },
+  "annotator": {
+    "source_revision": "2755d43202543dd331ac0cb6bf8f6b0f74d31af7",
+    "source_digest_sha256": "d26051d19ca6d5c5b4c651326c798c65b08f9463bc8fda7f3c7ff52a717a4b88",
+    "artifact_sha256": "d12877539d3f85ea1fdfdd87a1809c226cc12bd87d4be1802184de34bc06213c",
+    "mvid": "bbaaaa3f-17c6-4d8f-9d7d-e1e7c959244a"
+  },
+  "player_environment_protocol": "1.0.0",
+  "modset": {
+    "status": "canary_exact_observer_modset",
+    "fingerprint": "1274f75a07d30ffe20a10474c505527cc8701bfba08af443a7e5474ac0f6a97a"
+  },
+  "record_schema": "sts2.human-annotator/decision-record-1",
+  "allowed_action_families": [
+    "ordinary_combat.play_card",
+    "ordinary_combat.end_turn"
+  ]
+}
