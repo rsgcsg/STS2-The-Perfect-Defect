@@ -96,8 +96,34 @@ class ProjectedDecision:
     envelopes: tuple[ExecutionEnvelope, ...]
 
 
+@dataclass(frozen=True)
+class _ProjectionFrame:
+    state: ResearchState
+    semantic_by_id: Mapping[str, Mapping[str, Any]]
+    actions_raw: Sequence[Any]
+    snapshot_id: str
+    family: DecisionFamily
+
+
 class ResearchProjectorV0:
     """The only v0 mapping from Player Environment truth to research objects."""
+
+    def project_state(
+        self,
+        snapshot: Mapping[str, Any],
+        reads: Mapping[str, Mapping[str, Any]],
+        *,
+        game_version: str,
+        game_commit: str,
+    ) -> ResearchState:
+        """Project visible state without claiming support for its next action catalog."""
+
+        return self._projection_frame(
+            snapshot,
+            reads,
+            game_version=game_version,
+            game_commit=game_commit,
+        ).state
 
     def project(
         self,
@@ -108,6 +134,84 @@ class ResearchProjectorV0:
         game_commit: str,
         mutation_request_prefix: str,
     ) -> ProjectedDecision:
+        frame = self._projection_frame(
+            snapshot,
+            reads,
+            game_version=game_version,
+            game_commit=game_commit,
+        )
+        semantic_actions: list[ResearchAction] = []
+        envelopes: list[ExecutionEnvelope] = []
+        action_keys: set[str] = set()
+        for action_raw in frame.actions_raw:
+            if not isinstance(action_raw, Mapping):
+                raise ContractError("BoundAction must be an object")
+            bound_id = action_raw.get("bound_action_id")
+            verb = action_raw.get("verb")
+            if not isinstance(bound_id, str) or not bound_id or not isinstance(verb, str):
+                raise ContractError("BoundAction identity or verb is missing")
+            subject_id = action_raw.get("subject_referent_id")
+            subject = (
+                frame.semantic_by_id.get(str(subject_id)) if subject_id is not None else None
+            )
+            if subject_id is not None and subject is None:
+                raise ContractError("BoundAction subject is not a current visible referent")
+            arguments: list[dict[str, Any]] = []
+            for argument in action_raw.get("arguments", []):
+                if not isinstance(argument, Mapping):
+                    raise ContractError("BoundAction argument must be an object")
+                referent_id = str(argument.get("referent_id", ""))
+                if referent_id not in frame.semantic_by_id:
+                    raise ContractError("BoundAction argument is not a current visible referent")
+                arguments.append(
+                    {
+                        "role": str(argument.get("role", "argument")),
+                        "referent": frame.semantic_by_id[referent_id],
+                    }
+                )
+            subject_properties = subject.get("properties", {}) if subject else {}
+            if not isinstance(subject_properties, Mapping):
+                subject_properties = {}
+            action_payload = {
+                "kind": _action_kind(
+                    verb,
+                    frame.family,
+                    None if subject is None else str(subject.get("role", "")),
+                ),
+                "subject": subject,
+                "arguments": arguments,
+                "visible_cost": subject_properties.get(
+                    "current_cost", subject_properties.get("cost")
+                ),
+                "visible_effect": subject_properties.get("description"),
+            }
+            action_key = f"a:{semantic_hash(action_payload)[:24]}"
+            if action_key in action_keys:
+                raise ContractError(
+                    "two current BoundActions have indistinguishable semantic identity"
+                )
+            action_keys.add(action_key)
+            action = ResearchAction(action_key=action_key, **action_payload)
+            semantic_actions.append(action)
+            envelopes.append(
+                ExecutionEnvelope(
+                    action_key,
+                    frame.snapshot_id,
+                    bound_id,
+                    f"{mutation_request_prefix}-{action_key[2:]}",
+                )
+            )
+        ensure_action_catalog_alignment(semantic_actions, envelopes)
+        return ProjectedDecision(frame.state, tuple(semantic_actions), tuple(envelopes))
+
+    def _projection_frame(
+        self,
+        snapshot: Mapping[str, Any],
+        reads: Mapping[str, Mapping[str, Any]],
+        *,
+        game_version: str,
+        game_commit: str,
+    ) -> _ProjectionFrame:
         if snapshot.get("status") != "interactive":
             raise ContractError("research projection requires a stable interactive snapshot")
         completeness = snapshot.get("completeness")
@@ -177,63 +281,5 @@ class ResearchProjectorV0:
             },
             reads={kind: _sanitize(value.get("content", value)) for kind, value in reads.items()},
         )
-        semantic_actions: list[ResearchAction] = []
-        envelopes: list[ExecutionEnvelope] = []
-        action_keys: set[str] = set()
-        for action_raw in actions_raw:
-            if not isinstance(action_raw, Mapping):
-                raise ContractError("BoundAction must be an object")
-            bound_id = action_raw.get("bound_action_id")
-            verb = action_raw.get("verb")
-            if not isinstance(bound_id, str) or not bound_id or not isinstance(verb, str):
-                raise ContractError("BoundAction identity or verb is missing")
-            subject_id = action_raw.get("subject_referent_id")
-            subject = semantic_by_id.get(str(subject_id)) if subject_id is not None else None
-            if subject_id is not None and subject is None:
-                raise ContractError("BoundAction subject is not a current visible referent")
-            arguments: list[dict[str, Any]] = []
-            for argument in action_raw.get("arguments", []):
-                if not isinstance(argument, Mapping):
-                    raise ContractError("BoundAction argument must be an object")
-                referent_id = str(argument.get("referent_id", ""))
-                if referent_id not in semantic_by_id:
-                    raise ContractError("BoundAction argument is not a current visible referent")
-                arguments.append(
-                    {
-                        "role": str(argument.get("role", "argument")),
-                        "referent": semantic_by_id[referent_id],
-                    }
-                )
-            subject_properties = subject.get("properties", {}) if subject else {}
-            if not isinstance(subject_properties, Mapping):
-                subject_properties = {}
-            action_payload = {
-                "kind": _action_kind(
-                    verb, family, None if subject is None else str(subject.get("role", ""))
-                ),
-                "subject": subject,
-                "arguments": arguments,
-                "visible_cost": subject_properties.get(
-                    "current_cost", subject_properties.get("cost")
-                ),
-                "visible_effect": subject_properties.get("description"),
-            }
-            action_key = f"a:{semantic_hash(action_payload)[:24]}"
-            if action_key in action_keys:
-                raise ContractError(
-                    "two current BoundActions have indistinguishable semantic identity"
-                )
-            action_keys.add(action_key)
-            action = ResearchAction(action_key=action_key, **action_payload)
-            semantic_actions.append(action)
-            envelopes.append(
-                ExecutionEnvelope(
-                    action_key,
-                    snapshot_id,
-                    bound_id,
-                    f"{mutation_request_prefix}-{action_key[2:]}",
-                )
-            )
-        ensure_action_catalog_alignment(semantic_actions, envelopes)
         state.validate()
-        return ProjectedDecision(state, tuple(semantic_actions), tuple(envelopes))
+        return _ProjectionFrame(state, semantic_by_id, actions_raw, snapshot_id, family)

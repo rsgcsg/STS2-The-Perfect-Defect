@@ -226,6 +226,42 @@ def test_projector_rejects_noncombat_selection_even_when_surface_name_matches() 
         )
 
 
+def test_state_only_projection_does_not_admit_unsupported_next_actions() -> None:
+    snapshot = _snapshot("s0")
+    snapshot["interaction"]["kind"] = "card_choice"
+    snapshot["referents"][0]["role"] = "card_choice"
+    snapshot["bound_actions"]["actions"] = [
+        {
+            "bound_action_id": "bound-select-s0",
+            "verb": "select",
+            "interaction_id": "interaction-s0",
+            "subject_referent_id": "runtime-card-1",
+            "arguments": [],
+            "label": "Select Defend",
+        }
+    ]
+    snapshot["bound_actions"]["materialized_count"] = 1
+    snapshot["bound_actions"]["total_count"] = 1
+    projector = ResearchProjectorV0()
+
+    state = projector.project_state(
+        snapshot,
+        {},
+        game_version="v0.111.0",
+        game_commit="41cef1ea",
+    )
+
+    assert state.decision_family.value == "card_choice"
+    with pytest.raises(ContractError, match="unsupported v0 action"):
+        projector.project(
+            snapshot,
+            {},
+            game_version="v0.111.0",
+            game_commit="41cef1ea",
+            mutation_request_prefix="unsupported",
+        )
+
+
 def test_collector_emits_stable_transition_with_reads_and_exact_receipt() -> None:
     environment = _Environment(_snapshot("s1", energy=2))
     result = _collector(environment).collect_one(

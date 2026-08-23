@@ -312,14 +312,12 @@ def _normalize(
     successor_state: ResearchState | None = None
     scope_exit = True
     if _is_combat(successor_interaction):
-        successor_projected = projector.project(
+        successor_state = projector.project_state(
             successor_snapshot,
             {},
             game_version=game_version,
             game_commit=game_commit,
-            mutation_request_prefix=f"human-successor-{record_id}",
         )
-        successor_state = successor_projected.state
         scope_exit = False
 
     exact_environment = EnvironmentIdentity(

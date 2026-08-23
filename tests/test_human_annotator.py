@@ -234,6 +234,35 @@ def test_exact_human_record_projects_existing_stpd_contract(tmp_path: Path) -> N
     assert manifest.split["strategy"] == "seed_root_sha256_v0"
 
 
+def test_unsupported_successor_actions_do_not_reject_a_supported_decision(
+    tmp_path: Path,
+) -> None:
+    record = _record()
+    successor = record["successor"]["snapshot"]
+    successor["interaction"]["kind"] = "card_choice"
+    successor["referents"][0]["role"] = "card_choice"
+    successor["bound_actions"]["actions"] = [
+        {
+            "bound_action_id": "bound-select",
+            "verb": "select",
+            "interaction_id": "interaction-2",
+            "subject_referent_id": "card-1",
+            "arguments": [],
+            "label": "Select Strike",
+        }
+    ]
+    successor["bound_actions"]["materialized_count"] = 1
+    successor["bound_actions"]["total_count"] = 1
+    record["successor"]["interaction_kind"] = "card_choice"
+
+    report = _import(tmp_path, record)
+
+    assert report.accepted_count == 1
+    assert report.rejected_count == 0
+    assert report.accepted[0].transition.successor is not None
+    assert report.accepted[0].transition.successor.decision_family.value == "card_choice"
+
+
 def test_non_unique_mapping_is_rejected(tmp_path: Path) -> None:
     record = _record()
     record["mapping"] = {"status": "ambiguous", "match_count": 2, "basis": "x"}
