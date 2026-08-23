@@ -88,6 +88,12 @@ under `.local/live-s1/`.
 Transient HTTP 409 `stale_state` races during Snapshot-bound Read prefetch now
 discard and refresh the whole observation transaction with bounded backoff;
 they do not weaken coherence or taint an otherwise safe Human/Qwen handoff.
+The live bridge preserves Connector Reads as a multi-instance array instead of
+keying by kind. A full provenance audit found 39 per-card `surface_card`
+descriptors across 10 accepted successor frames, but Human import projected
+all 1,962 state/successor pairs with `reads={}` and serializer v1 emitted no
+`READS=` training lines. Live S1 therefore explicitly prefetches the exact empty
+checkpoint Read subset while retaining advertised descriptors in Snapshot evidence.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes

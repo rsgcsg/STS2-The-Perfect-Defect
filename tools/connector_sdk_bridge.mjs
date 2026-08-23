@@ -4,6 +4,10 @@
 import readline from "node:readline";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import {
+  canonicalizeReadResponses,
+  includeReadForPolicy
+} from "./connector_sdk_bridge_contract.mjs";
 
 function option(name, fallback = null) {
   const index = process.argv.indexOf(name);
@@ -72,7 +76,7 @@ async function connect() {
   return capabilities;
 }
 
-async function observeBundle() {
+async function observeBundle(modelReadPolicy) {
   if (!capabilities) await connect();
   const observation = (await client.observe()).data;
   ensureBoundRuntime(
@@ -81,16 +85,13 @@ async function observeBundle() {
   );
   const bundle = await prefetchPlayerEnvironmentDecisionBundle(
     observation,
-    async (readId, expectedSnapshotId) => (await client.read(readId, expectedSnapshotId)).data
+    async (readId, expectedSnapshotId) => (await client.read(readId, expectedSnapshotId)).data,
+    includeReadForPolicy(modelReadPolicy)
   );
-  const reads = {};
-  for (const read of bundle.reads) {
-    if (Object.hasOwn(reads, read.kind)) {
-      throw new Error(`duplicate advertised Read kind is unsupported: ${read.kind}`);
-    }
-    reads[read.kind] = read;
-  }
-  return { snapshot: bundle.observation, reads };
+  return {
+    snapshot: bundle.observation,
+    reads: canonicalizeReadResponses(bundle.reads)
+  };
 }
 
 async function acquire() {
@@ -129,7 +130,7 @@ async function dispatch(message) {
   switch (message.op) {
     case "ping": return { endpoint, sdk_path: sdkPath };
     case "connect": return connect();
-    case "observe_bundle": return observeBundle();
+    case "observe_bundle": return observeBundle(message.model_read_policy);
     case "acquire": return acquire();
     case "release": return release();
     case "submit": return submit(message);

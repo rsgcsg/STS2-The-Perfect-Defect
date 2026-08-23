@@ -284,6 +284,34 @@ def test_collector_emits_stable_transition_with_reads_and_exact_receipt() -> Non
     assert environment.steps == 1 and environment.reads == 2
 
 
+def test_mapping_collector_fails_closed_on_duplicate_required_read_kind() -> None:
+    snapshot = _snapshot("s0")
+    snapshot["reads"].append(
+        {
+            "read_id": "read-piles-second-s0",
+            "kind": "combat_piles",
+            "content_schema": "sts2.player-environment/read/combat_piles-1",
+            "snapshot_bound": True,
+        }
+    )
+    environment = _Environment(_snapshot("s1"))
+
+    with pytest.raises(CollectionError, match="Read kind is not unique: combat_piles"):
+        _collector(environment).collect_one(
+            snapshot,
+            choose=lambda projected: projected.actions[0].action_key,
+            transition_id="transition-duplicate-read",
+            episode_id="episode-1",
+            step_index=0,
+            seed="STPDFIXTURE00001",
+            raw_ref="raw/fixture#duplicate-read",
+            rank_eligible=True,
+        )
+
+    assert environment.reads == 0
+    assert environment.steps == 0
+
+
 def test_unknown_delivery_is_not_retried() -> None:
     environment = _Environment(_snapshot("s1"), delivery="unknown")
     with pytest.raises(CollectionError, match="must not retry"):

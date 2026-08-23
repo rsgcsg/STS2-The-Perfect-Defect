@@ -10,7 +10,7 @@ import queue
 import subprocess
 import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -33,6 +33,11 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = ROOT / "configs" / "v0" / "experiments" / "s1-human-combat-live-v1.json"
 SUPPORTED_VERBS = frozenset({"play", "end_turn"})
 SUPPORTED_ACTION_KINDS = frozenset({"play_card", "end_turn"})
+HUMAN_CHECKPOINT_MODEL_READ_POLICY = {
+    "mode": "none",
+    "training_basis": "human_annotator_importer_empty_reads",
+    "standard_reads_line_expected": False,
+}
 
 
 class LiveS1Error(RuntimeError):
@@ -41,6 +46,49 @@ class LiveS1Error(RuntimeError):
 
 class StaleObservationError(LiveS1Error):
     """One Snapshot+Reads transaction raced with a newer Connector snapshot."""
+
+
+def validate_model_read_policy(value: Any) -> dict[str, Any]:
+    """Pin live projection to the exact Read semantics used by the Human checkpoint."""
+
+    if not isinstance(value, Mapping) or dict(value) != HUMAN_CHECKPOINT_MODEL_READ_POLICY:
+        raise LiveS1Error(
+            "live model Read policy differs from Human checkpoint training semantics"
+        )
+    return dict(HUMAN_CHECKPOINT_MODEL_READ_POLICY)
+
+
+def canonicalize_prefetched_reads(reads: Any) -> tuple[dict[str, Any], ...]:
+    """Retain every SDK Read instance and order only by its opaque unique identity."""
+
+    if not isinstance(reads, Sequence) or isinstance(reads, (str, bytes, bytearray)):
+        raise LiveS1Error("Connector SDK decision-bundle Reads must be an array")
+    identities: set[str] = set()
+    result: list[dict[str, Any]] = []
+    for read_raw in reads:
+        if not isinstance(read_raw, Mapping):
+            raise LiveS1Error("Connector SDK decision-bundle Read must be an object")
+        read = dict(read_raw)
+        read_id = read.get("read_id")
+        if not isinstance(read_id, str) or not read_id:
+            raise LiveS1Error("Connector SDK decision-bundle Read identity is missing")
+        if read_id in identities:
+            raise LiveS1Error(f"duplicate Connector Read identity is unsupported: {read_id}")
+        identities.add(read_id)
+        result.append(read)
+    return tuple(sorted(result, key=lambda read: str(read["read_id"])))
+
+
+def checkpoint_model_reads(
+    prefetched_reads: Sequence[Mapping[str, Any]],
+    model_read_policy: Mapping[str, Any],
+) -> dict[str, Mapping[str, Any]]:
+    """Return the exact mapping passed to ResearchProjectorV0 during training import."""
+
+    validate_model_read_policy(model_read_policy)
+    if prefetched_reads:
+        raise LiveS1Error("none Read policy received unexpected prefetched Read responses")
+    return {}
 
 
 def _sha256(path: Path) -> str:
@@ -290,8 +338,11 @@ class ConnectorSdkBridge:
     def connect(self) -> dict[str, Any]:
         return cast(dict[str, Any], self.request("connect"))
 
-    def observe_bundle(self) -> dict[str, Any]:
-        return cast(dict[str, Any], self.request("observe_bundle"))
+    def observe_bundle(self, model_read_policy: Mapping[str, Any]) -> dict[str, Any]:
+        return cast(
+            dict[str, Any],
+            self.request("observe_bundle", model_read_policy=dict(model_read_policy)),
+        )
 
     def acquire(self) -> dict[str, Any]:
         return cast(dict[str, Any], self.request("acquire"))
@@ -329,6 +380,7 @@ def refresh_observation_bundle(
     *,
     max_attempts: int,
     base_backoff_seconds: float,
+    model_read_policy: Mapping[str, Any] | None = None,
     on_stale: Callable[[int, float, StaleObservationError], None] | None = None,
     sleeper: Callable[[float], None] = time.sleep,
 ) -> dict[str, Any] | None:
@@ -344,7 +396,11 @@ def refresh_observation_bundle(
         raise ValueError("observation refresh backoff must be non-negative")
     for attempt in range(1, max_attempts + 1):
         try:
-            return cast(dict[str, Any], bridge.observe_bundle())
+            if model_read_policy is None:
+                return cast(dict[str, Any], bridge.observe_bundle())
+            return cast(
+                dict[str, Any], bridge.observe_bundle(model_read_policy=model_read_policy)
+            )
         except StaleObservationError as error:
             delay = (
                 base_backoff_seconds * (2 ** (attempt - 1))
@@ -484,6 +540,7 @@ def load_resident_s1(config_path: Path = DEFAULT_CONFIG) -> tuple[ResidentS1Mode
     config = _json_object(config_path)
     if config.get("schema") != "stpd/s1-human-combat-live-config-v1":
         raise LiveS1Error("unsupported live config schema")
+    validate_model_read_policy(config.get("model_read_policy"))
     ready_path = (ROOT / str(config["ready_path"])).resolve()
     if _sha256(ready_path) != config.get("ready_sha256"):
         raise LiveS1Error("READY_TO_TRAIN identity drift")

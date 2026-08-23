@@ -84,3 +84,17 @@ exists only for admitted Qwen execution and is released on handoff. Stale means
 fresh observation without request retry; unknown delivery permanently stops
 automation for that runner process. Live evidence is local and explicitly
 non-scientific.
+
+## D-010 — Match live Read selection to the trained Human representation
+
+**Status:** accepted for experimental live v1
+
+Keep Connector's `reads[]` as a multi-instance array identified by opaque
+`read_id`; duplicate kinds are not collisions. The completed Human checkpoint
+was trained on importer-projected `reads={}`, so its live config prefetches no
+Read responses and passes the same empty mapping to `ResearchProjectorV0`.
+Advertised descriptors remain in the authoritative Snapshot and evidence. A
+future model that trains on Reads requires a new explicit deterministic
+multi-instance projection and compatibility evidence rather than changing this
+checkpoint's input semantics. Legacy collectors that request a kind-keyed Read
+mapping fail closed when a requested kind is not unique instead of overwriting.

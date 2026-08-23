@@ -17,13 +17,29 @@ transport bridge. The SDK performs strict protocol decoding and owns controller
 registration, lease acquisition/renewal/release, Reads and action submission.
 STPD never reconstructs legality or native input.
 
+The checkpoint's model Read policy is explicitly `none`. This is not an
+information-closure claim: all 1,962 accepted Human records were imported by
+`human_annotator.py` with `reads={}` for both state and successor, their immutable
+Parquet rows retain that shape, and serializer v1 emitted zero `READS=` lines for
+the training population. Advertised Read descriptors remain intact in the Snapshot
+and evidence, but the live bridge prefetches only the exact training-time subset,
+which is empty for this checkpoint.
+
+Connector `reads[]` remains a multi-instance array. Duplicate kinds are valid:
+the admitted raw evidence includes 10 successor Snapshots advertising 39
+per-card `surface_card` descriptors with distinct `read_id` and
+`target_referent_id`. The bridge therefore never keys responses by kind; any
+future selected responses retain every opaque Read identity in deterministic
+`read_id` order. A duplicate opaque `read_id`, by contrast, fails closed.
+
 ## Admission and handoff
 
 Default mode is Human with no controller lease. A complete decision is available
 to Qwen only when all of these are true:
 
 - the persistent run declares Defect and Ascension 0;
-- Snapshot and every advertised Read are coherent and complete;
+- the Snapshot is coherent and complete, and the frozen checkpoint Read selector
+  returns exactly its empty training-time subset;
 - interaction, surface and context are an ordinary player Combat turn;
 - the complete, non-empty Connector catalog contains only `play` and `end_turn`;
 - projection is a one-to-one `play_card` / `end_turn` catalog with no runtime IDs
@@ -40,7 +56,7 @@ request. Unknown delivery or transport loss after submission permanently taints
 that runner process, disables auto, releases where possible and never retries.
 Connector TTL remains the crash-safe release path.
 
-An HTTP 409 `stale_state` while prefetching Snapshot-bound Reads is different:
+An HTTP 409 `stale_state` while prefetching any selected Snapshot-bound Reads is different:
 the entire uncommitted observation bundle is discarded, the terminal briefly
 reports `REFRESHING_STALE_OBSERVATION`, and the runner performs a bounded
 exponential-backoff fresh observe. It never reuses a Read from the stale bundle
@@ -61,6 +77,7 @@ Build the exact SDK and run the targeted tests before starting the game:
 
 ```powershell
 npm --prefix ..\STS2-Connector\sdk\typescript run build
+node --test tests\connector_sdk_bridge_contract.test.mjs
 uv run pytest -q tests\test_live_s1.py tests\test_environment_collector.py
 uv run python tools\live_s1.py model-check
 ```

@@ -57,7 +57,10 @@ scientific Core remain blocked.
   `c70c482c...` passed its frozen behavior criteria without a scientific claim.
 - Experimental live v1 keeps Qwen/head resident, uses the exact official Connector
   SDK for authority, defaults to Human and admits only whole complete Defect A0
-  `play_card`/`end_turn` catalogs. Unknown delivery is never retried.
+  `play_card`/`end_turn` catalogs. Its explicit empty Read selector matches all
+  1,962 Human training states; duplicate advertised Read kinds remain intact as
+  Connector arrays and never enter this checkpoint's model text. Unknown delivery
+  is never retried.
 
 ## Immediate priorities
 

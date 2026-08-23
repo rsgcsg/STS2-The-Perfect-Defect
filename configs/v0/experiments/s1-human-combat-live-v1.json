@@ -12,6 +12,11 @@
     "max_attempts": 3,
     "base_backoff_ms": 50
   },
+  "model_read_policy": {
+    "mode": "none",
+    "training_basis": "human_annotator_importer_empty_reads",
+    "standard_reads_line_expected": false
+  },
   "endpoint": "http://127.0.0.1:15526",
   "connector_sdk_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
   "live_identity": {

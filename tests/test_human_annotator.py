@@ -209,6 +209,8 @@ def test_exact_human_record_projects_existing_stpd_contract(tmp_path: Path) -> N
     assert transition.eligibility.rank_mode == "full_listwise"
     assert transition.chosen_action in transition.legal_actions
     assert transition.successor is not None
+    assert transition.state.reads == {}
+    assert transition.successor.reads == {}
     assert transition.episode_id == "human:session-1/run-0001"
     b0 = validate_b0(
         [transition.to_dict()], schema_root=Path(__file__).parents[1] / "schemas"

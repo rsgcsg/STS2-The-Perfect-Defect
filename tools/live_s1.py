@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -29,9 +29,12 @@ from stpd.live import (  # noqa: E402
     StaleObservationError,
     admit_snapshot,
     apply_delivery_safety,
+    canonicalize_prefetched_reads,
+    checkpoint_model_reads,
     load_resident_s1,
     refresh_observation_bundle,
     validate_capabilities,
+    validate_model_read_policy,
 )
 from stpd.live.s1 import DEFAULT_CONFIG  # noqa: E402
 
@@ -76,6 +79,9 @@ class LiveApplication:
     ) -> None:
         print("Loading exact frozen Qwen and S1 checkpoint (one resident instance)...", flush=True)
         self.model, self.config = load_resident_s1(config_path)
+        self.model_read_policy = validate_model_read_policy(
+            self.config.get("model_read_policy")
+        )
         self.source_revision = git_identity(ROOT, require_clean=True)
         connector_revision = git_identity(connector_root, require_clean=True)
         if connector_revision != self.config["connector_sdk_revision"]:
@@ -112,6 +118,7 @@ class LiveApplication:
             "qwen_identity": self.model.identity.qwen.__dict__,
             "serializer_version": self.model.identity.serializer_version,
             "input_profile": self.model.identity.input_profile,
+            "model_read_policy": self.model_read_policy,
             "connector_sdk_revision": connector_revision,
             "connector_sdk_sha256": sha256(sdk),
             "capabilities": capabilities,
@@ -162,9 +169,10 @@ class LiveApplication:
             raise LiveS1Error("Connector runtime identity changed; restart the runner")
 
     @staticmethod
-    def _reads_complete(reads: Mapping[str, Any]) -> str | None:
-        for kind, read_raw in reads.items():
+    def _reads_complete(reads: Sequence[Mapping[str, Any]]) -> str | None:
+        for read_raw in reads:
             read = read_raw if isinstance(read_raw, Mapping) else {}
+            kind = str(read.get("kind", "unknown"))
             completeness = read.get("completeness")
             if not isinstance(completeness, Mapping) or completeness.get("status") != "complete":
                 return f"READ_INCOMPLETE:{kind}"
@@ -202,6 +210,7 @@ class LiveApplication:
             self.bridge,
             max_attempts=int(refresh["max_attempts"]),
             base_backoff_seconds=float(refresh["base_backoff_ms"]) / 1000,
+            model_read_policy=self.model_read_policy,
             on_stale=self._stale_observation,
         )
 
@@ -210,12 +219,13 @@ class LiveApplication:
         if bundle is None:
             return False
         snapshot = bundle.get("snapshot")
-        reads = bundle.get("reads")
-        if not isinstance(snapshot, Mapping) or not isinstance(reads, Mapping):
+        if not isinstance(snapshot, Mapping):
             raise LiveS1Error("Connector SDK returned an incomplete decision bundle")
+        prefetched_reads = canonicalize_prefetched_reads(bundle.get("reads"))
+        model_reads = checkpoint_model_reads(prefetched_reads, self.model_read_policy)
         self._assert_runtime(snapshot)
         admission = admit_snapshot(snapshot)
-        read_reason = self._reads_complete(reads)
+        read_reason = self._reads_complete(prefetched_reads)
         if admission.available and read_reason:
             admission = SnapshotAdmission(
                 False,
@@ -235,7 +245,11 @@ class LiveApplication:
                 admission.surface,
                 admission.legal_action_count,
             )
-        self.last_bundle = {"snapshot": dict(snapshot), "reads": dict(reads)}
+        self.last_bundle = {
+            "snapshot": dict(snapshot),
+            "prefetched_reads": [dict(read) for read in prefetched_reads],
+            "model_reads": model_reads,
+        }
         self.last_admission = admission
         if not admission.available and self.handoff.controller_acquired:
             self.handoff.release()
@@ -270,13 +284,18 @@ class LiveApplication:
         if self.last_bundle is None or not self.last_admission.available:
             return
         snapshot = cast(Mapping[str, Any], self.last_bundle["snapshot"])
-        reads = cast(Mapping[str, Mapping[str, Any]], self.last_bundle["reads"])
+        prefetched_reads = cast(
+            Sequence[Mapping[str, Any]], self.last_bundle["prefetched_reads"]
+        )
+        model_reads = cast(
+            Mapping[str, Mapping[str, Any]], self.last_bundle["model_reads"]
+        )
         snapshot_id = str(snapshot["snapshot_id"])
         self.last_attempted_snapshot = snapshot_id
         expected = cast(Mapping[str, Any], self.config["live_identity"])
         decision, action_texts, scores, latency_ms = self.model.project_and_score(
             snapshot,
-            reads,
+            model_reads,
             game_version=str(expected["game_version"]),
             game_commit=str(expected["game_commit"]),
         )
@@ -320,7 +339,8 @@ class LiveApplication:
             self.evidence.append(
                 "decision_unknown_delivery",
                 snapshot=dict(snapshot),
-                reads=dict(reads),
+                prefetched_reads=[dict(read) for read in prefetched_reads],
+                model_reads=dict(model_reads),
                 candidates=candidates,
                 chosen_index=selected_index,
                 latency_ms=latency_ms,
@@ -359,7 +379,8 @@ class LiveApplication:
         self.evidence.append(
             "model_decision",
             snapshot=dict(snapshot),
-            reads=dict(reads),
+            prefetched_reads=[dict(read) for read in prefetched_reads],
+            model_reads=dict(model_reads),
             candidates=candidates,
             chosen_index=selected_index,
             chosen_action=selected_action.to_dict(),

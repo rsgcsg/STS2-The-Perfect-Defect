@@ -56,16 +56,24 @@ class StableTransitionCollector:
         policy.validate()
 
     def _reads(self, snapshot: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
-        available = {
-            str(descriptor.get("kind")): descriptor
-            for descriptor in snapshot.get("reads", [])
-            if isinstance(descriptor, Mapping)
-        }
+        available: dict[str, list[Mapping[str, Any]]] = {}
+        required = set(self.read_kinds)
+        for descriptor in snapshot.get("reads", []):
+            if not isinstance(descriptor, Mapping):
+                continue
+            kind = str(descriptor.get("kind"))
+            if kind in required:
+                available.setdefault(kind, []).append(descriptor)
         result: dict[str, Mapping[str, Any]] = {}
         for kind in self.read_kinds:
-            descriptor = available.get(kind)
-            if descriptor is None:
+            descriptors = available.get(kind, [])
+            if not descriptors:
                 raise CollectionError(f"required fair-player Read is unavailable: {kind}")
+            if len(descriptors) != 1:
+                raise CollectionError(
+                    f"required fair-player Read kind is not unique: {kind}"
+                )
+            descriptor = descriptors[0]
             read_id = descriptor.get("read_id")
             if not isinstance(read_id, str) or not read_id:
                 raise CollectionError(f"Read identity is missing: {kind}")
