@@ -570,13 +570,14 @@ def test_two_sequence_one_sessions_build_deterministically_and_retry(tmp_path: P
 
 
 def test_collection_documents_match_their_machine_schemas() -> None:
-    cases = (
-        (PROFILE_PATH, ROOT / "schemas" / "human-collection-profile-v1.schema.json"),
-        (CAMPAIGN_PATH, ROOT / "schemas" / "human-collection-campaign-v1.schema.json"),
-        (
-            COMBINATION_PATH,
-            ROOT / "schemas" / "human-corpus-combination-v1.schema.json",
-        ),
+    cases = tuple(
+        (document_path, ROOT / "schemas" / schema_name)
+        for directory, schema_name in (
+            ("collection-profiles", "human-collection-profile-v1.schema.json"),
+            ("collection-campaigns", "human-collection-campaign-v1.schema.json"),
+            ("corpus-combinations", "human-corpus-combination-v1.schema.json"),
+        )
+        for document_path in sorted((ROOT / directory).glob("*.json"))
     )
     for document_path, schema_path in cases:
         document = json.loads(document_path.read_text(encoding="utf-8"))
