@@ -346,10 +346,14 @@ def refresh_observation_bundle(
         try:
             return cast(dict[str, Any], bridge.observe_bundle())
         except StaleObservationError as error:
-            delay = base_backoff_seconds * (2 ** (attempt - 1))
+            delay = (
+                base_backoff_seconds * (2 ** (attempt - 1))
+                if attempt < max_attempts
+                else 0.0
+            )
             if on_stale is not None:
                 on_stale(attempt, delay, error)
-            if attempt < max_attempts and delay:
+            if delay:
                 sleeper(delay)
     return None
 

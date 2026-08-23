@@ -186,6 +186,7 @@ class LiveApplication:
             "stale_observation_bundle_discarded",
             attempt=attempt,
             retry_delay_ms=round(delay_seconds * 1000),
+            retry_scheduled=delay_seconds > 0,
             error=str(error),
             whole_bundle_discarded=True,
             action_submission_attempted=False,

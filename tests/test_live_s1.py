@@ -274,14 +274,17 @@ def test_stale_observation_refresh_is_bounded_without_taint_or_submission() -> N
 
     bridge = _AlwaysStale()
     delays: list[float] = []
+    stale_events: list[tuple[int, float]] = []
     assert refresh_observation_bundle(
         bridge,
         max_attempts=3,
         base_backoff_seconds=0.01,
+        on_stale=lambda attempt, delay, _error: stale_events.append((attempt, delay)),
         sleeper=delays.append,
     ) is None
     assert bridge.attempts == 3
     assert delays == [0.01, 0.02]
+    assert stale_events == [(1, 0.01), (2, 0.02), (3, 0.0)]
     assert bridge.action_submissions == []
 
 
