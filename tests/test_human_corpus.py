@@ -275,11 +275,12 @@ def _make_bundle(
         + "\n"
         for record in records
     )
-    export.write_text(encoded_records, encoding="utf-8")
+    # The production Annotator exports deterministic UTF-8/LF bytes on every OS.
+    export.write_bytes(encoded_records.encode("utf-8"))
     run_ids = sorted({record["run_id"] for record in records})
     for run_id in run_ids:
         selected = [record for record in records if record["run_id"] == run_id]
-        (raw / f"{run_id}.jsonl").write_text(
+        (raw / f"{run_id}.jsonl").write_bytes(
             "".join(
                 json.dumps(
                     record,
@@ -289,8 +290,7 @@ def _make_bundle(
                 )
                 + "\n"
                 for record in selected
-            ),
-            encoding="utf-8",
+            ).encode("utf-8"),
         )
     _write(
         raw / "recording-manifest.json",
@@ -821,9 +821,9 @@ def test_invalid_strict_session_and_smoke_threshold_fail_closed(tmp_path: Path) 
         allow_nan=False,
         separators=(",", ":"),
     ) + "\n"
-    export.write_text(bad_encoded, encoding="utf-8")
+    export.write_bytes(bad_encoded.encode("utf-8"))
     raw_run = broken / "raw" / "run-0001.jsonl"
-    raw_run.write_text(bad_encoded, encoding="utf-8")
+    raw_run.write_bytes(bad_encoded.encode("utf-8"))
     # Rebuild the attacker-controlled envelope so strict admission, not checksums, owns rejection.
     manifest_path = broken / "session-bundle-manifest.json"
     manifest = json.loads(manifest_path.read_text())
