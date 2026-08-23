@@ -12,9 +12,8 @@ thresholds despite memorized Top-1 `1.0`. The final budget-only `attempt-003` pa
 engineering check. This closes optimizer-plumbing admission; it does not establish model
 quality, pretrained advantage, policy quality, or Gate 1.
 
-The exact pinned AgenticSTS release was then audited as the intended 1k-2k ranking bootstrap.
-It provides zero strictly rank-eligible rows, so no extractor, S1 dataset/configuration, or
-owner training command was created.
+The exact pinned AgenticSTS release remains excluded because it provides zero strictly
+rank-eligible rows. Four independently verified Human bundles now provide the S1 population.
 
 ## Tiny-overfit lineage
 
@@ -42,24 +41,19 @@ Detailed states and sequential result/next-state pairs do not authorize reconstr
 catalogs or fabricating provenance. See
 [the data-admission audit](../evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md).
 
+## Unified Human checkpoint
+
+The admitted population contains 1,962 unique ordinary-combat decisions across
+14 whole runs: macOS 775 and Windows 1,187. The versioned unified plan reports
+zero exact or semantic duplicates and zero split leakage; train/dev/test contain
+11/1/2 runs. B0 passes. Serializer v1 passes the unchanged Standard token gates
+at P95 2,883 and max 4,110 without truncation or raw-record changes.
+
 ## Next action
 
-The multi-worker Human Corpus lane is implemented. First pack/register and build
-the latest exact owner session through the immutable bundle/corpus path. Then
-collect at least 1,500 exact-profile human decisions with authoritative complete
-catalogs, exact chosen-action mapping, stable successors, whole-run roots and
-declared provenance. Rebuild and inspect strict per-session admission,
-whole-run/semantic-component split, B0 and Standard token profiling after each
-batch.
-
-The first exact 20-record offline corpus passes B0 and deterministic rebuild but
-fails the unchanged Standard P95 gate (`4907 > 4096`) and is 1,480 accepted
-records below the 1,500 campaign target. Both gates must close before freezing a
-smoke handoff; do not truncate or lower either threshold to manufacture PASS.
-
-Only after the current 1,500-row campaign target passes may an `S1-1K-2K-SMOKE`
-preparation be created. It must
-still stop for separate owner authorization; scientific training remains unstarted.
+Stop at `.local/training-ready/START_TRAINING.ps1`. It is the only owner command
+for `S1-1K-2K-SMOKE` and rechecks every exact identity before optimizer creation.
+Human Gold is absent; Core, Gold-test and B6 remain unopened.
 
 ## Risks and non-claims
 

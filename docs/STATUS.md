@@ -2,9 +2,9 @@
 
 ## Verdict
 
-**STPD is pre-alpha; full-weight Qwen L2 and bounded tiny-overfit engineering admission are
-complete. AgenticSTS remains blocked at data admission, while the exact Human Corpus lane
-is implemented but remains below the current 1,500-row campaign target.**
+**STPD is pre-alpha; full-weight Qwen L2, bounded tiny-overfit engineering admission,
+and the 1,962-record unified Human corpus Gate-0 lane are complete. S1 smoke is ready for
+an explicit owner start; scientific Core remains blocked by missing Human Gold.**
 The repository contains a real frozen pretrained backend and same-architecture random
 control, but no scientific Core model result, Human Gold result, B6 result, or final STPD
 v0 claim.
@@ -52,34 +52,22 @@ complete finite action catalogs, exact Receipts/successors, complete `run_deck` 
 180 `turn_action` joint samples: Full max/P95 `3334/3334`, Lite and Standard `2501/2501`.
 Natural `card_selection` and `card_choice` were not exercised.
 
-The Native Human Annotator current exact artifact has owner-completed local
-ordinary-combat evidence. Its latest session contains 28 exact-unique records
-(14 targeted plays, 9 untargeted plays, 5 end turns), 28 different stable
-successors, zero invalid records and one correctly isolated overlapping-action
-invalidation. An earlier same-artifact 20-record export passed strict STPD import
-and B0. These are local human-source facts. The bundle/corpus lane now has one
-single-worker offline canary; additional real workers and sessions remain
-required before it can reach the campaign target.
+Four audited HumanSession bundles are admitted: one macOS session with 775
+records and three Windows sessions with 16, 407 and 764 records. Seven other
+Windows recording directories remain preserved but rejected because their
+decision record file is absent. No raw evidence was edited. The admitted
+population contains 1,962 exact-unique decisions across 14 whole runs: 1,571
+card plays and 391 end turns, with 775 macOS and 1,187 Windows records.
 
-The first real bundle/corpus canary used the closed 20-record exact session.
-Bundle content `3a5b1241...` and export `e59321b9...` registered idempotently;
-strict multi-session admission accepted 20/20, canonical Parquet and corpus B0
-passed, one whole run remained in one split, and no exact/semantic duplicate
-crossed a split. The report correctly recovered 8 targeted plays, 8 untargeted
-plays and 4 end turns. Standard profiling expanded the 20 decisions across 159
-legal state/action pairs and failed its unchanged P95 gate at `4907 > 4096`
-(max 5478, hard limit 8192). The campaign target is 1,500 accepted records, so
-the frozen smoke handoff correctly remains unavailable for both independent
-reasons. This canary was built by STPD source `e0a0334...`; later documentation
-commits do not transfer its evidence to another source identity.
-
-The second same-profile bundle (`cf57b6b1...`, export `55885767...`) registered
-idempotently and expanded the latest offline macOS corpus to 48 accepted rows
-across two sessions and two whole runs. Corpus `291afe89...` passes strict
-admission and B0 with zero exact/semantic duplicates; it contains 22 targeted
-plays, 17 untargeted plays and 9 end turns. Its unchanged Standard profile still
-fails at P95 `4806 > 4096` (max 5478), and 1,452 rows remain to the 1,500-row
-target. This is offline corpus evidence, not training authorization.
+The `human-combat-unified-v2` plan combines only immutable profile corpora and
+globally reruns collision/deduplication, semantic-component/root-safe splitting,
+B0 and token profiling. It reports zero exact duplicates, zero semantic duplicate
+groups and zero cross-split leakage; train/dev/test contain 11/1/2 whole runs.
+Serializer v1 retains the complete evidence but removes the redundant Standard
+combat referent rendering. Standard profiling covers 11,348 state/action samples
+and passes unchanged limits at P95 2,883 and max 4,110 tokens. B0 passes all
+1,962 records. The final local READY artifact binds the exact clean source,
+corpus and Qwen identities after all tracked changes are committed.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes
@@ -155,7 +143,8 @@ Every one of the 305 available trajectory logs was audited. They contain 198,600
 events, including 139,211 combat decisions with reconstructable player-visible states.
 However, there are zero explicit complete legal-action catalogs, zero game seeds, zero
 exact environment identities, and therefore zero rank-eligible accepted rows (`0.0%`).
-No extractor, Parquet dataset, split manifest, S1 smoke config, or owner command was created.
+No AgenticSTS extractor or training dataset was created; the S1 smoke instead uses the
+strictly admitted unified Human corpus.
 
 ## Non-claims and remaining work
 
@@ -165,19 +154,15 @@ No extractor, Parquet dataset, split manifest, S1 smoke config, or owner command
 - The bounded ranking fixture is not a production corpus or broad semantic qualification.
 - Historical AgenticSTS states do not authorize reconstructing missing legality, seeds,
   successors, or current-patch identities.
-- Natural selector token families, large-corpus near-duplicate analysis and scientific data
-  admission remain future work.
-- Real Standard representation size exceeds the current P95 token gate on the
-  first Human corpus canary. Do not raise the threshold or truncate to force a
-  pass; representation/pin ownership needs a separate evidence-based decision.
+- Natural selector action families remain unsupported and were not admitted.
+- Human Gold is unavailable, so scientific Core and Gold/B6 remain blocked even
+  though the behavior S1 smoke environment is ready.
 - Annotator audit and explicit owner attestation do not machine-prove operator
   identity or non-interference. Existing owner-completed sessions validate only
   the exact ordinary-combat source envelope, not other workers, platforms or
   unsupported families.
 
-The immediate next step is to pack/register the current exact session, verify
-the deterministic corpus/B0/token-profile lane offline, then collect additional
-exact-profile sessions until at least 1,500 complete-catalog, whole-root behavior
-decisions exist. See the
+The immediate next step is the owner-gated `S1-1K-2K-SMOKE`; do not start the
+Core matrix or open Gold-test. See the
 [AgenticSTS audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md),
 [Data and Provenance](DATA_AND_PROVENANCE.md), and [Roadmap](ROADMAP.md).

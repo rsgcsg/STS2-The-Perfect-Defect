@@ -34,19 +34,17 @@ profiles/campaigns, immutable session bundles, fail-closed registry admission,
 deterministic multi-source corpus snapshots, whole-run plus semantic-duplicate
 component splitting, corpus B0, Standard profiling and frozen smoke handoff.
 Automated tests cover drift, tampering, collisions, retries, input reordering and
-snapshot immutability. The real corpus remains below the campaign target; this
-implementation status is not data admission or permission to train.
+snapshot immutability. Four real bundles now provide 1,962 admitted decisions.
 
 The final cross-profile layer is implemented. It accepts only immutable
 admitted profile snapshots, checks a versioned compatibility plan, preserves
 source/platform/session provenance and globally reruns collision/dedup,
-whole-run splitting, B0 and Standard profiling. It is data plumbing, not proof
-that Windows evidence exists or that a final smoke corpus is admitted.
+whole-run splitting, B0 and Standard profiling. The v2 unified population has
+775 macOS and 1,187 Windows records.
 
-The first 20-record real corpus canary passes strict admission and B0, but
-Standard token profiling fails at P95 4907 versus the frozen 4096 gate. Before a
-smoke handoff, collect the campaign corpus and resolve this representation/pin
-gate without silent truncation or threshold relaxation.
+Serializer v1 resolves only redundant Standard combat rendering while retaining
+the evidence contract. The unified corpus passes B0 and unchanged token gates at
+P95 2,883 and max 4,110 without truncation or threshold relaxation.
 
 ## v0 Step 1 — Token and compute profiling
 
@@ -82,18 +80,16 @@ establish pretrained representation value.
 
 ## v0 Steps 2-4 — Core architecture selection
 
-Status: **protocol r2 frozen; scientific Core training not started; data admission blocked**.
+Status: **protocol r2 frozen; S1 owner handoff ready; scientific Core not ready**.
 The exact 10 configurations and three seeds are machine-readable. Tiny-overfit engineering
 admission is complete, but the audited AgenticSTS source supplies 0 rank-eligible rows from
 198,600 decisions because complete legal catalogs, game seeds, and exact environment
 identities are absent.
 
-Before Core training, scientific data admission, Gold-dev, sealed Gold-test identity,
+Before Core training, Human Gold-dev, sealed Gold-test identity,
 required controls, selector-family coverage status and exact split/manifests must be ready.
-The next data action is deterministic packing/import of current exact human
-sessions followed by multi-worker collection of at least 1,500 exact-environment,
-complete-catalog behavior decisions; no S1 smoke is frozen until that corpus
-passes B0 and Standard profiling.
+The behavior S1 corpus has passed its 1,500-record, B0, split/leakage and Standard
+token gates. Its owner-gated smoke remains distinct from scientific Core.
 
 Run Standard input for:
 

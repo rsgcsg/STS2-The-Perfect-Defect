@@ -136,8 +136,9 @@ the complete legal-action catalog, whole-run seed/root, and exact environment id
 required for ranking admission. Rank-eligible acceptance is therefore `0 / 139,211`.
 
 Detailed historical states and sequential result/next-state pairs are not permission to
-invent the missing evidence. The first Scheme 1 smoke instead requires at least 1,000
-current-teacher decisions with authoritative catalogs, exact action mapping, stable
+invent the missing evidence. The first Scheme 1 smoke uses the frozen 1,500-record
+unified Human campaign gate and requires current-teacher decisions with authoritative
+catalogs, exact action mapping, stable
 successors, exact game/Host/Player Environment identity, whole-run roots, and declared
 behavior-policy provenance. See the
 [AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md).

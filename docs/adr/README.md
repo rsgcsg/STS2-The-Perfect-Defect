@@ -9,3 +9,4 @@ consequences, evidence, and status. Supersede old ADRs; do not erase them.
 Current records:
 
 - [ADR-0001: project boundaries and current smoke](0001-project-boundaries-and-current-smoke.md)
+- [ADR-0002: versioned unified Human serialization](0002-versioned-unified-human-serialization.md)

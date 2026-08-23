@@ -1,0 +1,50 @@
+{
+  "schema": "stpd/s1-smoke-config-v1",
+  "protocol_id": "S1-1K-2K-SMOKE",
+  "architecture_id": "scheme1-linear-pretrained",
+  "family": "scheme1",
+  "head": "linear",
+  "input_profile": "stpd-combat-v0-standard",
+  "serializer_version": "stpd-model-serialization-v1",
+  "qwen_control": "pretrained",
+  "seed": 20260822,
+  "data": {
+    "minimum_unified_records": 1500,
+    "maximum_unified_records": 2000,
+    "minimum_train_records": 1000,
+    "split": "train",
+    "rank_eligible_only": true,
+    "legal_action_completeness": "complete",
+    "order": "transition_semantic_hash_ascending"
+  },
+  "optimizer": {
+    "name": "adamw",
+    "learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "grad_clip_norm": 1.0
+  },
+  "budget": {
+    "epochs": 1,
+    "candidate_batching": "one_complete_candidate_set",
+    "checkpoint_steps": [0, "final"]
+  },
+  "pass_criteria": {
+    "all_optimizer_steps_completed": true,
+    "all_losses_finite": true,
+    "all_trainable_gradients_finite": true,
+    "qwen_gradient_tensor_count": 0,
+    "initial_and_final_checkpoints_verified": true
+  },
+  "boundaries": {
+    "owner_execution_required": true,
+    "human_gold_allowed": false,
+    "gold_test_allowed": false,
+    "b6_allowed": false,
+    "core_matrix_allowed": false,
+    "scientific_claim_allowed": false
+  },
+  "non_claims": [
+    "This behavior-imitation smoke is not Human Gold or a scientific Core result.",
+    "Completion does not establish pretrained advantage, policy quality, or a v0 winner."
+  ]
+}

@@ -57,6 +57,7 @@ schemas, status, or ADRs.
 
 - [ADR index](adr/README.md)
 - [ADR-0001: project boundaries and current smoke](adr/0001-project-boundaries-and-current-smoke.md)
+- [ADR-0002: versioned unified Human serialization](adr/0002-versioned-unified-human-serialization.md)
 
 ## Machine-readable contracts
 

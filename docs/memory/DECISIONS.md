@@ -60,3 +60,15 @@ STPD consumes Headless `v1.0.1` and its exact `8ced088b...` patch / `8dc622b0...
 Host while retaining Connector `v1.1.0-rc.1` and protocol/SDK `1.0.0`. The different
 Headless `v1.0.0` Host remains immutable predecessor evidence; runtime authority does not
 transfer across the artifact change.
+
+## D-008 — Version Standard Human serialization without rewriting history
+
+**Status:** accepted
+
+Keep serializer v0 and every historical profile/corpus frozen. Serializer v1
+removes only the redundant Standard combat `facts.referents` rendering after
+strict evidence projection; Full/Lite, records, actions and successors remain
+unchanged. Cross-platform training data is combined only through the exact
+profile digests in `human-combat-unified-v2`, then globally re-split and gated.
+
+See [ADR-0002](../adr/0002-versioned-unified-human-serialization.md).

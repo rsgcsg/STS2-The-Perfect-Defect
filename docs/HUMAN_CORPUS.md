@@ -56,6 +56,10 @@ envelope is pinned by `collection-profiles/human-windows-combat-v1.json`, and
 worker IDs and the same 1,500-record target. Windows records must never be
 packed against the macOS profile or campaign.
 
+A later exact Windows artifact is independently pinned by
+`human-windows-combat-v2`. Historical profiles remain frozen; identity drift is
+represented by a new profile/campaign rather than rewriting v1.
+
 ## Commands
 
 Pack a closed, audited native-human session directly into the local collection:
@@ -88,7 +92,8 @@ uv run python tools/import_human_corpus.py build \
   --output-root .local/human-corpora \
   --split-salt human-combat-smoke-v1 \
   --tokenizer-file <exact-tokenizer.json> \
-  --tokenizer-revision <exact-revision>
+  --tokenizer-revision <exact-revision> \
+  --serializer-version stpd-model-serialization-v1
 
 uv run python tools/import_human_corpus.py inspect \
   .local/human-corpora/human-mac-combat-v1/snapshots/<corpus>
@@ -99,12 +104,18 @@ output; changed inputs produce a new corpus ID and cannot mutate old snapshots.
 
 ## Final Cross-Profile Merge
 
-`corpus-combinations/human-combat-cross-platform-v1.json` is the versioned
+`corpus-combinations/human-combat-unified-v2.json` is the versioned
 compatibility and target policy. It admits exact profile digests while allowing
 platform-specific game/Mod/Annotator artifacts. It requires the same Player
 Environment protocol, Connector semantic source digest, record schema,
 ResearchTransition contract, serializer, tokenizer and action-family envelope.
 Unknown profiles or any incompatible field fail closed.
+
+The v2 plan explicitly selects `stpd-model-serialization-v1`. For Standard
+combat turn-action text only, v1 omits `facts.referents` because the same
+player-visible referents are already present in the complete interaction and
+structured combat/card facts. Full and Lite remain unchanged. No record,
+candidate, state fact, action family or successor is truncated or removed.
 
 After each machine has independently produced an immutable profile snapshot:
 
@@ -112,12 +123,12 @@ After each machine has independently produced an immutable profile snapshot:
 TOKENIZER="$HOME/.cache/stpd/qwen-l1/models--Qwen--Qwen3-0.6B-Base/snapshots/da87bfb608c14b7cf20ba1ce41287e8de496c0cd/tokenizer.json"
 
 uv run python tools/import_human_corpus.py combine \
-  --plan corpus-combinations/human-combat-cross-platform-v1.json \
+  --plan corpus-combinations/human-combat-unified-v2.json \
   --profile-root collection-profiles \
   --snapshot <mac-corpus-snapshot> \
   --snapshot <windows-corpus-snapshot> \
-  --output-root .local/human-combined-corpora \
-  --split-salt human-combat-cross-platform-v1 \
+  --output-root .local/human-unified-corpora \
+  --split-salt human-combat-unified-v2-split-000 \
   --tokenizer-file "$TOKENIZER" \
   --tokenizer-revision da87bfb608c14b7cf20ba1ce41287e8de496c0cd
 ```
@@ -134,9 +145,9 @@ Only after the campaign minimum is met may a smoke handoff be frozen:
 
 ```bash
 uv run python tools/import_human_corpus.py freeze-smoke-handoff \
-  .local/human-corpora/human-mac-combat-v1/snapshots/<corpus> \
+  .local/human-unified-corpora/human-combat-unified-v2/snapshots/<corpus> \
   --output-root .local/human-smoke-handoffs \
-  --minimum-records 1000
+  --minimum-records 1500
 ```
 
 The handoff binds corpus, Parquet, manifest, source registry, splits, B0, token
@@ -152,3 +163,13 @@ single-session admission, duplicate session/bundle/export, global record or
 transition collisions, a run split across roots, cross-split semantic
 duplicates, B0 failure, token profile failure, or a changed immutable output.
 Never edit raw evidence to pass admission.
+
+## Owner-gated S1 preparation
+
+After the immutable unified handoff and exact-source Qwen engineering smokes
+pass, `tools/s1_smoke.py prepare` writes `.local/training-ready/READY_TO_TRAIN.json`
+and `.local/training-ready/START_TRAINING.ps1`. Preparation validates every
+source/data/Qwen/runtime/config identity and constructs no optimizer. The start
+script replays those checks and requires the exact owner acknowledgement before
+the first optimizer is created. It opens neither Human Gold nor Gold-test and is
+not a Core scientific run.

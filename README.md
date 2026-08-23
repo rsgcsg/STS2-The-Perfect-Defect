@@ -52,11 +52,10 @@ criteria at 512 steps: final mean listwise NLL `0.0850893874`, relative reductio
 `95.243%`, memorized Top-1 `1.0`, finite values, and zero Qwen gradients. This admits the
 optimizer/memorization plumbing only; it is not Gate 1 or model-quality evidence.
 
-The exact AgenticSTS trajectory release was also audited as the intended bootstrap source.
+The exact AgenticSTS trajectory release was also audited as a potential bootstrap source.
 It contains 198,600 decision events and 139,211 combat decisions, but no explicit complete
 legal-action catalogs, game seeds, or exact environment identities. Zero records are
-rank-eligible under the existing fail-closed contract, so no S1-1K-2K smoke configuration
-or owner command exists. Current-teacher collection is required.
+rank-eligible under the existing fail-closed contract, so it remains excluded from S1.
 
 A separate fail-closed Human Annotator importer accepts only exact native-UI
 records with a complete frozen BoundAction catalog, exact-unique process-local
@@ -66,11 +65,13 @@ Parquet, and B0 path. The reusable multi-worker lane adds exact collection
 profiles, immutable checksummed session bundles, a pseudonymous filesystem
 registry, strict multi-session admission, deterministic whole-run corpus
 snapshots, corpus B0/token profiling, and a frozen smoke handoff. Exact native
-human sessions exist locally; the current corpus is still below the campaign's
-1,500 accepted-row threshold and does not authorize training. The first exact 20-record
-offline corpus canary passes strict import and B0, but its real Standard token
-profile fails the frozen P95 gate (`4907 > 4096`); neither row count nor input
-profile is ready for smoke handoff.
+human sessions now form a 1,962-record cross-platform unified population. The
+versioned v2 combination globally reruns collision/deduplication, root-safe split,
+B0 and Standard profiling. Serializer v1 removes only redundant combat referent
+payload from Standard state text; it does not truncate or alter records. The
+result passes B0 and the unchanged Standard P95/hard gates. A formal owner-gated
+`S1-1K-2K-SMOKE` runner consumes only its immutable Parquet handoff; Human Gold
+and scientific Core remain unavailable.
 
 ## What v0 will build
 

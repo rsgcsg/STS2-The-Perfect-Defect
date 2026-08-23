@@ -35,7 +35,7 @@ from ..data import (
 from ..models import RankBatch, Scheme1Scorer
 from ..qwen.l2 import inspect_l2_cache, l2_snapshot_path, load_l2_pin
 from ..qwen.real_backend import CachingQwenBackend, RealQwenBackend
-from ..representation import InputProfile, ModelSerializerV0
+from ..representation import InputProfile, ModelSerializerV0, model_serializer
 from ..training import CheckpointIdentity, CheckpointManager, TrainerState, V0Trainer
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -289,10 +289,11 @@ def build_rank_batches(
     records: Sequence[Mapping[str, Any]],
     *,
     profile: InputProfile = InputProfile.STANDARD,
+    serializer_version: str = ModelSerializerV0.version,
 ) -> tuple[RankBatch, ...]:
     """Build candidate-aligned rank batches from exact canonical records."""
 
-    serializer = ModelSerializerV0(profile)
+    serializer = model_serializer(serializer_version, profile)
     batches: list[RankBatch] = []
     for record in records:
         state = research_state_from_record(_object(record.get("state"), "state"))

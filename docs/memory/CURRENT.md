@@ -2,10 +2,9 @@
 
 ## Phase
 
-Windows L2 full-weight engineering and the bounded tiny-overfit admission are complete.
-Scientific training has not started. The intended AgenticSTS 1k-2k ranking bootstrap is
-blocked by missing raw-source evidence, while the H1 integration smoke remains an
-environment regression lane.
+Windows L2 full-weight engineering, bounded tiny-overfit admission and unified Human
+corpus Gate 0 are complete. Scientific training has not started. The formal
+`S1-1K-2K-SMOKE` is prepared for a separate owner start; Human Gold and Core remain blocked.
 
 ## Current truths
 
@@ -43,34 +42,23 @@ environment regression lane.
   catalog, seed/root, and exact environment identity, so zero are rank eligible.
 - The exact operational environment baseline remains a separate Headless/Connector concern;
   Windows candidate evidence does not inherit macOS formal authority.
-- A strict Human Annotator importer and reusable multi-worker corpus lane are
-  implemented. The latest exact local owner session has 28 audit-valid
-  ordinary-combat records; an earlier same-artifact 20-record export passed
-  strict import and B0. Collection profiles, immutable bundles/registry/corpus,
-  whole-run/duplicate-component splits, B0, Standard profiling and smoke handoff
-  are automated, but the real corpus remains below the 1,500-record campaign target.
-- Two real macOS bundles (20 + 28 rows) pass verification, strict import,
-  immutable corpus rebuild and B0 as corpus `291afe89...`. Standard profiling
-  covers 414 legal state/action pairs but fails P95 at `4806 > 4096`; 48/1,500
-  rows are admitted and smoke handoff remains blocked by both gates.
-- The final merger consumes only immutable admitted profile snapshots and
-  globally reruns collision/dedup, whole-run splitting, B0 and Standard
-  profiling under a versioned cross-profile compatibility plan. No Windows
-  corpus snapshot is present on this Mac yet.
+- Four verified Human bundles contribute 1,962 unique decisions: macOS 775 and
+  Windows 1,187 across three exact collection profiles and 14 whole runs.
+- Unified plan `human-combat-unified-v2` consumes only immutable profile
+  snapshots and reports zero exact/semantic/cross-split duplicates, 11/1/2
+  train/dev/test runs and B0 pass for all 1,962 records.
+- Versioned serializer v1 removes only redundant Standard combat referent text;
+  it does not truncate or change raw evidence. Exact token profiling passes at
+  P95 2,883 and max 4,110 under the frozen 4,096/8,192 gates.
+- The owner-gated S1 runner consumes only the immutable unified Parquet and
+  revalidates source/data/Qwen/config/runtime identities before optimizer creation.
 
 ## Immediate priorities
 
-1. Audit/pack/register the current exact sessions, then collect at least 1,500
-   human combat decisions with exact game/Host/Player
-   Environment identity, complete authoritative catalogs, one-to-one chosen-action mapping,
-   stable successors, whole-run seed roots, and declared behavior-policy provenance.
-2. Rebuild the immutable corpus and inspect strict per-session admission,
-   cross-session dedup/splits, B0 and Standard token profiling after each batch.
-3. Resolve the real Standard P95 gate without truncation or an evidence-free
-   threshold change.
-4. Prepare `S1-1K-2K-SMOKE` only after the campaign target and all gates pass. Do not run it without a
-   separately authorized owner command.
-5. Keep environment, FakeQwen, and real-Qwen engineering smokes green.
+1. Stop at the generated owner handoff; only the owner starts `S1-1K-2K-SMOKE`.
+2. Retain raw recordings, source archives, rejected sessions and every immutable snapshot.
+3. Keep environment, FakeQwen and real-Qwen engineering smokes green.
+4. Do not claim scientific readiness until real Human Gold exists and Core is authorized.
 
 ## Do not do yet
 
@@ -79,7 +67,7 @@ environment regression lane.
 - derive or fabricate missing AgenticSTS catalogs, seeds, environment identities, or
   successors;
 - fine-tune Qwen before the frozen pretraining-value gate;
-- prepare or start the 1k-2k smoke or Core matrix before the data threshold is admitted;
+- start the 1k-2k smoke without the exact generated owner command, or start Core;
 - open Gold-test or execute B6 before architecture/input/hyperparameter freeze;
 - put reward/model/tensor semantics in Headless or Connector;
 - scale data/model complexity before B0 and scientific data readiness.

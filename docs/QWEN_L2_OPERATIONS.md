@@ -125,10 +125,11 @@ changed to 512 optimizer steps with checkpoints at 0 and 512. The exact attempt 
 `2945ec1edf3938f9f12eba91183c284f8cb124f783d6b83a4e6959e36803dcee`.
 
 The tiny-overfit admission is closed. Do not extend this engineering sequence or interpret
-its pass as pretrained advantage, policy quality, or scientific viability. The next
-scientific-data step is blocked because the pinned AgenticSTS release provides zero strictly
-rank-eligible rows; see the
-[AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md).
+its pass as pretrained advantage, policy quality, or scientific viability. The pinned
+AgenticSTS release remains excluded, but the strictly admitted unified Human corpus now
+supports the separate owner-gated `S1-1K-2K-SMOKE`. Its generated
+`.local/training-ready/START_TRAINING.ps1` is the only supported start path and must replay
+the exact source/data/Qwen/runtime/config identities before optimizer construction.
 
 See [Scientific Experiment Protocol](SCIENTIFIC_EXPERIMENT_PROTOCOL.md) for the exact
 revision history, frozen 10-configuration/three-seed matrix, controls, Gates 0-5, and
