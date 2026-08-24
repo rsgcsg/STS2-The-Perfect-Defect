@@ -52,8 +52,10 @@ Portable V2 bundles add CaptureProfile, RunJournal and content-addressed Read
 blobs. STPD accepts them only through `import_verified_human_bundle`; direct V2
 JSONL import fails closed. Verified `run_deck` and `combat_piles` Reads are
 projected into state and successor without changing corpus or training
-authorization. V2 has automated fixture coverage but no current native-human
-runtime claim.
+authorization. Exact native-human object `b92778bed35ab129...` verifies this
+path for 30 ordinary-Combat records from runtime `abb6b2d8...`; all 30 imported
+with both required Reads in state and successor. It is not part of the frozen
+V1 corpus and generated-card choice remains `not exercised`.
 
 ## Exact Collection Envelope
 

@@ -46,10 +46,13 @@ scientific Core remain blocked.
   Windows candidate evidence does not inherit macOS formal authority.
 - Four verified Human bundles contribute 1,962 unique decisions: macOS 775 and
   Windows 1,187 across three exact collection profiles and 14 whole runs.
-- Platform-verified V2 bundle import is source/test complete: required
-  `run_deck` and `combat_piles` evidence reaches the existing state/successor
-  projection, V1 verification retains an exact parity oracle, and direct
-  unverified V2 JSONL fails closed. Native-human V2 evidence is still pending.
+- Platform-verified V2 bundle import is source/test and exact native-human
+  verified. Immutable object `b92778bed35ab129...` contains 30 admitted
+  ordinary-Combat decisions from runtime `abb6b2d8...`; required `run_deck`
+  and `combat_piles` evidence reaches every state/successor projection, strict
+  import accepted 30/30, V1 verification retains its parity oracle, and direct
+  unverified V2 JSONL fails closed. This object is not in the frozen V1 corpus
+  and has no training authorization; generated-card choice is not exercised.
 - Unified plan `human-combat-unified-v2` consumes only immutable profile
   snapshots and reports zero exact/semantic/cross-split duplicates, 11/1/2
   train/dev/test runs and B0 pass for all 1,962 records.

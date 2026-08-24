@@ -99,9 +99,15 @@ descriptors across 10 accepted successor frames, but Human import projected
 all 1,962 state/successor pairs with `reads={}` and serializer v1 emitted no
 `READS=` training lines. Live S1 therefore explicitly prefetches the exact empty
 checkpoint Read subset while retaining advertised descriptors in Snapshot evidence.
-This remains the frozen V1 checkpoint contract. The new V2 import path has
-automated portable-bundle and selector fixtures, but no exact native-human V2
-session, transfer receipt, admitted V2 corpus or training authorization yet.
+This remains the frozen V1 checkpoint contract. The first exact native-human
+V2 session is now independently verified from immutable Platform Evidence
+object `b92778bed35ab129...`. It contributes 30 ordinary-Combat decisions (23
+card plays and 7 end turns) from runtime `abb6b2d8...`; all 30 state/successor
+pairs materialize `run_deck` and `combat_piles`, and strict STPD import accepted
+30/30 with no rejection. The local transfer receipt is `promoted` with no
+findings. This does not change the frozen 1,962-record V1 corpus or authorize
+V2 training. Generated-card choice remains `not exercised` in native-human V2
+evidence.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes

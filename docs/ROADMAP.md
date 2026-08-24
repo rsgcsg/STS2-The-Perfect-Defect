@@ -46,11 +46,13 @@ Serializer v1 resolves only redundant Standard combat rendering while retaining
 the evidence contract. The unified corpus passes B0 and unchanged token gates at
 P95 2,883 and max 4,110 without truncation or threshold relaxation.
 
-The next Human evidence contract is implemented at source/test level: STPD now
-consumes Platform-verified V2 bundles, materializes `run_deck` and
-`combat_piles` through the existing research projection, and keeps V1 behavior
-under parity tests. Exact native-human V2 capture, transfer and corpus admission
-remain pending runtime evidence and do not reopen the frozen V1 smoke corpus.
+The next Human evidence contract is implemented and exact native-human
+verified: STPD consumes Platform-verified V2 bundles, materializes `run_deck`
+and `combat_piles` through the existing research projection, and keeps V1
+behavior under parity tests. The first immutable V2 object imported 30/30
+ordinary-Combat records after a promoted local transfer. Generated-card choice
+remains `not exercised`; corpus admission and training authorization remain
+separate and the frozen V1 smoke corpus is unchanged.
 
 ## v0 Step 1 — Token and compute profiling
 

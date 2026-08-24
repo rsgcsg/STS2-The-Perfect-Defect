@@ -11,7 +11,7 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
   "numpy>=2.0,<3",
   "pyarrow>=18,<24",
-  "rsgcsg-sts2-platform-evidence @ git+https://github.com/rsgcsg/STS2-AI-PLATFORM.git@e0dc260c149c2c58ff5ce7d923db18ca7bb10a1b#subdirectory=components/evidence",
+  "rsgcsg-sts2-platform-evidence @ git+https://github.com/rsgcsg/STS2-AI-PLATFORM.git@a5f733d32b3657168c593552eaac4d850284d181#subdirectory=components/evidence",
 ]
 
 [project.optional-dependencies]
