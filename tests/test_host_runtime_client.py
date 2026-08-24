@@ -9,7 +9,7 @@ from stpd.host_runtime_client import activate_host_runtime_client
 from stpd.package_identity import PackageIdentityError, directory_sha256
 
 
-def _package_fixture(root: Path, *, version: str = "1.1.0-rc.3") -> dict[str, str]:
+def _package_fixture(root: Path, *, version: str = "1.1.0-rc.4") -> dict[str, str]:
     package = root / "consumers" / "python" / "sts2_headless"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
@@ -23,7 +23,7 @@ def _package_fixture(root: Path, *, version: str = "1.1.0-rc.3") -> dict[str, st
     )
     return {
         "package": "@rsgcsg/sts2-host-runtime",
-        "version": "1.1.0-rc.3",
+        "version": "1.1.0-rc.4",
         "source_revision": "a" * 40,
         "component_tree_revision": "b" * 40,
         "release_asset_sha256": "c" * 64,

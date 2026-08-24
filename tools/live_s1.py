@@ -14,7 +14,7 @@ import time
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -42,6 +42,14 @@ from stpd.live.s1 import DEFAULT_CONFIG  # noqa: E402
 CONNECTOR_SDK_ROOT = (
     ROOT / "node_modules" / "@rsgcsg" / "sts2-connector-client"
 )
+
+
+class WindowsConsole(Protocol):
+    """The two Windows console operations used by the interactive runner."""
+
+    def kbhit(self) -> bool: ...
+
+    def getwch(self) -> str: ...
 
 
 def sha256(path: Path) -> str:
@@ -450,7 +458,7 @@ class LiveApplication:
     def run(self) -> int:
         if os.name != "nt":
             raise LiveS1Error("interactive hotkey runner currently requires Windows")
-        import msvcrt
+        msvcrt = cast(WindowsConsole, __import__("msvcrt"))
 
         try:
             while self.running:
