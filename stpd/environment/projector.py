@@ -82,7 +82,7 @@ def _action_kind(verb: str, family: DecisionFamily, subject_role: str | None) ->
         return f"{verb}_selection"
     if family is DecisionFamily.CARD_CHOICE and verb == "skip":
         return "skip_choice"
-    if family is DecisionFamily.CARD_CHOICE and verb == "activate":
+    if family is DecisionFamily.CARD_CHOICE and verb in {"activate", "select"}:
         return "choose_card"
     raise ContractError(
         f"unsupported v0 action verb/family: {verb}/{family.value}/{subject_role or 'control'}"

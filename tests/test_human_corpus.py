@@ -19,6 +19,7 @@ from stpd.data.human_corpus import (
     CollectionProfile,
     CorpusCombinationPlan,
     HumanCorpusError,
+    _verify_session_bundle_v1_oracle,
     build_human_corpus,
     combine_human_corpora,
     freeze_smoke_handoff,
@@ -622,6 +623,30 @@ def test_checksum_tampering_and_profile_drift_fail_closed(tmp_path: Path) -> Non
     _write(drift_path, drifted)
     with pytest.raises(HumanCorpusError, match="embedded collection profile"):
         verify_session_bundle(bundle, CollectionProfile.load(drift_path))
+
+
+def test_platform_evidence_v1_verifier_matches_frozen_stpd_oracle(tmp_path: Path) -> None:
+    profile, campaign, collection, _ = _setup(tmp_path)
+    record = _record(
+        profile,
+        session_id="session-parity",
+        run_id="run-parity",
+        record_id="record-parity",
+        sequence=1,
+        state_marker="state-parity",
+    )
+    bundle = _make_bundle(
+        collection,
+        profile,
+        campaign,
+        worker_id="human-001",
+        session_id="session-parity",
+        records=[record],
+    )
+
+    production = verify_session_bundle(bundle, profile)
+    oracle = _verify_session_bundle_v1_oracle(bundle, profile)
+    assert production == oracle
 
 
 def test_duplicate_bundle_registration_is_idempotent_but_changed_entry_fails(

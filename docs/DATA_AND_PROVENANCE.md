@@ -96,14 +96,23 @@ Unknown rights or provenance means exclude the source from training.
 
 ## Native Human Recorder Source
 
-`stpd.data.human_annotator` consumes exported
-`sts2.human-annotator/decision-record-1` JSONL. Admission requires exact
+`stpd.data.human_annotator` consumes exported V1
+`sts2.human-annotator/decision-record-1` JSONL and verified portable V2
+`sts2.human-annotator/decision-record-2` bundles. Admission requires exact
 game/Connector/Annotator identities, the exact observer Modset canary, a
 complete interactive pre-catalog, one chosen action present exactly once, a
 native witness mapped by reference equality to the frozen Host binding, and a
 different stable successor in the same runtime/environment. It applies the one
 existing `ResearchProjectorV0`; it does not derive legality from names,
 coordinates, post-state, or action order.
+
+V2 is admitted only after the pinned Platform Evidence package verifies the
+bundle checksum inventory, CaptureProfile, RunJournal, content identity and
+state-bound Read blobs. Required `run_deck` and `combat_piles` payloads then
+enter the same research projector for both the decision state and successor.
+The public raw-JSONL importer remains V1-only, so a caller cannot supply an
+unverified blob root. Platform verification establishes evidence integrity;
+STPD still owns research eligibility and never gains action authority.
 
 Accepted human choices are full-listwise rank and transition eligible. Return
 eligibility remains false until a separate terminal/outcome linkage exists.
@@ -112,12 +121,16 @@ player-visible contract does not expose the game seed, the importer records an
 explicit `human-root:` key rather than inventing a seed. Raw recordings remain
 private local data and are never committed.
 
-Multi-worker collection uses immutable
+The currently frozen multi-worker corpus uses immutable V1
 `sts2.human-annotator/session-bundle-1` directories. Each bundle binds raw
 evidence, independent audit, deterministic export, exact collection profile,
 pseudonymous worker/campaign fields, explicit human-origin attestation and a
 complete checksum inventory. `stpd.data.human_corpus` verifies the whole bundle,
 then invokes this same strict importer for every session.
+
+V1 bundle verification now runs through Platform Evidence with the former STPD
+implementation retained as a parity oracle. This changes ownership, not the
+accepted V1 corpus semantics. No V2 Human runtime evidence is claimed yet.
 
 Corpus construction rejects duplicate session/bundle/export identities and
 global record/transition collisions. It groups complete runs and any

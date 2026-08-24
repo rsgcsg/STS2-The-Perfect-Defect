@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
 
+from sts2_platform_evidence import HumanSessionBundle, verify_human_session_bundle
+
 from ..canonical import canonical_json, semantic_hash
 from ..contracts import ContractError
 from ..representation import InputProfile, ModelSerializerV0, model_serializer
@@ -323,7 +325,7 @@ class LocalDirectorySessionStore:
         return resolved
 
 
-def verify_session_bundle(
+def _verify_session_bundle_v1_oracle(
     bundle_directory: str | Path, profile: CollectionProfile
 ) -> VerifiedSessionBundle:
     directory = Path(bundle_directory).resolve()
@@ -457,6 +459,41 @@ def verify_session_bundle(
         run_ids,
         int(audit.get("invalidations", 0)),
         invalidations_by_reason,
+    )
+
+
+def verify_session_bundle(
+    bundle_directory: str | Path, profile: CollectionProfile
+) -> VerifiedSessionBundle:
+    """Use Platform Evidence for production admission; retain the old code as a parity oracle."""
+
+    result = verify_human_session_bundle(
+        bundle_directory,
+        {"value": profile.value},
+    )
+    try:
+        bundle = result.require_value()
+    except ValueError as error:
+        details = "; ".join(finding.detail for finding in result.findings)
+        raise HumanCorpusError(details or str(error)) from error
+    if not isinstance(bundle, HumanSessionBundle):
+        raise HumanCorpusError(
+            "the V1 corpus registry admits only session-bundle-1; use the V2 importer first"
+        )
+    return VerifiedSessionBundle(
+        bundle.directory,
+        bundle.manifest,
+        bundle.session_id,
+        bundle.worker_id,
+        bundle.campaign_id,
+        bundle.profile_id,
+        bundle.bundle_content_id,
+        bundle.bundle_sha256,
+        bundle.export_sha256,
+        bundle.record_count,
+        bundle.run_ids,
+        bundle.invalidations,
+        bundle.invalidations_by_reason,
     )
 
 

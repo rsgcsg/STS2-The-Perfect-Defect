@@ -31,6 +31,8 @@ inherit the macOS operational freeze or formal H1.0 authority.
 - canonical Parquet/manifests/splits/dedup and fail-closed provenance handling;
 - fail-closed Human Annotator import through the existing research projection,
   whole-run split, canonical Parquet and B0 path;
+- Platform-verified V1/V2 Human bundle consumption, with V1 verifier parity and
+  V2 `run_deck`/`combat_piles` projection into both state and successor;
 - versioned exact Human Collection Profiles, immutable checksummed session
   bundles, pseudonymous multi-worker registry, strict multi-session corpus
   admission, whole-run/semantic-component splits, multi-source provenance,
@@ -97,6 +99,9 @@ descriptors across 10 accepted successor frames, but Human import projected
 all 1,962 state/successor pairs with `reads={}` and serializer v1 emitted no
 `READS=` training lines. Live S1 therefore explicitly prefetches the exact empty
 checkpoint Read subset while retaining advertised descriptors in Snapshot evidence.
+This remains the frozen V1 checkpoint contract. The new V2 import path has
+automated portable-bundle and selector fixtures, but no exact native-human V2
+session, transfer receipt, admitted V2 corpus or training authorization yet.
 
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes

@@ -745,6 +745,11 @@ wheels = [
 ]
 
 [[package]]
+name = "rsgcsg-sts2-platform-evidence"
+version = "0.1.0rc1"
+source = { git = "https://github.com/rsgcsg/STS2-AI-PLATFORM.git?subdirectory=components%2Fevidence&rev=15d1186b64515ef3e086d62054fe7246f480f911#15d1186b64515ef3e086d62054fe7246f480f911" }
+
+[[package]]
 name = "ruff"
 version = "0.16.4"
 source = { registry = "https://pypi.org/simple" }
@@ -833,6 +838,7 @@ source = { editable = "." }
 dependencies = [
     { name = "numpy" },
     { name = "pyarrow" },
+    { name = "rsgcsg-sts2-platform-evidence" },
 ]
 
 [package.optional-dependencies]
@@ -863,6 +869,7 @@ requires-dist = [
     { name = "huggingface-hub", marker = "extra == 'l1'", specifier = ">=0.34,<2" },
     { name = "numpy", specifier = ">=2.0,<3" },
     { name = "pyarrow", specifier = ">=18,<24" },
+    { name = "rsgcsg-sts2-platform-evidence", git = "https://github.com/rsgcsg/STS2-AI-PLATFORM.git?subdirectory=components%2Fevidence&rev=15d1186b64515ef3e086d62054fe7246f480f911" },
     { name = "safetensors", marker = "extra == 'l2'", specifier = ">=0.5,<1" },
     { name = "tokenizers", marker = "extra == 'l1'", specifier = ">=0.21,<1" },
     { name = "torch", marker = "sys_platform == 'win32' and extra == 'ml'", specifier = ">=2.7,<3", index = "https://download.pytorch.org/whl/cu128" },

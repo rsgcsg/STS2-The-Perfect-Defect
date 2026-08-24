@@ -226,7 +226,7 @@ def test_projector_rejects_noncombat_selection_even_when_surface_name_matches() 
         )
 
 
-def test_state_only_projection_does_not_admit_unsupported_next_actions() -> None:
+def test_generated_card_choice_select_projects_without_creating_legality() -> None:
     snapshot = _snapshot("s0")
     snapshot["interaction"]["kind"] = "card_choice"
     snapshot["referents"][0]["role"] = "card_choice"
@@ -252,14 +252,16 @@ def test_state_only_projection_does_not_admit_unsupported_next_actions() -> None
     )
 
     assert state.decision_family.value == "card_choice"
-    with pytest.raises(ContractError, match="unsupported v0 action"):
-        projector.project(
-            snapshot,
-            {},
-            game_version="v0.111.0",
-            game_commit="41cef1ea",
-            mutation_request_prefix="unsupported",
-        )
+    projected = projector.project(
+        snapshot,
+        {},
+        game_version="v0.111.0",
+        game_commit="41cef1ea",
+        mutation_request_prefix="generated-choice",
+    )
+    assert len(projected.actions) == len(projected.envelopes) == 1
+    assert projected.actions[0].kind == "choose_card"
+    assert projected.envelopes[0].bound_action_id == "bound-select-s0"
 
 
 def test_collector_emits_stable_transition_with_reads_and_exact_receipt() -> None:

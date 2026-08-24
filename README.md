@@ -73,6 +73,13 @@ result passes B0 and the unchanged Standard P95/hard gates. A formal owner-gated
 `S1-1K-2K-SMOKE` runner consumes only its immutable Parquet handoff; Human Gold
 and scientific Core remain unavailable.
 
+The importer also has a V2 path for portable, read-rich Human evidence. V2 is
+accepted only through the version-pinned Platform Evidence verifier; direct
+JSONL import cannot opt into external Read blobs. Verified `run_deck` and
+`combat_piles` evidence is projected through the same `ResearchProjectorV0`,
+while V1 bundles remain supported unchanged. This is source/test evidence for
+the new data path, not a claim that a V2 native-human session has been recorded.
+
 The owner-run S1 smoke subsequently completed all 1,659 optimizer steps and its
 behavior engineering criteria. Its exact final Scheme1 linear checkpoint now has
 a separate fail-closed experimental live lane: the official Connector SDK keeps

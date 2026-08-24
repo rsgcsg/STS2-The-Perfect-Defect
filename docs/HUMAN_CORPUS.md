@@ -42,6 +42,19 @@ Storage is replaceable. A local directory, NAS, Drive sync or S3-compatible
 object store may carry immutable bundle directories, but storage never defines
 corpus semantics. The current adapter accepts bundle-relative filesystem paths.
 
+## Evidence Versions
+
+The existing 1,962-record training corpus remains a V1 corpus and is unchanged.
+V1 bundle integrity is verified by the pinned Platform Evidence package, with
+the previous STPD verifier retained under test as a parity oracle.
+
+Portable V2 bundles add CaptureProfile, RunJournal and content-addressed Read
+blobs. STPD accepts them only through `import_verified_human_bundle`; direct V2
+JSONL import fails closed. Verified `run_deck` and `combat_piles` Reads are
+projected into state and successor without changing corpus or training
+authorization. V2 has automated fixture coverage but no current native-human
+runtime claim.
+
 ## Exact Collection Envelope
 
 `collection-profiles/human-mac-combat-v1.json` pins exact game, Connector,

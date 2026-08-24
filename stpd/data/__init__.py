@@ -7,6 +7,7 @@ from .human_annotator import (
     ImportedHumanRecord,
     RejectedHumanRecord,
     import_human_recording,
+    import_verified_human_bundle,
 )
 from .human_corpus import (
     CollectionCampaign,
@@ -52,6 +53,7 @@ __all__ = [
     "build_human_corpus",
     "freeze_smoke_handoff",
     "import_human_recording",
+    "import_verified_human_bundle",
     "inspect_corpus_snapshot",
     "read_raw_jsonl",
     "read_transition_parquet",

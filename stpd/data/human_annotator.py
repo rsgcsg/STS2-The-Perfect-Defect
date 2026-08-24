@@ -17,12 +17,15 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, cast
 
+from sts2_platform_evidence import HumanSessionBundleV2, verify_human_session_bundle
+
 from ..canonical import semantic_hash
 from ..contracts import ContractError, EnvironmentIdentity, TransitionEligibility
 from ..environment.projector import ResearchProjectorV0
 from ..representation import InputProfile, PolicyProvenance, ResearchState, ResearchTransition
 
 _RECORD_SCHEMA = "sts2.human-annotator/decision-record-1"
+_RECORD_SCHEMA_V2 = "sts2.human-annotator/decision-record-2"
 _EXACT_MAPPING_BASIS = "reference_equality_to_frozen_host_binding"
 _EXACT_MODSET_STATUS = "canary_exact_observer_modset"
 
@@ -56,6 +59,7 @@ class ImportedHumanRecord:
     record_id: str
     source_sha256: str
     annotator_version: str
+    evidence_schema_version: int
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -65,6 +69,7 @@ class ImportedHumanRecord:
                 "source_sha256": self.source_sha256,
                 "annotator_version": self.annotator_version,
                 "behavior_policy_source": "human_native_ui",
+                "evidence_schema_version": self.evidence_schema_version,
             },
         }
 
@@ -97,9 +102,22 @@ class _Reject(ValueError):
 
 
 def import_human_recording(
-    path: str | Path, *, provenance_uri: str | None = None
+    path: str | Path,
+    *,
+    provenance_uri: str | None = None,
 ) -> HumanImportReport:
-    """Import an Annotator export without correcting or defaulting evidence."""
+    """Import a V1 Annotator export without correcting or defaulting evidence."""
+
+    return _import_human_recording(path, provenance_uri=provenance_uri, read_blob_root=None)
+
+
+def _import_human_recording(
+    path: str | Path,
+    *,
+    provenance_uri: str | None,
+    read_blob_root: Path | None,
+) -> HumanImportReport:
+    """Import evidence after the caller has established its trust boundary."""
 
     source = Path(path)
     source_bytes = source.read_bytes()
@@ -152,6 +170,7 @@ def import_human_recording(
                 record_ref=record_ref,
                 source_sha=source_sha,
                 step_index=step_by_root[root],
+                read_blob_root=read_blob_root,
             )
             accepted.append(imported)
             seen_record_ids.add(record_id)
@@ -168,15 +187,43 @@ def import_human_recording(
     return HumanImportReport(str(source), source_sha, tuple(accepted), tuple(rejected))
 
 
+def import_verified_human_bundle(bundle_directory: str | Path) -> HumanImportReport:
+    """Verify a portable V1/V2 bundle before applying STPD research semantics."""
+
+    verification = verify_human_session_bundle(bundle_directory)
+    bundle = verification.require_value()
+    export = bundle.directory / "export" / "decisions.jsonl"
+    read_blob_root = (
+        bundle.directory / "raw" if isinstance(bundle, HumanSessionBundleV2) else None
+    )
+    return _import_human_recording(
+        export,
+        provenance_uri=f"bundle://{bundle.bundle_content_id}/export/decisions.jsonl",
+        read_blob_root=read_blob_root,
+    )
+
+
 def _normalize(
     record: Mapping[str, Any],
     *,
     record_ref: str,
     source_sha: str,
     step_index: int,
+    read_blob_root: Path | None,
 ) -> ImportedHumanRecord:
-    if record.get("schema_version") != 1 or record.get("schema") != _RECORD_SCHEMA:
+    schema_version = record.get("schema_version")
+    schema = record.get("schema")
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or (schema_version, schema) not in {(1, _RECORD_SCHEMA), (2, _RECORD_SCHEMA_V2)}
+    ):
         raise _Reject(HumanRecordRejection.INVALID_SCHEMA, "unsupported recorder schema")
+    if schema_version == 2 and read_blob_root is None:
+        raise _Reject(
+            HumanRecordRejection.INVALID_SCHEMA,
+            "V2 Read evidence must be imported from a verified portable bundle",
+        )
     eligibility = _mapping(record, "eligibility")
     if eligibility.get("status") != "admitted":
         raise _Reject(HumanRecordRejection.INVALID_SCHEMA, "record is not admitted")
@@ -288,9 +335,10 @@ def _normalize(
     game_version = _text(game, "version")
     game_commit = _text(game, "commit")
     record_id = _text(record, "record_id")
+    pre_reads = _materialize_reads(pre, read_blob_root) if schema_version == 2 else {}
     projected = projector.project(
         snapshot,
-        {},
+        pre_reads,
         game_version=game_version,
         game_commit=game_commit,
         mutation_request_prefix=f"human-evidence-{record_id}",
@@ -312,9 +360,14 @@ def _normalize(
     successor_state: ResearchState | None = None
     scope_exit = True
     if _is_combat(successor_interaction):
+        successor_reads = (
+            _materialize_reads(successor_evidence, read_blob_root)
+            if schema_version == 2
+            else {}
+        )
         successor_state = projector.project_state(
             successor_snapshot,
-            {},
+            successor_reads,
             game_version=game_version,
             game_commit=game_commit,
         )
@@ -386,7 +439,46 @@ def _normalize(
         record_id,
         source_sha,
         _text(annotator, "version"),
+        int(schema_version),
     )
+
+
+def _materialize_reads(
+    frame: Mapping[str, Any],
+    read_blob_root: Path | None,
+) -> Mapping[str, Mapping[str, Any]]:
+    if read_blob_root is None:
+        raise _Reject(HumanRecordRejection.INVALID_SCHEMA, "V2 Read blob root is missing")
+    values = frame.get("reads")
+    if not isinstance(values, Sequence) or isinstance(values, (str, bytes, bytearray)):
+        raise _Reject(HumanRecordRejection.INVALID_SCHEMA, "V2 frame Reads must be an array")
+    result: dict[str, Mapping[str, Any]] = {}
+    root = read_blob_root.resolve()
+    for raw in values:
+        if not isinstance(raw, Mapping):
+            raise _Reject(HumanRecordRejection.INVALID_SCHEMA, "V2 Read evidence is not an object")
+        if raw.get("status") != "materialized":
+            continue
+        kind = _text(raw, "kind")
+        if kind in result:
+            raise _Reject(HumanRecordRejection.INVALID_SCHEMA, f"duplicate V2 Read kind: {kind}")
+        relative = Path(_text(raw, "payload_ref"))
+        if relative.is_absolute() or ".." in relative.parts:
+            raise _Reject(HumanRecordRejection.INVALID_SCHEMA, "V2 Read blob path is unsafe")
+        path = (root / relative).resolve()
+        if not path.is_relative_to(root):
+            raise _Reject(HumanRecordRejection.INVALID_SCHEMA, "V2 Read blob escaped bundle root")
+        payload = path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != _sha256(raw, "payload_sha256"):
+            raise _Reject(HumanRecordRejection.INVALID_SCHEMA, f"V2 Read blob changed: {kind}")
+        value = json.loads(payload)
+        if not isinstance(value, Mapping):
+            raise _Reject(
+                HumanRecordRejection.INVALID_SCHEMA,
+                f"V2 Read payload is not an object: {kind}",
+            )
+        result[kind] = {"content": cast(Mapping[str, Any], value)}
+    return result
 
 
 def _validate_authoritative_snapshot(snapshot: Mapping[str, Any]) -> None:

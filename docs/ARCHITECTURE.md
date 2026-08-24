@@ -22,6 +22,8 @@ Host: shipped Reference or qualified Platform Host Runtime
       |
 Platform Connector / Player Environment
       |
+Platform Evidence verifier
+      |
 STPD environment port
       |
 ResearchState / ResearchAction / ResearchTransition
@@ -43,6 +45,7 @@ contract; candidate and loaded-runtime identities remain separate.
 |---|---|---|
 | STS2/Host | game transition, RNG, effects, stable successor, runtime identity | research labels or model policy |
 | Platform Connector | fair-player Snapshot/Read, finite BoundAction, Receipt, stale/idempotency | reward, tensor, Qwen/model APIs |
+| Platform Evidence | typed bundle validity, checksums, content identity and transfer receipts | research admission, splits, labels or training authority |
 | STPD environment | transport adaptation and coherence checks | legality, native operands, business completion |
 | STPD data | projection, eligibility, provenance, splits, manifests | hidden facts or anonymous mixed-source data |
 | representation | deterministic ModelState/Action and Qwen input | environment mutation |
@@ -79,7 +82,9 @@ Within `stpd/data`, `human_annotator.py` is the only strict native-human record
 normalizer. `human_corpus.py` composes it across immutable session bundles and
 owns registry validation, global collisions, whole-run/duplicate-component
 splits, corpus identity, B0/profile reports and smoke handoff. It does not copy
-or weaken Recorder mapping rules.
+or weaken Recorder mapping rules. The Platform verifier establishes portable
+V1/V2 bundle integrity before STPD normalization; it does not decide whether a
+record is research eligible.
 
 ## Core abstractions
 
