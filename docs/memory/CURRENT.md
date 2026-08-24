@@ -41,7 +41,8 @@ scientific Core remain blocked.
   `20f5170c420584935ec20e004498b4d4a3621f8b` was audited sample-first and then across all
   305 trajectory logs. Of 139,211 combat decisions, zero contain a complete legal-action
   catalog, seed/root, and exact environment identity, so zero are rank eligible.
-- The exact operational environment baseline remains a separate Headless/Connector concern;
+- Platform Host Runtime `1.1.0-rc.2` and Connector SDK `1.1.0-rc.1` are immutable public
+  package inputs. Managed candidate and loaded runtime identities stay separate;
   Windows candidate evidence does not inherit macOS formal authority.
 - Four verified Human bundles contribute 1,962 unique decisions: macOS 775 and
   Windows 1,187 across three exact collection profiles and 14 whole runs.

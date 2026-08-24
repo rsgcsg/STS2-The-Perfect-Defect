@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Strict NDJSON bridge to the exact sibling Connector TypeScript SDK. */
+/** Strict NDJSON bridge to the versioned Connector TypeScript SDK package. */
 
 import readline from "node:readline";
 import process from "node:process";

@@ -15,10 +15,11 @@ v0 claim.
 | Layer | Current identity |
 |---|---|
 | Game | macOS arm64 STS2 `v0.111.0/41cef1ea`, assembly `9cb4f1a.../57785517...` |
-| Headless | release `v1.0.1`, source `4961b52...` operational baseline; later Windows/source closeout is separately versioned |
+| Host Runtime code | Platform package `1.1.0-rc.2`, source `797b77f...`, tree `9fed201...`, package `e2dac54...` |
+| Managed candidate | predecessor operational artifact `8dc622b0.../7228541c...`; platform-specific candidates remain independently audited |
 | Managed Host | upstream `d11aa883...`, macOS patch `8ced088b...`, artifact `8dc622b0.../7228541c...` |
 | Connector Reference | `v1.1.0-rc.1/e065102...`, artifact `c1877f1a.../64765ea1...` |
-| Player Environment | protocol/SDK `1.0.0/1.0.0`, policy `player_visible_v1` |
+| Player Environment | protocol `1.0.0`; Platform SDK package `1.1.0-rc.1`, policy `player_visible_v1` |
 
 Windows x64 has separate candidate evidence for game `v0.111.0/41cef1ea`; it does not
 inherit the macOS operational freeze or formal H1.0 authority.
@@ -80,7 +81,9 @@ behavior engineering smoke criteria and makes no policy-quality or Core claim.
 
 The experimental live v1 lane loads that checkpoint with the exact frozen Qwen,
 serializer v1, Standard input and Scheme1 linear head. It uses Connector SDK
-`2a14504...` as sole action authority and admits only whole complete Defect A0
+package `1.1.0-rc.1` from the immutable Platform release as strict transport
+decoder; the exact loaded Connector remains the sole action authority. The lane
+admits only whole complete Defect A0
 ordinary-Combat catalogs containing `play`/`end_turn`, under the exact
 Connector-only Modset `44f2fdce...`. Unsupported catalogs and
 unknown delivery fail closed; local Receipts/successors/handoffs are append-only

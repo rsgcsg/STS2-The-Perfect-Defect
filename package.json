@@ -1,0 +1,18 @@
+{
+  "name": "sts2-the-perfect-defect-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node transport dependencies for STPD environment integration",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check:connector-sdk": "node --test tests/connector_sdk_bridge_contract.test.mjs"
+  },
+  "dependencies": {
+    "@rsgcsg/sts2-connector-client": "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/consumer-sdk/v1.1.0-rc.1/rsgcsg-sts2-connector-client-1.1.0-rc.1.tgz",
+    "@rsgcsg/sts2-host-runtime": "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/host-runtime/v1.1.0-rc.2/rsgcsg-sts2-host-runtime-1.1.0-rc.2.tgz"
+  }
+}

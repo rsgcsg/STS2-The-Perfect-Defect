@@ -34,11 +34,14 @@ from stpd.live import (  # noqa: E402
     load_resident_s1,
     refresh_observation_bundle,
     validate_capabilities,
+    validate_connector_sdk,
     validate_model_read_policy,
 )
 from stpd.live.s1 import DEFAULT_CONFIG  # noqa: E402
 
-CONNECTOR_ROOT = ROOT.parent / "STS2-Connector"
+CONNECTOR_SDK_ROOT = (
+    ROOT / "node_modules" / "@rsgcsg" / "sts2-connector-client"
+)
 
 
 def sha256(path: Path) -> str:
@@ -74,7 +77,7 @@ class LiveApplication:
         self,
         *,
         config_path: Path,
-        connector_root: Path,
+        connector_sdk_root: Path,
         evidence_parent: Path,
     ) -> None:
         print("Loading exact frozen Qwen and S1 checkpoint (one resident instance)...", flush=True)
@@ -83,12 +86,10 @@ class LiveApplication:
             self.config.get("model_read_policy")
         )
         self.source_revision = git_identity(ROOT, require_clean=True)
-        connector_revision = git_identity(connector_root, require_clean=True)
-        if connector_revision != self.config["connector_sdk_revision"]:
-            raise LiveS1Error("sibling Connector SDK revision differs from live config")
-        sdk = connector_root / "sdk" / "typescript" / "dist" / "index.js"
-        if not sdk.is_file():
-            raise LiveS1Error("Connector TypeScript SDK is not built")
+        sdk_identity = validate_connector_sdk(
+            connector_sdk_root, self.config.get("connector_sdk")
+        )
+        sdk = Path(sdk_identity["entrypoint"])
         self.bridge = ConnectorSdkBridge(
             node=node_executable(),
             bridge_script=ROOT / "tools" / "connector_sdk_bridge.mjs",
@@ -119,8 +120,7 @@ class LiveApplication:
             "serializer_version": self.model.identity.serializer_version,
             "input_profile": self.model.identity.input_profile,
             "model_read_policy": self.model_read_policy,
-            "connector_sdk_revision": connector_revision,
-            "connector_sdk_sha256": sha256(sdk),
+            "connector_sdk": sdk_identity,
             "capabilities": capabilities,
             "config_path": str(config_path.resolve()),
             "config_sha256": sha256(config_path.resolve()),
@@ -489,7 +489,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("model-check", "run"))
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument("--connector-root", type=Path, default=CONNECTOR_ROOT)
+    parser.add_argument("--connector-sdk-root", type=Path, default=CONNECTOR_SDK_ROOT)
     parser.add_argument("--evidence-parent", type=Path, default=ROOT / ".local" / "live-s1")
     arguments = parser.parse_args()
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
@@ -513,7 +513,7 @@ def main() -> int:
         return 0
     return LiveApplication(
         config_path=arguments.config,
-        connector_root=arguments.connector_root,
+        connector_sdk_root=arguments.connector_sdk_root,
         evidence_parent=arguments.evidence_parent,
     ).run()
 

@@ -13,16 +13,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
       - name: Install Python and locked environment
         run: uv sync --locked --all-extras
+      - name: Install versioned Player Environment SDK
+        run: npm ci
+      - name: Verify public Platform packages
+        run: uv run python tools/doctor.py
       - name: Static checks
         run: |
           uv run ruff check .
           uv run mypy stpd
       - name: Unit tests
-        run: uv run pytest -q
+        run: |
+          npm run check:connector-sdk
+          uv run pytest -q
       - name: Compile check
         run: uv run python -m compileall -q stpd tests

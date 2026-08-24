@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .game_seed import derive_game_seed
-from .headless_client import activate_headless_client
+from .host_runtime_client import DEFAULT_HOST_RUNTIME, activate_host_runtime_client
 from .linear_q import LinearQ
 from .training_smoke import (
     driver_command,
@@ -53,7 +53,7 @@ def main() -> None:
             "Train independent frozen policies and require improvement for every learner seed."
         )
     )
-    parser.add_argument("--headless", required=True)
+    parser.add_argument("--host-runtime", type=Path, default=DEFAULT_HOST_RUNTIME)
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--learner-seed", action="append", type=int, dest="learner_seeds")
     parser.add_argument("--train-episodes", type=int, default=30)
@@ -66,7 +66,7 @@ def main() -> None:
         raise SystemExit("episode and action counts must be positive")
 
     root = Path(__file__).resolve().parents[1]
-    headless = Path(args.headless).resolve()
+    host_runtime = args.host_runtime.resolve()
     candidate = Path(args.candidate).resolve()
     learner_seeds = tuple(args.learner_seeds or (731_2026, 731_2027, 731_2028))
     if len(set(learner_seeds)) != len(learner_seeds):
@@ -79,12 +79,12 @@ def main() -> None:
         output = root / output
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    activate_headless_client(headless)
+    activate_host_runtime_client(host_runtime)
     from sts2_headless import ManagedPlayerEnvironment
 
     trials: list[dict[str, Any]] = []
     wall_started = time.perf_counter()
-    with ManagedPlayerEnvironment(driver_command(headless, candidate)) as environment:
+    with ManagedPlayerEnvironment(driver_command(host_runtime, candidate)) as environment:
         ready = environment.ready
         for trial_index, learner_seed in enumerate(learner_seeds):
             model = LinearQ()

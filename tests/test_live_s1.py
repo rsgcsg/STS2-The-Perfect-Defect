@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 import torch
 
@@ -13,11 +16,68 @@ from stpd.live import (
     apply_delivery_safety,
     canonicalize_prefetched_reads,
     checkpoint_model_reads,
+    directory_sha256,
     refresh_observation_bundle,
     validate_capabilities,
+    validate_connector_sdk,
 )
 from stpd.representation import InputProfile, ModelSerializerV1
 from stpd.training import CheckpointIdentity, CheckpointManager, TrainerState
+
+
+def _sdk_identity(root: Path) -> dict[str, str]:
+    return {
+        "package": "@rsgcsg/sts2-connector-client",
+        "version": "1.1.0-rc.1",
+        "source_revision": "a" * 40,
+        "component_tree_revision": "b" * 40,
+        "release_asset_sha256": "c" * 64,
+        "package_content_sha256": directory_sha256(root),
+    }
+
+
+def test_connector_sdk_identity_binds_version_and_all_installed_content(tmp_path) -> None:
+    sdk = tmp_path / "sdk"
+    (sdk / "dist").mkdir(parents=True)
+    (sdk / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "@rsgcsg/sts2-connector-client",
+                "version": "1.1.0-rc.1",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (sdk / "dist" / "index.js").write_text("export const protocol = '1.0.0';\n")
+    expected = _sdk_identity(sdk)
+
+    actual = validate_connector_sdk(sdk, expected)
+    assert actual["package_content_sha256"] == expected["package_content_sha256"]
+    assert actual["entrypoint_sha256"]
+
+    (sdk / "dist" / "client.js").write_text("export const changed = true;\n")
+    with pytest.raises(LiveS1Error, match="content differs"):
+        validate_connector_sdk(sdk, expected)
+
+
+def test_connector_sdk_identity_rejects_package_version_drift(tmp_path) -> None:
+    sdk = tmp_path / "sdk"
+    (sdk / "dist").mkdir(parents=True)
+    (sdk / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "@rsgcsg/sts2-connector-client",
+                "version": "9.9.9",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (sdk / "dist" / "index.js").write_text("export {};\n")
+    expected = _sdk_identity(sdk)
+    expected["version"] = "1.1.0-rc.1"
+
+    with pytest.raises(LiveS1Error, match="version differs"):
+        validate_connector_sdk(sdk, expected)
 
 
 def _snapshot() -> dict:

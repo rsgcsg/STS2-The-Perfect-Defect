@@ -1,7 +1,7 @@
 # Experimental Live S1 Operations
 
 This lane connects one exact trained behavior S1 checkpoint to the shipped UI
-through the official sibling Connector TypeScript SDK. It is an experimental
+through the official versioned Connector TypeScript SDK package. It is an experimental
 live smoke, not scientific Core, B6, Human Gold, or a model-quality result.
 
 ## Frozen input
@@ -12,7 +12,7 @@ profile, frozen Qwen identity, exact Connector artifact, exact game release and
 Connector-only Modset. The runner refuses any drift. Qwen and the linear head load once
 and remain resident for the process.
 
-The runner imports the exact built sibling Connector SDK through a small NDJSON
+The runner imports the exact `package-lock.json`-pinned Connector SDK through a small NDJSON
 transport bridge. The SDK performs strict protocol decoding and owns controller
 registration, lease acquisition/renewal/release, Reads and action submission.
 STPD never reconstructs legality or native input.
@@ -73,25 +73,25 @@ files contain process-local runtime identities and remain gitignored.
 
 ## Checks and launch
 
-Build the exact SDK and run the targeted tests before starting the game:
+Install the immutable SDK release and run the targeted tests before starting the game:
 
 ```powershell
-npm --prefix ..\STS2-Connector\sdk\typescript run build
-node --test tests\connector_sdk_bridge_contract.test.mjs
+npm ci
+npm run check:connector-sdk
 uv run pytest -q tests\test_live_s1.py tests\test_environment_collector.py
 uv run python tools\live_s1.py model-check
 ```
 
 The two-observer Human Annotator Modset intentionally has no mutation authority.
-With STS2 closed, use the sibling Annotator workstation tool to back up native
+With STS2 closed, use the Platform Annotator workstation tool to back up native
 settings, keep its artifact installed-but-disabled, enable only Connector, and
 cold-launch with exact Connector/game canaries:
 
 ```powershell
-npm --prefix ..\STS2-human-Annotator run prepare:live-connector
-npm --prefix ..\STS2-human-Annotator run launch:live-connector
+npm --prefix ..\STS2-AI-PLATFORM\components\annotator run prepare:live-connector
+npm --prefix ..\STS2-AI-PLATFORM\components\annotator run launch:live-connector
 uv run python tools\live_s1.py run
 ```
 
-The source and sibling Connector worktrees must be clean. Closing the runner does
-not close STS2.
+The STPD source must be clean, and the installed SDK package content must match
+the pinned digest. Closing the runner does not close STS2.

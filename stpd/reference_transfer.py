@@ -12,17 +12,17 @@ from pathlib import Path
 from typing import Any
 
 from .game_seed import require_canonical_game_seed
-from .headless_client import activate_headless_client
+from .host_runtime_client import DEFAULT_HOST_RUNTIME, activate_host_runtime_client
 from .linear_q import LinearQ
 from .training_smoke import driver_command, run_episode, source_identity, summarize
 
 
 def _reference_driver_command(
-    headless: Path,
+    host_runtime: Path,
     game_dir: Path | None,
     experimental_connector: bool,
 ) -> list[str]:
-    command = ["node", str(headless / "tools" / "reference-pe-driver.mjs")]
+    command = ["node", str(host_runtime / "tools" / "reference-pe-driver.mjs")]
     if game_dir is not None:
         command.extend(["--game-dir", str(game_dir)])
     if experimental_connector:
@@ -110,7 +110,7 @@ def main() -> None:
             "Run one Candidate-trained frozen policy on Managed Exact and shipped Reference."
         )
     )
-    parser.add_argument("--headless", required=True)
+    parser.add_argument("--host-runtime", type=Path, default=DEFAULT_HOST_RUNTIME)
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--seed", action="append", dest="seeds")
@@ -121,7 +121,7 @@ def main() -> None:
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
-    headless = Path(args.headless).resolve()
+    host_runtime = args.host_runtime.resolve()
     candidate_path = Path(args.candidate).resolve()
     model_path = Path(args.model).resolve()
     model_bytes = model_path.read_bytes()
@@ -134,7 +134,7 @@ def main() -> None:
     if not seeds or len(set(seeds)) != len(seeds):
         raise SystemExit("transfer seeds must be non-empty and unique")
 
-    activate_headless_client(headless)
+    activate_host_runtime_client(host_runtime)
     from sts2_headless import ManagedPlayerEnvironment
 
     started = time.perf_counter()
@@ -145,12 +145,12 @@ def main() -> None:
     failure: dict[str, Any] | None = None
     stage = "managed"
     try:
-        with ManagedPlayerEnvironment(driver_command(headless, candidate_path)) as environment:
+        with ManagedPlayerEnvironment(driver_command(host_runtime, candidate_path)) as environment:
             candidate_ready = environment.ready
             candidate_episodes = _evaluate(environment, seeds, model, args.max_actions)
         stage = "reference"
         reference_command = _reference_driver_command(
-            headless,
+            host_runtime,
             Path(args.game_dir).resolve() if args.game_dir else None,
             args.experimental_connector,
         )

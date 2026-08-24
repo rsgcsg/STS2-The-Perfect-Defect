@@ -22,11 +22,12 @@ contains a newer exact source.
 ## Authority boundaries
 
 - STS2 and the selected Host own game rules, RNG, effects, Commit, and successor truth.
-- STS2-Connector owns the Host-neutral Player Environment contract.
+- STS2-AI-PLATFORM owns the Host Runtime and the Connector's Host-neutral
+  Player Environment contract and versioned consumer SDK.
 - STPD owns research projection, serialization, datasets, labels, rewards, models,
   training, evaluation, and experiment bookkeeping.
 - Never reconstruct legality, hidden state, or native operands in STPD.
-- Never add Qwen-, reward-, tensor-, or policy-specific fields to Connector/Headless.
+- Never add Qwen-, reward-, tensor-, or policy-specific fields to Platform contracts.
 - A model may only choose from the current complete finite action catalog.
 
 ## Current code classification

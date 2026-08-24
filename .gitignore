@@ -17,6 +17,7 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
+node_modules/
 
 # Local datasets and generated features
 /data/raw/

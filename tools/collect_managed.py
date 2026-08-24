@@ -19,7 +19,10 @@ if str(ROOT) not in sys.path:
 from stpd.canonical import canonical_json, semantic_hash  # noqa: E402
 from stpd.data import DataSource, build_canonical_dataset  # noqa: E402
 from stpd.environment import collect_managed_runtime  # noqa: E402
-from stpd.headless_client import activate_headless_client  # noqa: E402
+from stpd.host_runtime_client import (  # noqa: E402
+    DEFAULT_HOST_RUNTIME,
+    activate_host_runtime_client,
+)
 from stpd.qwen.l1 import cache_snapshot_path, inspect_cache, load_pin, profile_records  # noqa: E402
 from stpd.training_smoke import driver_command  # noqa: E402
 
@@ -38,7 +41,7 @@ def _write_jsonl(path: Path, values: tuple[Any, ...]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--headless", required=True, type=Path)
+    parser.add_argument("--host-runtime", type=Path, default=DEFAULT_HOST_RUNTIME)
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--seed", default="STPDV0COLLECT01")
@@ -61,12 +64,12 @@ def main() -> int:
     output = args.output.resolve()
     if output.exists():
         raise RuntimeError(f"refusing to overwrite collection output: {output}")
-    headless = args.headless.resolve()
+    host_runtime = args.host_runtime.resolve()
     candidate = args.candidate.resolve()
-    activate_headless_client(headless)
+    activate_host_runtime_client(host_runtime)
     from sts2_headless import ManagedPlayerEnvironment
 
-    with ManagedPlayerEnvironment(driver_command(headless, candidate)) as environment:
+    with ManagedPlayerEnvironment(driver_command(host_runtime, candidate)) as environment:
         collection = collect_managed_runtime(
             environment,
             seed=args.seed,

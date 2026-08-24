@@ -4,18 +4,19 @@
 
 The doctor is offline unless a caller separately runs the explicit Qwen L1 fetch. It rejects
 a dirty source tree, wrong Python, malformed schemas, tracked weight files, a mismatched L1
-cache, or a failed exact Headless candidate audit:
+cache, a mismatched public Host Runtime package, or a failed exact candidate audit:
 
 ```bash
 uv sync --frozen --all-extras
 uv run python tools/doctor.py \
   --require-qwen-cache \
   --qwen-cache "$HOME/.cache/stpd/qwen-l1" \
-  --headless ../STS2-headless \
-  --candidate ../STS2-headless/.local/candidates/<exact-candidate> \
+  --candidate /absolute/path/to/<exact-candidate> \
   --output .local/evidence/preqwen-doctor/report.json
 ```
 
+`npm ci` installs the Host Runtime version pinned by
+`configs/v0/platform-host-runtime-v1.json`; no sibling source checkout is consulted.
 The report proves local identity/file readiness only. Candidate audit is not gameplay
 qualification, and L1 contains no weights.
 

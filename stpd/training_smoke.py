@@ -13,7 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from .game_seed import derive_game_seed
-from .headless_client import activate_headless_client
+from .host_runtime_client import DEFAULT_HOST_RUNTIME, activate_host_runtime_client
 from .linear_q import LinearQ, combat_reward
 
 
@@ -80,10 +80,10 @@ def source_identity(root: Path) -> dict[str, Any]:
     return {"revision": revision, "worktree": "clean" if not status else "dirty"}
 
 
-def driver_command(headless: Path, candidate: Path) -> list[str]:
+def driver_command(host_runtime: Path, candidate: Path) -> list[str]:
     return [
         "node",
-        str(headless / "tools" / "managed-pe-driver.mjs"),
+        str(host_runtime / "tools" / "managed-pe-driver.mjs"),
         "--candidate",
         str(candidate),
     ]
@@ -473,7 +473,7 @@ def learning_verdict(baseline: Mapping[str, Any], trained: Mapping[str, Any]) ->
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Independent real learner integration smoke.")
-    parser.add_argument("--headless", required=True)
+    parser.add_argument("--host-runtime", type=Path, default=DEFAULT_HOST_RUNTIME)
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--train-episodes", type=int, default=30)
     parser.add_argument("--eval-episodes", type=int, default=8)
@@ -485,16 +485,16 @@ def main() -> None:
     parser.add_argument("--output", default=".local/evidence/training-smoke/report.json")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    headless = Path(args.headless).resolve()
+    host_runtime = args.host_runtime.resolve()
     candidate = Path(args.candidate).resolve()
-    activate_headless_client(headless)
+    activate_host_runtime_client(host_runtime)
     from sts2_headless import ManagedPlayerEnvironment
 
     model = LinearQ()
     rng = random.Random(args.learner_seed)
     wall_started = time.perf_counter()
     cpu_started = time.process_time()
-    with ManagedPlayerEnvironment(driver_command(headless, candidate)) as environment:
+    with ManagedPlayerEnvironment(driver_command(host_runtime, candidate)) as environment:
         provenance = environment.ready
         training_seeds = [
             derive_game_seed(args.training_seed_prefix, index + 1)

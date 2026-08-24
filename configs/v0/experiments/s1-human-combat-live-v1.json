@@ -18,7 +18,14 @@
     "standard_reads_line_expected": false
   },
   "endpoint": "http://127.0.0.1:15526",
-  "connector_sdk_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
+  "connector_sdk": {
+    "package": "@rsgcsg/sts2-connector-client",
+    "version": "1.1.0-rc.1",
+    "source_revision": "d2dfdf8473c39428a9d51f9aa7ba99a0b3b05ff7",
+    "component_tree_revision": "eedd39302cdab2b8a324ecc27c6d16a8cfbb67ee",
+    "release_asset_sha256": "4484b4bec90f43c29c108fe5444e419c8a81164fb4b246ac3212c51960db1ed3",
+    "package_content_sha256": "d3ac14b13f16aea3cd07045475036afe8ac3751ef1add63c4b233a59c5655153"
+  },
   "live_identity": {
     "protocol_version": "1.0.0",
     "host_kind": "live_ui",

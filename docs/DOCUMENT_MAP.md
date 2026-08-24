@@ -39,8 +39,8 @@ answer.
 
 - [AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md)
 
-The Human Annotator raw contract is owned by the sibling
-`STS2-human-Annotator` repository. STPD's strict importer is
+The Human Annotator raw contract is owned by the Annotator component in
+`STS2-AI-PLATFORM`. STPD's strict importer is
 `stpd/data/human_annotator.py`; this map does not duplicate that external schema.
 
 ## Working memory
@@ -66,8 +66,8 @@ See [`../schemas/README.md`](../schemas/README.md).
 
 ## External project roots
 
-- `STS2-headless`: Host lifecycle, exact identity, stable environment execution.
-- `STS2-Connector`: Host-neutral Player Environment contract and authority.
+- `STS2-AI-PLATFORM`: Host lifecycle, exact identity, Human Annotator, and the
+  Host-neutral Player Environment contract/SDK/authority.
 - `STS2-The-Perfect-Defect`: research projection, data, Qwen/model, training, evaluation.
 
 External repositories are dependencies, not submodules or copied sources.

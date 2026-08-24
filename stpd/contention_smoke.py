@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from .game_seed import derive_game_seed
-from .headless_client import activate_headless_client
+from .host_runtime_client import DEFAULT_HOST_RUNTIME, activate_host_runtime_client
 from .linear_q import LinearQ, combat_reward
 from .training_smoke import choose_noncombat_action
 
@@ -613,7 +613,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Fail-closed multi-seed actor/learner contention smoke."
     )
-    parser.add_argument("--headless", required=True)
+    parser.add_argument("--host-runtime", type=Path, default=DEFAULT_HOST_RUNTIME)
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--training-seed", action="append", dest="training_seeds")
     parser.add_argument("--workers", type=int, default=2)
@@ -623,9 +623,9 @@ def main() -> None:
     parser.add_argument("--output", default=".local/evidence/contention-smoke/report.json")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
-    headless = Path(args.headless).resolve()
+    host_runtime = args.host_runtime.resolve()
     candidate = Path(args.candidate).resolve()
-    activate_headless_client(headless)
+    activate_host_runtime_client(host_runtime)
     from sts2_headless import ManagedPlayerEnvironment, ThreadedVectorPlayerEnvironment
 
     seeds = tuple(args.training_seeds or ("STPDCONTEND01", "STPDCONTEND02", "STPDCONTEND03"))
@@ -638,7 +638,7 @@ def main() -> None:
     )
     command = [
         "node",
-        str(headless / "tools" / "managed-pe-driver.mjs"),
+        str(host_runtime / "tools" / "managed-pe-driver.mjs"),
         "--candidate",
         str(candidate),
     ]

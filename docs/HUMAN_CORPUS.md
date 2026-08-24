@@ -65,8 +65,8 @@ represented by a new profile/campaign rather than rewriting v1.
 Pack a closed, audited native-human session directly into the local collection:
 
 ```bash
-cd ../STS2-human-Annotator
-npm run pack-session -- .local/recordings/<session> \
+cd ../STS2-AI-PLATFORM
+npm run annotator:pack-session -- components/annotator/.local/recordings/<session> \
   --profile ../STPD/collection-profiles/human-mac-combat-v1.json \
   --worker human-001 \
   --campaign human-combat-smoke-2026-08 \

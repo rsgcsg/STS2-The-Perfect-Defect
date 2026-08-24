@@ -18,9 +18,9 @@ or optimal Q-value.
 ```text
 STS2 game truth
       |
-Host: shipped Reference or qualified Headless
+Host: shipped Reference or qualified Platform Host Runtime
       |
-STS2-Connector Player Environment
+Platform Connector / Player Environment
       |
 STPD environment port
       |
@@ -33,15 +33,16 @@ Qwen backend and model architectures
 training and evaluation
 ```
 
-Dependencies flow downward. Model/training code may not import Headless or Connector
-implementation internals. Environment adapters may consume only their public contract.
+Dependencies flow downward. Model/training code may not import Host Runtime or Connector
+source internals. Environment adapters consume immutable Platform packages and their public
+contract; candidate and loaded-runtime identities remain separate.
 
 ## Ownership table
 
 | Layer | Owns | Must not own |
 |---|---|---|
 | STS2/Host | game transition, RNG, effects, stable successor, runtime identity | research labels or model policy |
-| Connector | fair-player Snapshot/Read, finite BoundAction, Receipt, stale/idempotency | reward, tensor, Qwen/model APIs |
+| Platform Connector | fair-player Snapshot/Read, finite BoundAction, Receipt, stale/idempotency | reward, tensor, Qwen/model APIs |
 | STPD environment | transport adaptation and coherence checks | legality, native operands, business completion |
 | STPD data | projection, eligibility, provenance, splits, manifests | hidden facts or anonymous mixed-source data |
 | representation | deterministic ModelState/Action and Qwen input | environment mutation |

@@ -11,6 +11,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from .host_runtime_client import load_host_runtime_pin
+from .package_identity import validate_installed_package
 from .qwen.l1 import inspect_cache, is_weight_file, load_pin
 
 
@@ -37,7 +39,7 @@ def run_doctor(
     *,
     qwen_cache: Path | None = None,
     require_qwen_cache: bool = False,
-    headless: Path | None = None,
+    host_runtime: Path | None = None,
     candidate: Path | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
@@ -110,30 +112,32 @@ def run_doctor(
         qwen_status, qwen_details = "not_requested", pin.to_dict()
     checks.append(DoctorCheck("qwen_l1", qwen_status, qwen_details))
 
-    if headless is not None:
-        headless = headless.resolve()
+    if host_runtime is not None:
+        host_runtime = host_runtime.resolve()
         try:
-            headless_revision = _run(["git", "rev-parse", "HEAD"], cwd=headless)
-            headless_clean = not _run(["git", "status", "--porcelain"], cwd=headless)
-            package = json.loads((headless / "package.json").read_text(encoding="utf-8"))
-            details: dict[str, Any] = {
-                "revision": headless_revision,
-                "version": package["version"],
-                "worktree": "clean" if headless_clean else "dirty",
-            }
-            status = "pass" if headless_clean else "fail"
+            details = validate_installed_package(
+                host_runtime,
+                load_host_runtime_pin(),
+                required_paths=(
+                    "tools/managed-exact.mjs",
+                    "tools/managed-pe-driver.mjs",
+                    "consumers/python/sts2_headless/__init__.py",
+                ),
+            )
+            status = "pass"
             if candidate is not None:
                 output = _run([
-                    "node", "tools/managed-exact.mjs", "audit", "--candidate",
+                    "node", str(host_runtime / "tools" / "managed-exact.mjs"),
+                    "audit", "--candidate",
                     str(candidate.resolve()),
-                ], cwd=headless)
+                ], cwd=root)
                 details["candidate_audit"] = json.loads(output)
         except Exception as exc:
             status, details = "fail", {"error": str(exc)}
-        checks.append(DoctorCheck("headless", status, details))
+        checks.append(DoctorCheck("host_runtime", status, details))
     elif candidate is not None:
-        checks.append(DoctorCheck("headless", "fail", {
-            "error": "candidate audit requires --headless"
+        checks.append(DoctorCheck("host_runtime", "fail", {
+            "error": "candidate audit requires --host-runtime"
         }))
 
     free = shutil.disk_usage(root).free

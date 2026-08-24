@@ -10,9 +10,9 @@ projection, datasets, model representations, learning, evaluation, and experimen
 provenance. It does **not** own game rules, legality, RNG, effects, or execution.
 
 ```text
-shipped STS2 / qualified Headless Host
+shipped STS2 / qualified Platform Host Runtime
                   |
-          STS2-Connector
+       Platform Connector component
                   |
        Player Environment contract
                   |
@@ -101,7 +101,8 @@ See [v0 execution plan](docs/V0_EXECUTION_PLAN.md).
 ## Project boundaries
 
 - **STS2 / Host** owns the real game transition and stable successor.
-- **STS2-Connector** owns fair-player Snapshot/Read/BoundAction/Receipt semantics.
+- **STS2-AI-PLATFORM / Connector** owns fair-player
+  Snapshot/Read/BoundAction/Receipt semantics.
 - **STPD** owns research projections, labels, rewards, models, training, and evaluation.
 - Host-specific IDs and native operands never become model features.
 - Qwen is accessed through a pinned, typed backend interface; model modules do not call
@@ -111,33 +112,40 @@ See [v0 execution plan](docs/V0_EXECUTION_PLAN.md).
 
 ```bash
 uv sync --locked --all-extras
+npm ci
 uv run pytest
 uv run mypy stpd tools
 uv run ruff check stpd tests
 uv run python tools/doctor.py
 ```
 
-A real environment run additionally requires a prepared `STS2-headless` candidate:
+A real environment run additionally requires one externally prepared exact Managed
+candidate. Host Runtime code and both strategy-free clients come from the pinned Platform
+package installed by `npm ci`; the candidate remains a separately audited local artifact:
 
 ```bash
-PYTHONPATH=../STS2-headless/consumers/python \
-  python3 -m sts2_headless.smoke \
-  --candidate ../STS2-headless/.local/candidates/<exact-candidate> \
+export STS2_MANAGED_CANDIDATE=/absolute/path/to/<exact-candidate>
+
+PYTHONPATH=node_modules/@rsgcsg/sts2-host-runtime/consumers/python \
+  uv run python -m sts2_headless.smoke \
+  --candidate "$STS2_MANAGED_CANDIDATE" \
   --max-actions 64 \
   --evidence-file .local/evidence/environment-smoke/report.json
 
-python3 -m stpd.training_smoke \
-  --headless ../STS2-headless \
-  --candidate ../STS2-headless/.local/candidates/<exact-candidate>
+uv run python -m stpd.training_smoke \
+  --candidate "$STS2_MANAGED_CANDIDATE"
 ```
 
 Raw evidence is local and must not be committed.
 
-The original operational environment patch baseline remains Headless `v1.0.1`, Managed
+The original operational environment patch baseline remains predecessor Headless `v1.0.1`, Managed
 Host `8dc622b0.../7228541c...`, Connector `v1.1.0-rc.1`
 `e065102.../c1877f1a.../64765ea1...`, and Player Environment protocol/SDK
 `1.0.0/1.0.0`. Windows x64 has separate candidate identities and evidence; it does not
 inherit the macOS operational freeze. A changed identity is a requalification event.
+Current tooling installs Connector SDK `1.1.0-rc.1` and Host Runtime
+`1.1.0-rc.2` from immutable `STS2-AI-PLATFORM` GitHub Releases. Package identity,
+candidate artifact identity, and exact loaded Host identity remain independent evidence.
 
 ## Repository navigation
 

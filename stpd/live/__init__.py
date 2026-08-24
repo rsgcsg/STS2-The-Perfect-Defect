@@ -1,5 +1,6 @@
 """Experimental, fail-closed live policy execution."""
 
+from ..package_identity import directory_sha256
 from .s1 import (
     ConnectorSdkBridge,
     HandoffManager,
@@ -17,6 +18,7 @@ from .s1 import (
     validate_capabilities,
     validate_model_read_policy,
 )
+from .sdk import validate_connector_sdk
 
 __all__ = [
     "ConnectorSdkBridge",
@@ -34,4 +36,6 @@ __all__ = [
     "refresh_observation_bundle",
     "validate_capabilities",
     "validate_model_read_policy",
+    "directory_sha256",
+    "validate_connector_sdk",
 ]
