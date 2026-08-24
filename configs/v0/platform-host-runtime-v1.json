@@ -1,9 +1,9 @@
 {
   "schema": "stpd/platform-host-runtime-pin-v1",
   "package": "@rsgcsg/sts2-host-runtime",
-  "version": "1.1.0-rc.2",
-  "source_revision": "797b77f08ecea1d34dd21cab910fb70ca484081d",
-  "component_tree_revision": "9fed2019ab13d1c8a701783480649e0a82c29d25",
-  "release_asset_sha256": "e2dac542571e8dae1340ec50a33d82623c64bdfa89a0d2bcecb956f3540d346d",
-  "package_content_sha256": "8964d6cd54b351fb1338e12bedaa808b52c957ed8ab561c5531798117e1a0b7d"
+  "version": "1.1.0-rc.3",
+  "source_revision": "254bc89224729ddfdbcaa1c14c7015fc3a43128d",
+  "component_tree_revision": "30c3dd47c1e18d8280acbf191b1aae1389d3891d",
+  "release_asset_sha256": "8d26a839dfeaefcaca8c996dba995603165df4f9a2e454f9078ff0cbd747bb3b",
+  "package_content_sha256": "116df91b3d982193038aef7cfae6a621c206d673d0eae41e938ce2cea28d1786"
 }

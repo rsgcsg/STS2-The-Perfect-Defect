@@ -13,6 +13,6 @@
   },
   "dependencies": {
     "@rsgcsg/sts2-connector-client": "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/consumer-sdk/v1.1.0-rc.1/rsgcsg-sts2-connector-client-1.1.0-rc.1.tgz",
-    "@rsgcsg/sts2-host-runtime": "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/host-runtime/v1.1.0-rc.2/rsgcsg-sts2-host-runtime-1.1.0-rc.2.tgz"
+    "@rsgcsg/sts2-host-runtime": "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/host-runtime/v1.1.0-rc.3/rsgcsg-sts2-host-runtime-1.1.0-rc.3.tgz"
   }
 }
