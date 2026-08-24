@@ -15,7 +15,7 @@ v0 claim.
 | Layer | Current identity |
 |---|---|
 | Game | macOS arm64 STS2 `v0.111.0/41cef1ea`, assembly `9cb4f1a.../57785517...` |
-| Host Runtime code | Platform package `1.1.0-rc.6`, source `80f7099...`, tree `a5688ba...`, package `c6edd38...` |
+| Host Runtime code | Platform package `1.1.0-rc.7`, source `dce2c26...`, tree `c5a0beb...`, package `b77fb79...` |
 | Managed candidate | predecessor operational artifact `8dc622b0.../7228541c...`; platform-specific candidates remain independently audited |
 | Managed Host | upstream `d11aa883...`, macOS patch `8ced088b...`, artifact `8dc622b0.../7228541c...` |
 | Connector Reference | `v1.1.0-rc.1/e065102...`, artifact `c1877f1a.../64765ea1...` |

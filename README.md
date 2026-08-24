@@ -144,7 +144,7 @@ Host `8dc622b0.../7228541c...`, Connector `v1.1.0-rc.1`
 `1.0.0/1.0.0`. Windows x64 has separate candidate identities and evidence; it does not
 inherit the macOS operational freeze. A changed identity is a requalification event.
 Current tooling installs Connector SDK `1.1.0-rc.1` and Host Runtime
-`1.1.0-rc.6` from immutable `STS2-AI-PLATFORM` GitHub Releases. Package identity,
+`1.1.0-rc.7` from immutable `STS2-AI-PLATFORM` GitHub Releases. Package identity,
 candidate artifact identity, and exact loaded Host identity remain independent evidence.
 
 ## Repository navigation
