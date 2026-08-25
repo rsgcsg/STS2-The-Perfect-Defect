@@ -29,15 +29,15 @@
   "live_identity": {
     "protocol_version": "1.0.0",
     "host_kind": "live_ui",
-    "connector_version": "1.1.0-rc.1",
-    "connector_source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
-    "connector_artifact_sha256": "c6da375d0ae8a094c4fdea6b907176884316af23b596c6c75e02395702321a51",
-    "connector_artifact_mvid": "ec292515-8b89-4cd7-9af2-f60676e76a8b",
+    "connector_version": "1.2.0-rc.6",
+    "connector_source_revision": "f667c8428be773fef0e762daace3454ed5c86602",
+    "connector_artifact_sha256": "06f29280f73ed8c17331a2de1990be55a1f7c8291ec8f099d418455b384b13e8",
+    "connector_artifact_mvid": "2b038591-46a5-4507-8419-ef8ee7f30a93",
     "game_version": "v0.111.0",
     "game_commit": "41cef1ea",
-    "modset_status": "exact_player_environment_only",
-    "modset_fingerprint": "44f2fdce56b910af6a2532ee385e92c3b7e5fd6ef283033997fb21001ce6e78d",
-    "loaded_mod_ids": ["STS2_MCP"]
+    "modset_status": "canary_exact_observer_modset",
+    "modset_fingerprint": "acb0373e41839e2c91e1a7ece1bb203a72ca3088a532f797a5a48b046b835715",
+    "loaded_mod_ids": ["STS2_HUMAN_ANNOTATOR", "STS2_MCP", "STS2_PLATFORM_LIVE_UI"]
   },
   "admission": {
     "character_definition_id": "DEFECT",

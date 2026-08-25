@@ -87,7 +87,8 @@ package `1.1.0-rc.1` from the immutable Platform release as strict transport
 decoder; the exact loaded Connector remains the sole action authority. The lane
 admits only whole complete Defect A0
 ordinary-Combat catalogs containing `play`/`end_turn`, under the exact
-Connector-only Modset `44f2fdce...`. Unsupported catalogs and
+Platform observer Modset `acb0373e...`, whose three non-gameplay Mods are
+bound by a process-local canary. Unsupported catalogs and
 unknown delivery fail closed; local Receipts/successors/handoffs are append-only
 under `.local/live-s1/`.
 Transient HTTP 409 `stale_state` races during Snapshot-bound Read prefetch now

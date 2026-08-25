@@ -74,7 +74,7 @@ scientific Core remain blocked.
   `sts2.policy-runtime/policy-port-1`; `stpd.live.s1` is retained only as the
   non-runnable golden regression until parity is proven.
 - This Mac does not contain the checkpoint named by
-  `policy-manifests/s1-policy-adapter-v1.json`; new Runtime Shadow/One-Step/Auto
+  `policy-manifests/s1-policy-adapter-v2.json`; new Runtime Shadow/One-Step/Auto
   is therefore source/test-only and not exercised.
 
 ## Immediate priorities

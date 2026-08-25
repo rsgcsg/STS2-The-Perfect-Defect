@@ -1,6 +1,6 @@
 # Experimental Live S1 Operations
 
-> Current direction: `policy-manifests/s1-policy-adapter-v1.json` plus
+> Current direction: `policy-manifests/s1-policy-adapter-v2.json` plus
 > `tools/policy_adapter.py` is the thin STPD boundary consumed by the Platform
 > Policy Runtime. The monolithic runner documented below is retained as a golden
 > regression only until Shadow, One-Step and bounded Auto parity pass. Future
@@ -20,7 +20,7 @@ live smoke, not scientific Core, B6, Human Gold, or a model-quality result.
 `configs/v0/experiments/s1-human-combat-live-v1.json` binds the trained source,
 READY file, checkpoint SHA-256, Scheme1 linear head, serializer v1, Standard
 profile, frozen Qwen identity, exact Connector artifact, exact game release and
-Connector-only Modset. The runner refuses any drift. Qwen and the linear head load once
+the process-local exact Platform observer Modset. The runner refuses any drift. Qwen and the linear head load once
 and remain resident for the process.
 
 The runner imports the exact `package-lock.json`-pinned Connector SDK through a small NDJSON
@@ -101,12 +101,12 @@ work only through the Platform Policy Runtime:
 npm --prefix ..\STS2-AI-PLATFORM\components\annotator run prepare:mods
 npm --prefix ..\STS2-AI-PLATFORM\components\annotator run launch
 node ..\STS2-AI-PLATFORM\components\policy-runtime\dist\cli.js `
-  --manifest policy-manifests\s1-policy-adapter-v1.json `
+  --manifest policy-manifests\s1-policy-adapter-v2.json `
   --adapter-command .venv\Scripts\python.exe `
   --adapter-cwd . `
   --adapter-arg tools\policy_adapter.py `
   --adapter-arg=--manifest `
-  --adapter-arg policy-manifests\s1-policy-adapter-v1.json
+  --adapter-arg policy-manifests\s1-policy-adapter-v2.json
 ```
 
 The STPD policy source closure, exact environment, frozen config, and policy

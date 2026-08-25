@@ -1,6 +1,6 @@
 {
   "schema": "sts2.policy-runtime/policy-manifest-1",
-  "manifest_id": "stpd-s1-human-combat-c70c482c-v1",
+  "manifest_id": "stpd-s1-human-combat-c70c482c-v2",
   "policy": {
     "id": "stpd-s1-human-combat",
     "version": "1.0.0",
@@ -11,7 +11,7 @@
     "id": "stpd-s1-decision-adapter",
     "version": "1.0.0",
     "protocol": "sts2.policy-runtime/decision-only-ndjson-1",
-    "code_sha256": "0c66e00843c2558e0a256b6f7f70b60f3acc39edc9e698c91d1205b8bbdddf2d"
+    "code_sha256": "f451e5bad4002c3806cdeade624c114b6d80a04b8806e0e89a661703845fe262"
   },
   "artifact": {
     "id": "checkpoint-step-1659",
@@ -27,13 +27,13 @@
     "connector_protocol_version": "1.0.0",
     "environment": {
       "host_kind": "live_ui",
-      "connector_version": "1.1.0-rc.1",
-      "connector_source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
-      "connector_artifact_sha256": "c6da375d0ae8a094c4fdea6b907176884316af23b596c6c75e02395702321a51",
-      "connector_module_version_id": "ec292515-8b89-4cd7-9af2-f60676e76a8b",
-      "modset_status": "exact_player_environment_only",
-      "modset_fingerprint": "44f2fdce56b910af6a2532ee385e92c3b7e5fd6ef283033997fb21001ce6e78d",
-      "loaded_mod_ids": ["STS2_MCP"]
+      "connector_version": "1.2.0-rc.6",
+      "connector_source_revision": "f667c8428be773fef0e762daace3454ed5c86602",
+      "connector_artifact_sha256": "06f29280f73ed8c17331a2de1990be55a1f7c8291ec8f099d418455b384b13e8",
+      "connector_module_version_id": "2b038591-46a5-4507-8419-ef8ee7f30a93",
+      "modset_status": "canary_exact_observer_modset",
+      "modset_fingerprint": "acb0373e41839e2c91e1a7ece1bb203a72ca3088a532f797a5a48b046b835715",
+      "loaded_mod_ids": ["STS2_HUMAN_ANNOTATOR", "STS2_MCP", "STS2_PLATFORM_LIVE_UI"]
     },
     "reads": [],
     "whole_decision_admission": true,
@@ -52,7 +52,7 @@
     "s1": {
       "config": {
         "path": "configs/v0/experiments/s1-human-combat-live-v1.json",
-        "sha256": "51522ec6aef2022632381a2034ad05aace0250a1763a42873328b2f04beb462a",
+        "sha256": "78059e39a683023708f8081a3f0e633e6179b27a28bdbf6945057cd7a8440dad",
         "schema": "stpd/s1-human-combat-live-config-v1"
       },
       "qwen": {
