@@ -29,6 +29,7 @@
   "live_identity": {
     "protocol_version": "1.0.0",
     "host_kind": "live_ui",
+    "connector_version": "1.1.0-rc.1",
     "connector_source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
     "connector_artifact_sha256": "c6da375d0ae8a094c4fdea6b907176884316af23b596c6c75e02395702321a51",
     "connector_artifact_mvid": "ec292515-8b89-4cd7-9af2-f60676e76a8b",

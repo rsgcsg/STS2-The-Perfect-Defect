@@ -86,7 +86,7 @@ behavior engineering criteria. Its exact final Scheme1 linear checkpoint now has
 a versioned decision-only Policy Adapter and Manifest. Platform Policy Runtime
 owns generic modes/controller/stale/Receipt/successor/evidence lifecycle; STPD
 owns only checkpoint/Qwen/projection/scoring support. The original live runner
-is retained as a golden regression until exact-artifact parity is proven. The
+is retained only as a non-runnable golden regression until exact-artifact parity is proven. The
 checkpoint is absent on the current Mac, so the new path is not exercised. See
 [Experimental Live S1 Operations](docs/LIVE_S1_OPERATIONS.md).
 

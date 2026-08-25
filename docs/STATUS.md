@@ -114,9 +114,10 @@ The new production direction preserves those admission/model rules in
 Runtime now owns controller lifecycle, Human/Shadow/One-Step/Auto, stale bundle
 refresh, request/Receipt/successor handling and Agent evidence. The adapter
 returns only one score per unchanged Connector candidate plus a selected index.
-The Manifest pins the bounded adapter code digest, and adapter initialization
-rejects source drift before accepting a decision request.
-The original `stpd.live.s1` runner remains a golden regression until exact-model
+The Manifest pins the complete checked-in STPD Python policy source closure,
+frozen config, exact Host/Connector/Modset and checkpoint. Adapter initialization
+rejects any cross-pin drift before emitting its parent-verified startup identity.
+The original `stpd.live.s1` implementation remains a non-runnable golden regression until exact-model
 Shadow, One-Step and bounded Auto parity pass; its generic runtime code is not a
 template for future policies. The current Mac lacks the checkpoint file named by
 the Manifest, so the new live path is `not exercised` here.

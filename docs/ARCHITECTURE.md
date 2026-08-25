@@ -138,9 +138,10 @@ For live policy execution, `stpd.policy.s1` owns only S1 model semantics and
 architectures provide checkpoint plus Policy Manifest and adapter support; they
 do not copy Connector/controller/evidence orchestration.
 
-The adapter proves that projector execution-envelope order exactly matches the
-current Connector `bound_action_id` order before returning scores. A selected
-index therefore cannot silently cross from one catalog ordering into another.
+The adapter proves that Connector `bound_action_id`, projected semantic action,
+serialized model action and execution envelope remain positionally identical
+before returning scores. Its identity covers the complete checked-in STPD Python
+policy source closure, not only the process entrypoint.
 
 ## Failure policy
 

@@ -29,11 +29,7 @@ DEFAULT_MANIFEST = ROOT / "policy-manifests" / "s1-policy-adapter-v1.json"
 MANIFEST_SCHEMA = "sts2.policy-runtime/policy-manifest-1"
 PORT_SCHEMA = "sts2.policy-runtime/policy-port-1"
 ADAPTER_PROTOCOL = "sts2.policy-runtime/decision-only-ndjson-1"
-ADAPTER_CODE_PATHS = (
-    Path(__file__).resolve(),
-    Path(__file__).with_name("s1.py").resolve(),
-    (ROOT / "tools" / "policy_adapter.py").resolve(),
-)
+ADAPTER_ENTRYPOINT = (ROOT / "tools" / "policy_adapter.py").resolve()
 
 
 class PolicyAdapterError(RuntimeError):
@@ -41,6 +37,8 @@ class PolicyAdapterError(RuntimeError):
 
 
 class ResidentModel(Protocol):
+    serializer: Any
+
     def project_and_score(
         self,
         snapshot: Mapping[str, Any],
@@ -59,11 +57,15 @@ def _sha256(path: Path) -> str:
 
 
 def adapter_code_sha256() -> str:
-    """Digest the bounded decision-adapter implementation, excluding model artifacts."""
+    """Digest the complete checked-in Python policy source closure."""
 
+    paths = sorted(
+        (*((ROOT / "stpd").rglob("*.py")), ADAPTER_ENTRYPOINT),
+        key=lambda path: path.relative_to(ROOT).as_posix(),
+    )
     files = [
         {"path": path.relative_to(ROOT).as_posix(), "sha256": _sha256(path)}
-        for path in ADAPTER_CODE_PATHS
+        for path in paths
     ]
     return hashlib.sha256(canonical_json(files).encode("utf-8")).hexdigest()
 
@@ -99,7 +101,10 @@ def _s1_config(manifest: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _validate_manifest_config(
-    manifest: Mapping[str, Any], config_path: Path, config: Mapping[str, Any]
+    manifest: Mapping[str, Any],
+    manifest_path: Path,
+    config_path: Path,
+    config: Mapping[str, Any],
 ) -> None:
     if manifest.get("schema") != MANIFEST_SCHEMA:
         raise PolicyAdapterError("unsupported policy manifest schema")
@@ -120,6 +125,56 @@ def _validate_manifest_config(
         raise PolicyAdapterError("policy manifest S1 config checksum drift")
     if config.get("schema") != config_pin.get("schema"):
         raise PolicyAdapterError("policy manifest S1 config schema drift")
+
+    requirements = _object(manifest.get("requirements"), "manifest.requirements")
+    environment = _object(requirements.get("environment"), "manifest.requirements.environment")
+    live_identity = _object(config.get("live_identity"), "S1 config live_identity")
+    exact_environment_fields = {
+        "host_kind": "host_kind",
+        "connector_version": "connector_version",
+        "connector_source_revision": "connector_source_revision",
+        "connector_artifact_sha256": "connector_artifact_sha256",
+        "connector_module_version_id": "connector_artifact_mvid",
+        "modset_status": "modset_status",
+        "modset_fingerprint": "modset_fingerprint",
+    }
+    if requirements.get("connector_protocol_version") != live_identity.get("protocol_version"):
+        raise PolicyAdapterError("policy manifest Connector protocol differs from S1 config")
+    for manifest_field, config_field in exact_environment_fields.items():
+        if environment.get(manifest_field) != live_identity.get(config_field):
+            raise PolicyAdapterError(
+                f"policy manifest {manifest_field} differs from S1 config"
+            )
+    if environment.get("loaded_mod_ids") != live_identity.get("loaded_mod_ids"):
+        raise PolicyAdapterError("policy manifest loaded Mod IDs differ from S1 config")
+
+    support = _support(manifest)
+    if support.get("game_versions") != [live_identity.get("game_version")]:
+        raise PolicyAdapterError("policy manifest game version differs from S1 config")
+    if support.get("game_commits") != [live_identity.get("game_commit")]:
+        raise PolicyAdapterError("policy manifest game commit differs from S1 config")
+    admission = _object(config.get("admission"), "S1 config admission")
+    if support.get("action_verbs") != admission.get("allowed_connector_verbs"):
+        raise PolicyAdapterError("policy manifest action support differs from S1 config")
+    adapter_admission = _object(
+        _s1_config(manifest).get("admission"), "manifest.adapter_config.s1.admission"
+    )
+    expected_admission = {
+        "character_definition_id": admission.get("character_definition_id"),
+        "ascension": admission.get("ascension"),
+        "context_kind": admission.get("context_kind"),
+        "research_action_kinds": admission.get("allowed_research_action_kinds"),
+    }
+    if adapter_admission != expected_admission:
+        raise PolicyAdapterError("policy manifest S1 admission differs from S1 config")
+
+    artifact = _object(manifest.get("artifact"), "manifest.artifact")
+    if artifact.get("sha256") != config.get("checkpoint_sha256"):
+        raise PolicyAdapterError("policy manifest checkpoint differs from S1 config")
+    manifest_artifact = (manifest_path.parent / str(artifact.get("path", ""))).resolve()
+    config_artifact = (ROOT / str(config.get("checkpoint_path", ""))).resolve()
+    if manifest_artifact != config_artifact:
+        raise PolicyAdapterError("policy manifest checkpoint path differs from S1 config")
 
 
 def _validate_loaded_model(manifest: Mapping[str, Any], model: ResidentModel) -> None:
@@ -181,20 +236,39 @@ def _bound_action_order_digest(snapshot: Mapping[str, Any]) -> str:
     return hashlib.sha256(canonical_json(identities).encode("utf-8")).hexdigest()
 
 
-def _validate_projected_action_order(snapshot: Mapping[str, Any], decision: Any) -> None:
-    """Prove model score index and Connector BoundAction index name the same action."""
+def _validate_projected_action_order(
+    snapshot: Mapping[str, Any],
+    decision: Any,
+    action_texts: Sequence[str],
+    serializer: Any,
+) -> None:
+    """Prove Connector, semantic, serialized, and execution indexes are identical."""
 
     catalog = _object(snapshot.get("bound_actions"), "snapshot.bound_actions")
     actions = catalog.get("actions")
+    semantic_actions = getattr(decision, "actions", None)
     envelopes = getattr(decision, "envelopes", None)
-    if not isinstance(actions, list) or not isinstance(envelopes, Sequence):
-        raise PolicyAdapterError("resident S1 execution envelope order is missing")
+    if (
+        not isinstance(actions, list)
+        or not isinstance(semantic_actions, Sequence)
+        or not isinstance(envelopes, Sequence)
+        or isinstance(semantic_actions, (str, bytes, bytearray))
+        or isinstance(envelopes, (str, bytes, bytearray))
+    ):
+        raise PolicyAdapterError("resident S1 projected action order is missing")
     expected = [
         _object(action, "snapshot bound action").get("bound_action_id") for action in actions
     ]
     actual = [getattr(envelope, "bound_action_id", None) for envelope in envelopes]
     if actual != expected:
         raise PolicyAdapterError("resident S1 reordered the Connector candidate catalog")
+    semantic_keys = [getattr(action, "action_key", None) for action in semantic_actions]
+    envelope_keys = [getattr(envelope, "action_key", None) for envelope in envelopes]
+    if semantic_keys != envelope_keys:
+        raise PolicyAdapterError("resident S1 mismatched semantic actions and execution envelopes")
+    expected_texts = [serializer.serialize_action(action) for action in semantic_actions]
+    if list(action_texts) != expected_texts:
+        raise PolicyAdapterError("resident S1 mismatched semantic actions and serialized scores")
 
 
 class PolicyAdapter:
@@ -234,7 +308,7 @@ class PolicyAdapter:
             else _read_manifest(self.manifest_path)
         )
         model, config = self._model_loader(self.config_path)
-        _validate_manifest_config(manifest, self.config_path, config)
+        _validate_manifest_config(manifest, self.manifest_path, self.config_path, config)
         _validate_loaded_model(manifest, model)
         self._manifest = dict(manifest)
         self._model = model
@@ -314,7 +388,12 @@ class PolicyAdapter:
         if not scores or not all(isinstance(score, (int, float)) for score in scores):
             raise PolicyAdapterError("resident S1 returned invalid candidate scores")
         selected_index = max(range(len(scores)), key=scores.__getitem__)
-        _validate_projected_action_order(snapshot, decision)
+        _validate_projected_action_order(
+            snapshot,
+            decision,
+            action_texts,
+            self._model.serializer,
+        )
         return {
             "candidate_digest": candidate_digest,
             "scores": [float(score) for score in scores],
@@ -376,6 +455,19 @@ def serve_ndjson(
     source = input_lines if input_lines is not None else iter(sys.stdin)
     destination = output if output is not None else sys.stdout
     adapter.initialize()
+    destination.write(
+        json.dumps(
+            {
+                "schema": PORT_SCHEMA,
+                "message_type": "ready",
+                "adapter": _object(adapter.manifest.get("adapter"), "manifest.adapter"),
+            },
+            sort_keys=True,
+        )
+        + "\n"
+    )
+    if hasattr(destination, "flush"):
+        destination.flush()
     for line in source:
         if not line.strip():
             continue

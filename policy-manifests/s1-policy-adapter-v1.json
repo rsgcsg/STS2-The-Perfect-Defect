@@ -11,7 +11,7 @@
     "id": "stpd-s1-decision-adapter",
     "version": "1.0.0",
     "protocol": "sts2.policy-runtime/decision-only-ndjson-1",
-    "code_sha256": "6c37eb9ccae739ade42f5edf943b3b11b8d4289d89f61048dcb88566b5558b37"
+    "code_sha256": "0c66e00843c2558e0a256b6f7f70b60f3acc39edc9e698c91d1205b8bbdddf2d"
   },
   "artifact": {
     "id": "checkpoint-step-1659",
@@ -25,6 +25,16 @@
   },
   "requirements": {
     "connector_protocol_version": "1.0.0",
+    "environment": {
+      "host_kind": "live_ui",
+      "connector_version": "1.1.0-rc.1",
+      "connector_source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
+      "connector_artifact_sha256": "c6da375d0ae8a094c4fdea6b907176884316af23b596c6c75e02395702321a51",
+      "connector_module_version_id": "ec292515-8b89-4cd7-9af2-f60676e76a8b",
+      "modset_status": "exact_player_environment_only",
+      "modset_fingerprint": "44f2fdce56b910af6a2532ee385e92c3b7e5fd6ef283033997fb21001ce6e78d",
+      "loaded_mod_ids": ["STS2_MCP"]
+    },
     "reads": [],
     "whole_decision_admission": true,
     "candidate_order_digest": "sha256-json-bound-action-id-order",
@@ -42,7 +52,7 @@
     "s1": {
       "config": {
         "path": "configs/v0/experiments/s1-human-combat-live-v1.json",
-        "sha256": "3d3ea43b8eb4e64d5a10a6f970716a77a517b7c6e38a76729c546d92ff146bb8",
+        "sha256": "51522ec6aef2022632381a2034ad05aace0250a1763a42873328b2f04beb462a",
         "schema": "stpd/s1-human-combat-live-config-v1"
       },
       "qwen": {

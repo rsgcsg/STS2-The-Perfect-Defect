@@ -495,10 +495,8 @@ class LiveApplication:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("model-check", "run"))
+    parser.add_argument("command", choices=("model-check",))
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument("--connector-sdk-root", type=Path, default=CONNECTOR_SDK_ROOT)
-    parser.add_argument("--evidence-parent", type=Path, default=ROOT / ".local" / "live-s1")
     arguments = parser.parse_args()
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     if arguments.command == "model-check":
@@ -519,11 +517,7 @@ def main() -> int:
             )
         )
         return 0
-    return LiveApplication(
-        config_path=arguments.config,
-        connector_sdk_root=arguments.connector_sdk_root,
-        evidence_parent=arguments.evidence_parent,
-    ).run()
+    raise AssertionError("unreachable command")
 
 
 if __name__ == "__main__":

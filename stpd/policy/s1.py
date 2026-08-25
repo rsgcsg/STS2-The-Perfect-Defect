@@ -16,11 +16,11 @@ import torch
 
 from ..contracts import QwenIdentity, ensure_score_alignment
 from ..environment.projector import ProjectedDecision, ResearchProjectorV0
-from ..models import Scheme1Scorer
+from ..models.scheme1 import Scheme1Scorer
 from ..qwen.l2 import inspect_l2_cache, l2_snapshot_path, load_l2_pin
 from ..qwen.real_backend import CachingQwenBackend, RealQwenBackend
 from ..representation import InputProfile, model_serializer
-from ..training import CheckpointIdentity, CheckpointManager, TrainerState
+from ..training.checkpoint import CheckpointIdentity, CheckpointManager, TrainerState
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = ROOT / "configs" / "v0" / "experiments" / "s1-human-combat-live-v1.json"

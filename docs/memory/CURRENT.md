@@ -72,7 +72,7 @@ scientific Core remain blocked.
 - Platform now owns the reusable model-neutral runtime. STPD owns only exact
   checkpoint/Qwen/projector/serializer/scoring support behind
   `sts2.policy-runtime/policy-port-1`; `stpd.live.s1` is retained only as the
-  golden regression until parity is proven.
+  non-runnable golden regression until parity is proven.
 - This Mac does not contain the checkpoint named by
   `policy-manifests/s1-policy-adapter-v1.json`; new Runtime Shadow/One-Step/Auto
   is therefore source/test-only and not exercised.

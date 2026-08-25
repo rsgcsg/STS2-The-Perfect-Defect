@@ -93,16 +93,21 @@ uv run pytest -q tests\test_live_s1.py tests\test_environment_collector.py
 uv run python tools\live_s1.py model-check
 ```
 
-The two-observer Human Annotator Modset intentionally has no mutation authority.
-With STS2 closed, use the Platform Annotator workstation tool to back up native
-settings, keep its artifact installed-but-disabled, enable only Connector, and
-cold-launch with exact Connector/game canaries:
+The legacy S1 implementation remains a test oracle only and cannot be started as
+a second live executor. Prepare the exact observer Modset, then start live model
+work only through the Platform Policy Runtime:
 
 ```powershell
-npm --prefix ..\STS2-AI-PLATFORM\components\annotator run prepare:live-connector
-npm --prefix ..\STS2-AI-PLATFORM\components\annotator run launch:live-connector
-uv run python tools\live_s1.py run
+npm --prefix ..\STS2-AI-PLATFORM\components\annotator run prepare:mods
+npm --prefix ..\STS2-AI-PLATFORM\components\annotator run launch
+node ..\STS2-AI-PLATFORM\components\policy-runtime\dist\cli.js `
+  --manifest policy-manifests\s1-policy-adapter-v1.json `
+  --adapter-command .venv\Scripts\python.exe `
+  --adapter-cwd . `
+  --adapter-arg tools\policy_adapter.py `
+  --adapter-arg=--manifest `
+  --adapter-arg policy-manifests\s1-policy-adapter-v1.json
 ```
 
-The STPD source must be clean, and the installed SDK package content must match
-the pinned digest. Closing the runner does not close STS2.
+The STPD policy source closure, exact environment, frozen config, and policy
+artifact must match the Manifest. Closing Policy Runtime does not close STS2.

@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +14,7 @@ from stpd.canonical import canonical_json
 from stpd.contracts import QwenIdentity
 from stpd.environment import ResearchProjectorV0
 from stpd.policy import (
+    DEFAULT_MANIFEST,
     PolicyAdapter,
     PolicyAdapterError,
     ResidentS1Model,
@@ -113,14 +116,41 @@ def _fake_model() -> ResidentS1Model:
     )
 
 
-def _adapter_fixture(tmp_path: Path, model: ResidentS1Model | None = None) -> PolicyAdapter:
+def _adapter_fixture(
+    tmp_path: Path,
+    model: ResidentS1Model | None = None,
+    manifest_mutator: Any | None = None,
+) -> PolicyAdapter:
     config_path = tmp_path / "s1-config.json"
+    checkpoint_path = tmp_path / "fixture.pt"
     config = {
         "schema": "stpd/s1-human-combat-live-config-v1",
+        "checkpoint_path": str(checkpoint_path),
+        "checkpoint_sha256": "f" * 64,
         "model_read_policy": {
             "mode": "none",
             "training_basis": "human_annotator_importer_empty_reads",
             "standard_reads_line_expected": False,
+        },
+        "live_identity": {
+            "protocol_version": "1.0.0",
+            "host_kind": "test",
+            "connector_version": "fixture-connector",
+            "connector_source_revision": "fixture-source",
+            "connector_artifact_sha256": "b" * 64,
+            "connector_artifact_mvid": "fixture-mvid",
+            "game_version": "fixture-game",
+            "game_commit": "fixture-commit",
+            "modset_status": "fixture-exact",
+            "modset_fingerprint": "fixture-modset",
+            "loaded_mod_ids": ["FIXTURE_MOD"],
+        },
+        "admission": {
+            "character_definition_id": "DEFECT",
+            "ascension": 0,
+            "context_kind": "combat",
+            "allowed_connector_verbs": ["play", "end_turn"],
+            "allowed_research_action_kinds": ["play_card", "end_turn"],
         },
     }
     config_path.write_text(canonical_json(config) + "\n", encoding="utf-8")
@@ -141,7 +171,7 @@ def _adapter_fixture(tmp_path: Path, model: ResidentS1Model | None = None) -> Po
         },
         "artifact": {
             "id": "fixture-checkpoint",
-            "path": "fixture.pt",
+            "path": str(checkpoint_path),
             "sha256": "f" * 64,
         },
         "representation": {
@@ -151,6 +181,16 @@ def _adapter_fixture(tmp_path: Path, model: ResidentS1Model | None = None) -> Po
         },
         "requirements": {
             "connector_protocol_version": "1.0.0",
+            "environment": {
+                "host_kind": "test",
+                "connector_version": "fixture-connector",
+                "connector_source_revision": "fixture-source",
+                "connector_artifact_sha256": "b" * 64,
+                "connector_module_version_id": "fixture-mvid",
+                "modset_status": "fixture-exact",
+                "modset_fingerprint": "fixture-modset",
+                "loaded_mod_ids": ["FIXTURE_MOD"],
+            },
             "reads": [],
             "whole_decision_admission": True,
             "candidate_order_digest": "sha256-json-bound-action-id-order",
@@ -180,6 +220,12 @@ def _adapter_fixture(tmp_path: Path, model: ResidentS1Model | None = None) -> Po
                     "version": "stpd-model-serialization-v1",
                     "input_profile": InputProfile.STANDARD.value,
                 },
+                "admission": {
+                    "character_definition_id": "DEFECT",
+                    "ascension": 0,
+                    "context_kind": "combat",
+                    "research_action_kinds": ["play_card", "end_turn"],
+                },
             }
         },
         "claims": {
@@ -190,9 +236,12 @@ def _adapter_fixture(tmp_path: Path, model: ResidentS1Model | None = None) -> Po
             "creates_native_operands": False,
         },
     }
+    if manifest_mutator is not None:
+        manifest_mutator(manifest)
     resident = model or _fake_model()
     return PolicyAdapter(
         config_path=config_path,
+        manifest_path=tmp_path / "manifest.json",
         model_loader=lambda _: (resident, config),
         manifest=manifest,
     )
@@ -237,6 +286,71 @@ def test_policy_adapter_parity_with_resident_project_and_score(tmp_path: Path) -
     assert set(result) == {"candidate_digest", "scores", "selected_index"}
 
 
+def test_checked_in_policy_manifest_pins_current_source_and_frozen_config() -> None:
+    manifest = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    config_pin = manifest["adapter_config"]["s1"]["config"]
+    config_path = Path(config_pin["path"])
+    if not config_path.is_absolute():
+        config_path = DEFAULT_MANIFEST.parents[1] / config_path
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+
+    assert manifest["adapter"]["code_sha256"] == adapter_code_sha256()
+    assert config_pin["sha256"] == hashlib.sha256(config_path.read_bytes()).hexdigest()
+    assert manifest["artifact"]["sha256"] == config["checkpoint_sha256"]
+    assert manifest["support"]["game_versions"] == [config["live_identity"]["game_version"]]
+    assert manifest["support"]["game_commits"] == [config["live_identity"]["game_commit"]]
+    assert manifest["requirements"]["environment"]["modset_fingerprint"] == config[
+        "live_identity"
+    ]["modset_fingerprint"]
+
+
+def test_legacy_live_s1_runner_has_no_action_capable_command() -> None:
+    result = subprocess.run(
+        [sys.executable, "tools/live_s1.py", "run"],
+        cwd=DEFAULT_MANIFEST.parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "invalid choice" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda manifest: manifest["requirements"]["environment"].__setitem__(
+                "connector_artifact_sha256", "c" * 64
+            ),
+            "connector_artifact_sha256 differs",
+        ),
+        (
+            lambda manifest: manifest["support"].__setitem__(
+                "game_commits", ["different-commit"]
+            ),
+            "game commit differs",
+        ),
+        (
+            lambda manifest: manifest["artifact"].__setitem__("sha256", "d" * 64),
+            "checkpoint differs",
+        ),
+        (
+            lambda manifest: manifest["adapter_config"]["s1"]["admission"].__setitem__(
+                "ascension", 1
+            ),
+            "S1 admission differs",
+        ),
+    ],
+)
+def test_policy_adapter_rejects_manifest_config_drift(
+    tmp_path: Path, mutate: Any, message: str
+) -> None:
+    adapter = _adapter_fixture(tmp_path, manifest_mutator=mutate)
+    with pytest.raises(PolicyAdapterError, match=message):
+        adapter.initialize()
+
+
 def test_policy_adapter_rejects_incomplete_catalog(tmp_path: Path) -> None:
     snapshot = _snapshot()
     snapshot["bound_actions"]["total_count"] = 3
@@ -252,6 +366,7 @@ def test_policy_adapter_rejects_model_candidate_count_drift(tmp_path: Path) -> N
             self._base = _fake_model()
             self.checkpoint_sha256 = self._base.checkpoint_sha256
             self.identity = self._base.identity
+            self.serializer = self._base.serializer
 
         def project_and_score(
             self,
@@ -273,6 +388,7 @@ def test_policy_adapter_rejects_projector_candidate_reordering(tmp_path: Path) -
             self._base = _fake_model()
             self.checkpoint_sha256 = self._base.checkpoint_sha256
             self.identity = self._base.identity
+            self.serializer = self._base.serializer
 
         def project_and_score(
             self,
@@ -290,6 +406,59 @@ def test_policy_adapter_rejects_projector_candidate_reordering(tmp_path: Path) -
     adapter = _adapter_fixture(tmp_path, _ReorderingModel())  # type: ignore[arg-type]
     adapter.initialize()
     with pytest.raises(PolicyAdapterError, match="reordered the Connector candidate catalog"):
+        adapter.decide(_request_for(adapter, _snapshot()))
+
+
+def test_policy_adapter_rejects_semantic_action_envelope_reordering(tmp_path: Path) -> None:
+    class _SemanticReorderingModel:
+        def __init__(self) -> None:
+            self._base = _fake_model()
+            self.checkpoint_sha256 = self._base.checkpoint_sha256
+            self.identity = self._base.identity
+            self.serializer = self._base.serializer
+
+        def project_and_score(
+            self,
+            *args: Any,
+            **kwargs: Any,
+        ) -> tuple[Any, list[str], list[float], float]:
+            decision, action_texts, scores, latency = self._base.project_and_score(
+                *args, **kwargs
+            )
+            reordered = decision.__class__(
+                decision.state,
+                tuple(reversed(decision.actions)),
+                decision.envelopes,
+            )
+            return reordered, action_texts, scores, latency
+
+    adapter = _adapter_fixture(tmp_path, _SemanticReorderingModel())  # type: ignore[arg-type]
+    adapter.initialize()
+    with pytest.raises(PolicyAdapterError, match="semantic actions and execution envelopes"):
+        adapter.decide(_request_for(adapter, _snapshot()))
+
+
+def test_policy_adapter_rejects_serialized_action_reordering(tmp_path: Path) -> None:
+    class _TextReorderingModel:
+        def __init__(self) -> None:
+            self._base = _fake_model()
+            self.checkpoint_sha256 = self._base.checkpoint_sha256
+            self.identity = self._base.identity
+            self.serializer = self._base.serializer
+
+        def project_and_score(
+            self,
+            *args: Any,
+            **kwargs: Any,
+        ) -> tuple[Any, list[str], list[float], float]:
+            decision, action_texts, scores, latency = self._base.project_and_score(
+                *args, **kwargs
+            )
+            return decision, list(reversed(action_texts)), scores, latency
+
+    adapter = _adapter_fixture(tmp_path, _TextReorderingModel())  # type: ignore[arg-type]
+    adapter.initialize()
+    with pytest.raises(PolicyAdapterError, match="semantic actions and serialized scores"):
         adapter.decide(_request_for(adapter, _snapshot()))
 
 
@@ -337,11 +506,16 @@ def test_ndjson_child_protocol_matches_platform_policy_port(tmp_path: Path) -> N
     output = io.StringIO()
     assert serve_ndjson(adapter, input_lines=iter(requests.splitlines()), output=output) == 0
     responses = [json.loads(line) for line in output.getvalue().splitlines()]
-    assert len(responses) == 1
-    assert responses[0]["schema"] == "sts2.policy-runtime/policy-port-1"
-    assert responses[0]["message_type"] == "decision"
-    assert responses[0]["request_id"] == "request-fixture-1"
-    assert responses[0]["output"] == {
+    assert len(responses) == 2
+    assert responses[0] == {
+        "schema": "sts2.policy-runtime/policy-port-1",
+        "message_type": "ready",
+        "adapter": dict(prepared.manifest)["adapter"],
+    }
+    assert responses[1]["schema"] == "sts2.policy-runtime/policy-port-1"
+    assert responses[1]["message_type"] == "decision"
+    assert responses[1]["request_id"] == "request-fixture-1"
+    assert responses[1]["output"] == {
         "candidate_digest": input_value["candidate_digest"],
         "scores": [0.25, 0.75],
         "selected_index": 1,
