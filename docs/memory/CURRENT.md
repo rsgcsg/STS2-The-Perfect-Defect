@@ -4,7 +4,7 @@
 
 Windows L2 full-weight engineering, bounded tiny-overfit admission, unified Human
 corpus Gate 0 and the owner-run S1 behavior smoke are complete. The exact final
-checkpoint now has a fail-closed experimental live Connector lane. Human Gold and
+checkpoint now has a thin decision-only Platform Policy Adapter. Human Gold and
 scientific Core remain blocked.
 
 ## Current truths
@@ -69,11 +69,18 @@ scientific Core remain blocked.
   1,962 Human training states; duplicate advertised Read kinds remain intact as
   Connector arrays and never enter this checkpoint's model text. Unknown delivery
   is never retried.
+- Platform now owns the reusable model-neutral runtime. STPD owns only exact
+  checkpoint/Qwen/projector/serializer/scoring support behind
+  `sts2.policy-runtime/policy-port-1`; `stpd.live.s1` is retained only as the
+  golden regression until parity is proven.
+- This Mac does not contain the checkpoint named by
+  `policy-manifests/s1-policy-adapter-v1.json`; new Runtime Shadow/One-Step/Auto
+  is therefore source/test-only and not exercised.
 
 ## Immediate priorities
 
-1. Run the bounded owner-operated experimental Human + Qwen live smoke and retain its
-   gitignored Receipt/successor/handoff evidence.
+1. Provision the exact S1 checkpoint outside Git, then run Platform Runtime
+   Shadow, One-Step and bounded Auto parity against the retained golden runner.
 2. Retain raw recordings, source archives, rejected sessions and every immutable snapshot.
 3. Keep environment, FakeQwen and real-Qwen engineering smokes green.
 4. Do not claim scientific readiness until real Human Gold exists and Core is authorized.

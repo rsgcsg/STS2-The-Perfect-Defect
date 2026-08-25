@@ -77,15 +77,17 @@ The importer also has a V2 path for portable, read-rich Human evidence. V2 is
 accepted only through the version-pinned Platform Evidence verifier; direct
 JSONL import cannot opt into external Read blobs. Verified `run_deck` and
 `combat_piles` evidence is projected through the same `ResearchProjectorV0`,
-while V1 bundles remain supported unchanged. This is source/test evidence for
-the new data path, not a claim that a V2 native-human session has been recorded.
+while V1 bundles remain supported unchanged. One immutable native-human V2
+bundle has been verified and imported 30/30; it is not part of the frozen V1
+training corpus and does not authorize training.
 
 The owner-run S1 smoke subsequently completed all 1,659 optimizer steps and its
 behavior engineering criteria. Its exact final Scheme1 linear checkpoint now has
-a separate fail-closed experimental live lane: the official Connector SDK keeps
-legality and controller authority, while STPD projects and scores only a whole
-complete Defect A0 `play_card`/`end_turn` catalog. Human remains the default for
-all other game decisions. See
+a versioned decision-only Policy Adapter and Manifest. Platform Policy Runtime
+owns generic modes/controller/stale/Receipt/successor/evidence lifecycle; STPD
+owns only checkpoint/Qwen/projection/scoring support. The original live runner
+is retained as a golden regression until exact-artifact parity is proven. The
+checkpoint is absent on the current Mac, so the new path is not exercised. See
 [Experimental Live S1 Operations](docs/LIVE_S1_OPERATIONS.md).
 
 ## What v0 will build

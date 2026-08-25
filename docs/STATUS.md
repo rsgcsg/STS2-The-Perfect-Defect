@@ -4,8 +4,8 @@
 
 **STPD is pre-alpha; full-weight Qwen L2, bounded tiny-overfit engineering admission,
 the 1,962-record unified Human corpus Gate-0 lane, and the owner-run S1 behavior smoke are
-complete. The exact trained checkpoint has an experimental live Connector lane;
-scientific Core remains blocked by missing Human Gold.**
+complete. The exact trained policy now has a thin Platform Policy Adapter and
+versioned Manifest at source/test; scientific Core remains blocked by missing Human Gold.**
 The repository contains a real frozen pretrained backend and same-architecture random
 control, but no scientific Core model result, Human Gold result, B6 result, or final STPD
 v0 claim.
@@ -109,6 +109,18 @@ findings. This does not change the frozen 1,962-record V1 corpus or authorize
 V2 training. Generated-card choice remains `not exercised` in native-human V2
 evidence.
 
+The new production direction preserves those admission/model rules in
+`stpd.policy.s1` and exposes only a decision-only adapter. Platform Policy
+Runtime now owns controller lifecycle, Human/Shadow/One-Step/Auto, stale bundle
+refresh, request/Receipt/successor handling and Agent evidence. The adapter
+returns only one score per unchanged Connector candidate plus a selected index.
+The Manifest pins the bounded adapter code digest, and adapter initialization
+rejects source drift before accepting a decision request.
+The original `stpd.live.s1` runner remains a golden regression until exact-model
+Shadow, One-Step and bounded Auto parity pass; its generic runtime code is not a
+template for future policies. The current Mac lacks the checkpoint file named by
+the Manifest, so the new live path is `not exercised` here.
+
 On Windows, exact Qwen revision `da87bfb...` loaded 596,049,920 pretrained parameters on
 CUDA/BF16. Synthetic 1,024-token extraction measured 0.145 seconds and 1,394,181,120 bytes
 peak allocated VRAM on the RTX 4070 Laptop GPU. These remain engineering smokes only.
@@ -202,7 +214,9 @@ strictly admitted unified Human corpus.
   the exact ordinary-combat source envelope, not other workers, platforms or
   unsupported families.
 
-The immediate bounded step is an owner-operated experimental Human + Qwen live
-smoke; do not interpret it as Core/B6 or open Gold-test. See the
+The immediate bounded step is to provision the exact checkpoint outside Git,
+then run Platform Runtime Shadow, One-Step and bounded Auto against the retained
+legacy golden path. Until then there is no owner live gate to execute. Do not
+interpret future live parity as Core/B6 or open Gold-test. See the
 [AgenticSTS audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md),
 [Data and Provenance](DATA_AND_PROVENANCE.md), and [Roadmap](ROADMAP.md).

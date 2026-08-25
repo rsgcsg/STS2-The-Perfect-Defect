@@ -26,7 +26,7 @@ answer.
 | [Human Corpus Lane](HUMAN_CORPUS.md) | collection profiles, bundles, registry, corpus and smoke handoff | human corpus semantics or operations change |
 | [Qwen Integration](QWEN_INTEGRATION.md) | frozen-backbone adapter and cache contract | Qwen use changes |
 | [Qwen L2 Operations](QWEN_L2_OPERATIONS.md) | exact full-weight admission, engineering smokes, data preparation and owner stop | L2 operational identity changes |
-| [Experimental Live S1 Operations](LIVE_S1_OPERATIONS.md) | exact checkpoint-to-Connector handoff, controls and fail-closed live evidence | live policy execution changes |
+| [Experimental Live S1 Operations](LIVE_S1_OPERATIONS.md) | retained golden runner and migration to the Platform Policy Runtime | live policy adapter/regression changes |
 | [B0-B7 Benchmarks](BENCHMARKS.md) | executable gates, reports, and evidence boundaries | benchmark mechanics change |
 | [Scientific Experiment Protocol](SCIENTIFIC_EXPERIMENT_PROTOCOL.md) | frozen 10-config matrix, controls, Gates 0-5, Gold and owner-training boundaries | scientific protocol changes |
 | [v0 Execution Plan](V0_EXECUTION_PLAN.md) | v0 experiments, benchmarks, gates, deliverables | v0 scope changes |

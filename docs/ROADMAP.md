@@ -99,6 +99,12 @@ required controls, selector-family coverage status and exact split/manifests mus
 The behavior S1 corpus has passed its 1,500-record, B0, split/leakage and Standard
 token gates. Its owner-gated smoke remains distinct from scientific Core.
 
+The S1 live policy has been split into a thin decision-only adapter and a
+versioned Platform Policy Manifest. The legacy runner remains a golden
+regression while Platform Policy Runtime owns generic live lifecycle. Source and
+targeted parity tests pass; exact-model Shadow/One-Step/bounded Auto are pending
+because the checkpoint is unavailable on the current Mac.
+
 Run Standard input for:
 
 - 4 Scheme 1 configurations;

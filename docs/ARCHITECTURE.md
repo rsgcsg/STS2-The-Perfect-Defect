@@ -21,6 +21,8 @@ STS2 game truth
 Host: shipped Reference or qualified Platform Host Runtime
       |
 Platform Connector / Player Environment
+      |\
+      | +-> Platform Policy Runtime <-> STPD thin Policy Adapter (live only)
       |
 Platform Evidence verifier
       |
@@ -45,6 +47,8 @@ contract; candidate and loaded-runtime identities remain separate.
 |---|---|---|
 | STS2/Host | game transition, RNG, effects, stable successor, runtime identity | research labels or model policy |
 | Platform Connector | fair-player Snapshot/Read, finite BoundAction, Receipt, stale/idempotency | reward, tensor, Qwen/model APIs |
+| Platform Policy Runtime | modes, controller, stale refresh, request/Receipt/successor and Agent evidence | model inference, candidate filtering, legality |
+| STPD Policy Adapter | exact checkpoint/Qwen/projector/serializer/scoring support | controller, BoundAction resolution, delivery retry |
 | Platform Evidence | typed bundle validity, checksums, content identity and transfer receipts | research admission, splits, labels or training authority |
 | STPD environment | transport adaptation and coherence checks | legality, native operands, business completion |
 | STPD data | projection, eligibility, provenance, splits, manifests | hidden facts or anonymous mixed-source data |
@@ -127,6 +131,16 @@ It is a qualification baseline and future regression test, not a discarded dead 
 The pre-training environment smoke is deliberately cheaper than full
 qualification and rejects incomplete authority, unknown delivery, missing
 successor, provenance/identity drift and Receipt mismatch.
+
+For live policy execution, `stpd.policy.s1` owns only S1 model semantics and
+`stpd.policy.adapter` owns the strict decision-only process port. The legacy
+`stpd.live.s1` lifecycle remains temporarily as a golden regression. New policy
+architectures provide checkpoint plus Policy Manifest and adapter support; they
+do not copy Connector/controller/evidence orchestration.
+
+The adapter proves that projector execution-envelope order exactly matches the
+current Connector `bound_action_id` order before returning scores. A selected
+index therefore cannot silently cross from one catalog ordering into another.
 
 ## Failure policy
 

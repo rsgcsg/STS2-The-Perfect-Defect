@@ -1,5 +1,16 @@
 # Experimental Live S1 Operations
 
+> Current direction: `policy-manifests/s1-policy-adapter-v1.json` plus
+> `tools/policy_adapter.py` is the thin STPD boundary consumed by the Platform
+> Policy Runtime. The monolithic runner documented below is retained as a golden
+> regression only until Shadow, One-Step and bounded Auto parity pass. Future
+> policies must not copy its Connector/controller/evidence lifecycle.
+
+The current Mac does not contain the exact checkpoint named by the Policy
+Manifest. New Runtime execution is therefore `not exercised`; do not ask an
+owner to perform a live model gate until that external artifact is provisioned
+and checksum-verified.
+
 This lane connects one exact trained behavior S1 checkpoint to the shipped UI
 through the official versioned Connector TypeScript SDK package. It is an experimental
 live smoke, not scientific Core, B6, Human Gold, or a model-quality result.
