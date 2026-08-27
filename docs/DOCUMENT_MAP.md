@@ -32,6 +32,7 @@ answer.
 | [v0 Execution Plan](V0_EXECUTION_PLAN.md) | v0 experiments, benchmarks, gates, deliverables | v0 scope changes |
 | [Roadmap](ROADMAP.md) | phase sequencing and definitions of done | priority/phase changes |
 | [Project System](PROJECT_SYSTEM.md) | docs, memory, experiment and decision workflow | project workflow changes |
+| [Development Workflow](DEVELOPMENT_WORKFLOW.md) | branches, PRs, releases, agents and Platform dependency governance | collaboration or release process changes |
 | [Code Style](CODE_STYLE.md) | code and formatting conventions | style/test rules change |
 | [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md) | doctor, artifacts, historical L1 handoff | L1 operational identity changes |
 
@@ -66,8 +67,10 @@ See [`../schemas/README.md`](../schemas/README.md).
 
 ## External project roots
 
-- `STS2-AI-PLATFORM`: Host lifecycle, exact identity, Human Annotator, and the
-  Host-neutral Player Environment contract/SDK/authority.
-- `STS2-The-Perfect-Defect`: research projection, data, Qwen/model, training, evaluation.
+- `STS2-AI-PLATFORM`: the upper-level Platform Foundation owning Host lifecycle,
+  exact identity, Human Annotator, Evidence, Policy Runtime and the Host-neutral
+  Player Environment contract/SDK/authority.
+- `STS2-The-Perfect-Defect`: an independent research project under that
+  Platform, owning research projection, data, Qwen/model, training and evaluation.
 
 External repositories are dependencies, not submodules or copied sources.

@@ -16,6 +16,11 @@ Before editing:
 5. the relevant canonical document;
 6. the exact code and tests being changed.
 
+Also read `docs/DEVELOPMENT_WORKFLOW.md`. Normal work starts from current
+`origin/develop`, uses one short-lived topic branch/worktree per writer and
+targets `develop` by pull request. Do not direct-push `main` or `develop` or
+create permanent component/model develop branches.
+
 Do not infer current state from a chat transcript or an old report when the repository
 contains a newer exact source.
 
@@ -29,6 +34,11 @@ contains a newer exact source.
 - Never reconstruct legality, hidden state, or native operands in STPD.
 - Never add Qwen-, reward-, tensor-, or policy-specific fields to Platform contracts.
 - A model may only choose from the current complete finite action catalog.
+
+Platform is the upper-level foundation; STPD is an independently governed
+research project beneath it, not a peer platform. STPD must exact-pin a public
+Platform release or explicitly non-stable candidate and must not depend on
+floating Platform branches.
 
 ## Current code classification
 
@@ -52,6 +62,10 @@ For every coherent change:
 7. update the memory files for the next human or agent.
 
 A failed gate is an engineering input, not permission to weaken the gate.
+
+Each PR records its base SHA, workstream, owner, cross-repository identity,
+evidence level, rollback and non-claims. Merge never promotes source/test to
+runtime, GPU, data, model-quality or qualification evidence.
 
 ## Documentation and memory
 
