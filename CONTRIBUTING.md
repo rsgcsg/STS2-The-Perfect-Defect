@@ -3,6 +3,11 @@
 STPD is pre-alpha and evidence-first. Small, reversible changes with clear ownership are
 preferred over framework-wide rewrites.
 
+Read the [development workflow](docs/DEVELOPMENT_WORKFLOW.md). Ordinary changes
+start from current `origin/develop` on one short-lived topic branch and enter
+`develop` through a pull request. `main` is reserved for governed releases and
+hotfixes; never direct-push `main` or `develop`.
+
 ## Setup
 
 ```bash
@@ -29,6 +34,11 @@ GPU, or network access.
 - **docs/ops**: project system, evidence, release, and memory.
 
 A change should normally have one primary category.
+
+STPD is a research project built on the upper-level STS2 AI Platform
+Foundation. Cross-repository changes use separate PRs, and STPD must pin an
+exact Platform release or explicitly non-stable candidate rather than a
+floating branch or sibling checkout.
 
 ## Pull request checklist
 

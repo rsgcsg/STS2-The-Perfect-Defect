@@ -1,5 +1,17 @@
 # Current Status
 
+## Repository governance
+
+Public `main` commit `4c4bbca5e5bf16656bd7c0ba175ff5c069c81818`
+is preserved as the non-release `baseline/pre-governance-stpd-20260827`. It is
+the frozen historical integration baseline, not yet a stable research-release
+claim. `develop` was created from that exact commit and is now the only normal
+integration target. No public history was rewritten. See
+[Development Workflow](DEVELOPMENT_WORKFLOW.md).
+
+GitHub branch enforcement is an operational fact and must be inspected directly;
+this source document does not by itself prove that repository rules are active.
+
 ## Verdict
 
 **STPD is pre-alpha; full-weight Qwen L2, bounded tiny-overfit engineering admission,

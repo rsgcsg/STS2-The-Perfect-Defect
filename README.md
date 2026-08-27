@@ -9,6 +9,11 @@ STPD studies decision models for *Slay the Spire 2*. The project owns research-s
 projection, datasets, model representations, learning, evaluation, and experiment
 provenance. It does **not** own game rules, legality, RNG, effects, or execution.
 
+Within the wider project system, STS2 AI Platform is the upper-level foundation
+and STPD is an independently versioned research project mounted on its public
+contracts. Repository independence isolates research lifecycle; it does not
+make STPD a peer platform or transfer environment authority to it.
+
 ```text
 shipped STS2 / qualified Platform Host Runtime
                   |
@@ -172,6 +177,7 @@ candidate artifact identity, and exact loaded Host identity remain independent e
 - [Roadmap](docs/ROADMAP.md)
 - [Pre-Qwen operations and historical L1 handoff](docs/PRE_QWEN_OPERATIONS.md)
 - [Agent and contributor rules](AGENTS.md)
+- [Development workflow](docs/DEVELOPMENT_WORKFLOW.md)
 
 The project is evidence-first: a test, implementation, benchmark, and runtime claim are
 separate facts. Every result must identify source, data, model, Host, Connector, seeds,

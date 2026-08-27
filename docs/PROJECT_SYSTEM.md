@@ -3,6 +3,15 @@
 This document defines how humans and agents keep STPD understandable as code, data, models,
 and evidence grow.
 
+## Project hierarchy
+
+STS2 AI Platform is the upper-level, model-neutral foundation. STPD is an
+independently versioned research project under that platform, consuming its
+public environment, evidence and policy-delivery contracts. This Git separation
+supports independent research and release lifecycles; it does not create peer
+platforms, shared branches or a submodule relationship. See
+[Development Workflow](DEVELOPMENT_WORKFLOW.md).
+
 ## Work lifecycle
 
 ```text
@@ -80,6 +89,9 @@ Each run records:
 - A failed hypothesis is retained as a result; do not tune the gate until it passes.
 - Pull requests use `.github/pull_request_template.md` and the pure-Python CI must pass.
 - Runtime/GPU experiments remain separate from CI and require exact local evidence.
+- Normal work starts from `develop`, uses one short-lived topic branch/worktree
+  per writer and enters through a PR. Cross-repository changes use separate
+  Platform and STPD PRs with exact identity pinning.
 
 ## Continuous integration
 
@@ -97,6 +109,12 @@ CI intentionally does not download STS2, Headless/Connector artifacts, Qwen weig
 data, or GPU dependencies. A green CI run proves only the public source/test contract.
 
 ## Release states
+
+Repository branch semantics are separate from research maturity. The
+pre-governance `main` at `4c4bbca5e5bf16656bd7c0ba175ff5c069c81818` is a
+historical integration baseline, not a stable release. `develop` is the current
+integration line; after the first governed `release/* -> main` transition,
+`main` becomes the stable release landing line.
 
 - **pre-alpha**: interfaces and research system are changing; current state.
 - **v0 candidate**: Step 0 contracts/data pipeline and core architecture implementation exist.
