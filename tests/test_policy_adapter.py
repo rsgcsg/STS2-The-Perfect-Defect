@@ -207,7 +207,7 @@ def _adapter_fixture(
         "adapter_config": {
             "s1": {
                 "config": {
-                    "path": str(config_path),
+                    "path": config_path.as_posix(),
                     "sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
                     "schema": config["schema"],
                 },
@@ -304,6 +304,54 @@ def test_checked_in_policy_manifest_pins_current_source_and_frozen_config() -> N
     ]["modset_fingerprint"]
 
 
+def test_unified_platform_v3_binding_preserves_the_frozen_s1_policy() -> None:
+    root = DEFAULT_MANIFEST.parents[1]
+    v2 = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    v3_path = root / "policy-manifests" / "s1-policy-adapter-v3.json"
+    v3 = json.loads(v3_path.read_text(encoding="utf-8"))
+    config_pin = v3["adapter_config"]["s1"]["config"]
+    config_path = root / config_pin["path"]
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+
+    assert config_pin["sha256"] == hashlib.sha256(config_path.read_bytes()).hexdigest()
+    assert v3["adapter"]["code_sha256"] == adapter_code_sha256()
+    assert v3["artifact"] == v2["artifact"]
+    assert v3["representation"] == v2["representation"]
+    assert v3["adapter_config"]["s1"]["qwen"] == v2["adapter_config"]["s1"]["qwen"]
+    assert v3["adapter_config"]["s1"]["serializer"] == v2["adapter_config"]["s1"]["serializer"]
+    assert v3["requirements"]["reads"] == []
+    assert v3["requirements"]["whole_decision_admission"] is True
+    assert v3["support"]["action_verbs"] == ["play", "end_turn"]
+    assert v3["claims"]["catalog_filtered"] is False
+    assert config["checkpoint_sha256"] == (
+        "c70c482ca1af52c9dc5477a45623f7ad531222400ba6eefd3c17c87b7cc922d3"
+    )
+    assert config["model_read_policy"]["mode"] == "none"
+    assert config["admission"]["catalog_policy"] == "whole_complete_catalog_or_human"
+
+    environment = v3["requirements"]["environment"]
+    assert environment == {
+        "host_kind": "live_ui",
+        "connector_version": "1.2.0-rc.6",
+        "connector_source_revision": "4de52cfd72c6bf5b0d2312538152e81c616dabfb",
+        "connector_artifact_sha256": (
+            "ef673b76469f3b7442a88e7c038a43dc23de1b0cfe1908a96d878b0cc18b2897"
+        ),
+        "connector_module_version_id": "6f4e58b7-f55e-46d2-8d4f-d1d37f29fd99",
+        "modset_status": "exact_platform_modset",
+        "modset_fingerprint": (
+            "5a21659597de401d2ce34bc3205be3d535f92aba74538548a6e6145376af8149"
+        ),
+        "loaded_mod_ids": ["STS2_PLATFORM"],
+    }
+    assert v2["requirements"]["environment"]["loaded_mod_ids"] == [
+        "STS2_HUMAN_ANNOTATOR",
+        "STS2_MCP",
+        "STS2_PLATFORM_LIVE_UI",
+    ]
+    assert v2["requirements"]["environment"] != environment
+
+
 def test_legacy_live_s1_runner_has_no_action_capable_command() -> None:
     result = subprocess.run(
         [sys.executable, "tools/live_s1.py", "run"],
@@ -324,6 +372,24 @@ def test_legacy_live_s1_runner_has_no_action_capable_command() -> None:
                 "connector_artifact_sha256", "c" * 64
             ),
             "connector_artifact_sha256 differs",
+        ),
+        (
+            lambda manifest: manifest["requirements"]["environment"].__setitem__(
+                "connector_module_version_id", "different-mvid"
+            ),
+            "connector_module_version_id differs",
+        ),
+        (
+            lambda manifest: manifest["requirements"]["environment"].__setitem__(
+                "modset_fingerprint", "different-fingerprint"
+            ),
+            "modset_fingerprint differs",
+        ),
+        (
+            lambda manifest: manifest["requirements"]["environment"].__setitem__(
+                "loaded_mod_ids", ["PREDECESSOR_MOD"]
+            ),
+            "loaded Mod IDs differ",
         ),
         (
             lambda manifest: manifest["support"].__setitem__(

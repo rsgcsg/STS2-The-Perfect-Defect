@@ -1,0 +1,58 @@
+{
+  "schema": "stpd/s1-human-combat-live-config-v1",
+  "experiment_id": "S1-HUMAN-QWEN-LIVE-V2",
+  "training_source_revision": "caddbcc71a990b5d0970c0bf574823f16d501eb2",
+  "ready_path": ".local/training-ready/READY_TO_TRAIN.json",
+  "ready_sha256": "3a657a9cb69159442a6e2127c46531e5905145ad9215c72bb94da2858081b0a4",
+  "checkpoint_path": ".local/training-ready/s1-smoke-output/source-caddbcc71a99/checkpoint-step-1659.pt",
+  "checkpoint_sha256": "c70c482ca1af52c9dc5477a45623f7ad531222400ba6eefd3c17c87b7cc922d3",
+  "optimizer_steps": 1659,
+  "micro_batch_size": 8,
+  "observation_refresh": {
+    "max_attempts": 3,
+    "base_backoff_ms": 50
+  },
+  "model_read_policy": {
+    "mode": "none",
+    "training_basis": "human_annotator_importer_empty_reads",
+    "standard_reads_line_expected": false
+  },
+  "endpoint": "http://127.0.0.1:15526",
+  "connector_sdk": {
+    "package": "@rsgcsg/sts2-connector-client",
+    "version": "1.1.0-rc.1",
+    "source_revision": "d2dfdf8473c39428a9d51f9aa7ba99a0b3b05ff7",
+    "component_tree_revision": "eedd39302cdab2b8a324ecc27c6d16a8cfbb67ee",
+    "release_asset_sha256": "4484b4bec90f43c29c108fe5444e419c8a81164fb4b246ac3212c51960db1ed3",
+    "package_content_sha256": "d3ac14b13f16aea3cd07045475036afe8ac3751ef1add63c4b233a59c5655153"
+  },
+  "live_identity": {
+    "protocol_version": "1.0.0",
+    "host_kind": "live_ui",
+    "connector_version": "1.2.0-rc.6",
+    "connector_source_revision": "4de52cfd72c6bf5b0d2312538152e81c616dabfb",
+    "connector_artifact_sha256": "ef673b76469f3b7442a88e7c038a43dc23de1b0cfe1908a96d878b0cc18b2897",
+    "connector_artifact_mvid": "6f4e58b7-f55e-46d2-8d4f-d1d37f29fd99",
+    "game_version": "v0.111.0",
+    "game_commit": "41cef1ea",
+    "modset_status": "exact_platform_modset",
+    "modset_fingerprint": "5a21659597de401d2ce34bc3205be3d535f92aba74538548a6e6145376af8149",
+    "loaded_mod_ids": ["STS2_PLATFORM"]
+  },
+  "admission": {
+    "character_definition_id": "DEFECT",
+    "ascension": 0,
+    "interaction_kind": "combat_turn",
+    "context_kind": "combat",
+    "allowed_connector_verbs": ["play", "end_turn"],
+    "allowed_research_action_kinds": ["play_card", "end_turn"],
+    "catalog_policy": "whole_complete_catalog_or_human"
+  },
+  "boundaries": {
+    "experimental_live_smoke_only": true,
+    "scientific_core_claim": false,
+    "gold_opened": false,
+    "unknown_delivery_retry": false,
+    "raw_runtime_ids_in_model_input": false
+  }
+}

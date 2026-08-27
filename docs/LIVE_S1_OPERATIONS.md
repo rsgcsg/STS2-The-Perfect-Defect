@@ -1,15 +1,16 @@
 # Experimental Live S1 Operations
 
-> Current direction: `policy-manifests/s1-policy-adapter-v2.json` plus
+> Current direction: `policy-manifests/s1-policy-adapter-v3.json` plus
 > `tools/policy_adapter.py` is the thin STPD boundary consumed by the Platform
 > Policy Runtime. The monolithic runner documented below is retained as a golden
 > regression only until Shadow, One-Step and bounded Auto parity pass. Future
 > policies must not copy its Connector/controller/evidence lifecycle.
 
-The current Mac does not contain the exact checkpoint named by the Policy
-Manifest. New Runtime execution is therefore `not exercised`; do not ask an
-owner to perform a live model gate until that external artifact is provisioned
-and checksum-verified.
+`s1-policy-adapter-v2.json` remains the historical predecessor binding for the
+ordered `STS2_HUMAN_ANNOTATOR`, `STS2_MCP`, `STS2_PLATFORM_LIVE_UI` observer
+Modset. It must not be used to admit the current unified Game Mod. V3 binds the
+same frozen checkpoint and policy semantics to the one-Mod `STS2_PLATFORM`
+runtime using its cold-loaded exact SHA, MVID and Modset fingerprint.
 
 This lane connects one exact trained behavior S1 checkpoint to the shipped UI
 through the official versioned Connector TypeScript SDK package. It is an experimental
@@ -17,10 +18,11 @@ live smoke, not scientific Core, B6, Human Gold, or a model-quality result.
 
 ## Frozen input
 
-`configs/v0/experiments/s1-human-combat-live-v1.json` binds the trained source,
+`configs/v0/experiments/s1-human-combat-live-v2.json` binds the trained source,
 READY file, checkpoint SHA-256, Scheme1 linear head, serializer v1, Standard
 profile, frozen Qwen identity, exact Connector artifact, exact game release and
-the process-local exact Platform observer Modset. The runner refuses any drift. Qwen and the linear head load once
+the exact unified Platform Modset. The predecessor live-v1 config remains
+historical. The adapter refuses any drift. Qwen and the linear head load once
 and remain resident for the process.
 
 The runner imports the exact `package-lock.json`-pinned Connector SDK through a small NDJSON
@@ -94,19 +96,25 @@ uv run python tools\live_s1.py model-check
 ```
 
 The legacy S1 implementation remains a test oracle only and cannot be started as
-a second live executor. Prepare the exact observer Modset, then start live model
-work only through the Platform Policy Runtime:
+a second live executor. Build, deploy, cold-launch and verify the exact unified
+Game Mod through the Platform production lifecycle, then start live model work
+only through the Platform Policy Runtime:
 
 ```powershell
-npm --prefix ..\STS2-AI-PLATFORM\components\annotator run prepare:mods
-npm --prefix ..\STS2-AI-PLATFORM\components\annotator run launch
+npm --prefix ..\STS2-AI-PLATFORM run game-mod:build
+npm --prefix ..\STS2-AI-PLATFORM run game-mod:doctor
+npm --prefix ..\STS2-AI-PLATFORM run game-mod:deploy
+npm --prefix ..\STS2-AI-PLATFORM run game-mod:launch
+npm --prefix ..\STS2-AI-PLATFORM run game-mod:verify-loaded
 node ..\STS2-AI-PLATFORM\components\policy-runtime\dist\cli.js `
-  --manifest policy-manifests\s1-policy-adapter-v2.json `
+  --manifest policy-manifests\s1-policy-adapter-v3.json `
   --adapter-command .venv\Scripts\python.exe `
   --adapter-cwd . `
   --adapter-arg tools\policy_adapter.py `
+  --adapter-arg=--config `
+  --adapter-arg configs\v0\experiments\s1-human-combat-live-v2.json `
   --adapter-arg=--manifest `
-  --adapter-arg policy-manifests\s1-policy-adapter-v2.json
+  --adapter-arg policy-manifests\s1-policy-adapter-v3.json
 ```
 
 The STPD policy source closure, exact environment, frozen config, and policy
