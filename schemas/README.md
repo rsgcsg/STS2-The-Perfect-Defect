@@ -14,6 +14,10 @@ is closed and versioned.
 - `human-collection-campaign-v1.schema.json`: one profile's worker and row target;
 - `human-corpus-combination-v1.schema.json`: exact cross-profile compatibility
   and the final combined-corpus target.
+- `frozen-joint-feature-manifest-v1.schema.json`: one immutable, rebuildable pooled-feature
+  cache bound to exact corpus, serializer, input profile, and Qwen identity;
+- `training-input-manifest-v1.schema.json`: one content-addressed training-host handoff that
+  separates canonical research data from derived model views and caches.
 
 Rules:
 
