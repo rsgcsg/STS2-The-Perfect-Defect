@@ -22,6 +22,16 @@ The repository contains a real frozen pretrained backend and same-architecture r
 control, but no scientific Core model result, Human Gold result, B6 result, or final STPD
 v0 claim.
 
+The data lifecycle now has a measured, manifest-first engineering path. A read-only profiler
+keeps the canonical `ResearchTransition`/Parquet representation after object-reference and
+dictionary probes were larger on the biggest corpus physically available on this Mac. Scheme
+1 pooled Qwen features are immutable rebuildable artifacts, and training-host staging is
+content-addressed, incremental, tamper-evident and bound to exact corpus/model-view/Qwen/STPD
+source/`uv.lock` identities. Staging remains unauthorized for training. The full 1,962-row
+corpus, exact Qwen weights and a remote training host were unavailable here, so full-scale
+storage, GPU compile and remote-transfer performance remain unmeasured. See
+[End-to-End Data Lifecycle](DATA_LIFECYCLE.md).
+
 ## Exact environment lane
 
 | Layer | Current identity |

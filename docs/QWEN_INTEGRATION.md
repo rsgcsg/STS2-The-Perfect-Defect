@@ -70,6 +70,12 @@ Scheme 1 may cache pooled joint features. S2-Simple may cache state/action/succe
 vectors. S2-SDT needs the full state hidden sequence while the Resampler is trainable; a
 large hidden cache is optional and its storage/read cost is part of the result.
 
+Scheme 1 now has an immutable pooled-joint feature compiler. Its manifest binds the source
+corpus, serializer, input profile, complete Qwen identity, operation and file inventory.
+It is a rebuildable cache, never canonical research data. A content-addressed training-input
+manifest can stage it incrementally and still requires separate owner/scientific training
+authorization. See [End-to-End Data Lifecycle](DATA_LIFECYCLE.md).
+
 Default S2-SDT behavior:
 
 ```text

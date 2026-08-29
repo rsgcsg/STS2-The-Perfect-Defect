@@ -79,11 +79,14 @@ scientific Core remain blocked.
 
 ## Immediate priorities
 
-1. Provision the exact S1 checkpoint outside Git, then run Platform Runtime
+1. On the admitted CUDA host, compile and verify the exact pooled feature artifact and stage
+   its manifest-first training input before any owner-authorized rerun. Do not scan for
+   "latest" data or reuse a cache across model-view identity drift.
+2. Provision the exact S1 checkpoint outside Git, then run Platform Runtime
    Shadow, One-Step and bounded Auto parity against the retained golden runner.
-2. Retain raw recordings, source archives, rejected sessions and every immutable snapshot.
-3. Keep environment, FakeQwen and real-Qwen engineering smokes green.
-4. Do not claim scientific readiness until real Human Gold exists and Core is authorized.
+3. Retain raw recordings, source archives, rejected sessions and every immutable snapshot.
+4. Keep environment, FakeQwen and real-Qwen engineering smokes green.
+5. Do not claim scientific readiness until real Human Gold exists and Core is authorized.
 
 ## Do not do yet
 

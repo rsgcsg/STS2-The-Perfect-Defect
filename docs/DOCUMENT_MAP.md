@@ -23,6 +23,7 @@ answer.
 | [Architecture](ARCHITECTURE.md) | ownership, layers, dependency direction | a boundary changes |
 | [Interfaces](INTERFACES.md) | environment, data, model, artifact formats | a public contract changes |
 | [Data and Provenance](DATA_AND_PROVENANCE.md) | data zones, eligibility, splits, external data | data policy changes |
+| [End-to-End Data Lifecycle](DATA_LIFECYCLE.md) | canonical storage, derived caches and training-host handoff | physical data or handoff contracts change |
 | [Human Corpus Lane](HUMAN_CORPUS.md) | collection profiles, bundles, registry, corpus and smoke handoff | human corpus semantics or operations change |
 | [Qwen Integration](QWEN_INTEGRATION.md) | frozen-backbone adapter and cache contract | Qwen use changes |
 | [Qwen L2 Operations](QWEN_L2_OPERATIONS.md) | exact full-weight admission, engineering smokes, data preparation and owner stop | L2 operational identity changes |
@@ -39,6 +40,7 @@ answer.
 ## Current evidence
 
 - [AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md)
+- [Data lifecycle engineering closeout](evidence/DATA_LIFECYCLE_ENGINEERING_CLOSEOUT_2026-08-29.md)
 
 The Human Annotator raw contract is owned by the Annotator component in
 `STS2-AI-PLATFORM`. STPD's strict importer is

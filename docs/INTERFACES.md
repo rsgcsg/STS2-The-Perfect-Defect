@@ -167,3 +167,14 @@ architecture/config, seeds, benchmark set, and output locations.
 `model-artifact-manifest-v0` binds a frozen checkpoint to the experiment, files/checksums,
 data manifests, metrics, compatibility scope, and non-claims. `stpd.artifacts` builds and
 verifies this manifest without loading model code; unsafe paths and changed bytes fail closed.
+
+## 9. Derived feature and training-input manifests
+
+`frozen-joint-feature-manifest-v1` identifies a rebuildable Scheme 1 pooled-feature artifact
+by exact canonical corpus, serializer/input profile, Qwen identity, compiler operation,
+shape and file checksums. It contains no legality, reward or training authority.
+
+`training-input-manifest-v1` is the training-host integrity envelope. It separates canonical
+research objects from model views and feature caches, binds the exact STPD commit, `uv.lock`
+and consumer entry point, and supports missing-object-only staging. Verification returns
+`integrity_ready_authorization_required`; it never authorizes optimizer creation.
