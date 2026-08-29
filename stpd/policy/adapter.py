@@ -30,6 +30,42 @@ MANIFEST_SCHEMA = "sts2.policy-runtime/policy-manifest-1"
 PORT_SCHEMA = "sts2.policy-runtime/policy-port-1"
 ADAPTER_PROTOCOL = "sts2.policy-runtime/decision-only-ndjson-1"
 ADAPTER_ENTRYPOINT = (ROOT / "tools" / "policy_adapter.py").resolve()
+ADAPTER_CODE_DIGEST_SCOPE = "runtime-import-closure-v1"
+ADAPTER_SOURCE_CLOSURE = (
+    "stpd/__init__.py",
+    "stpd/canonical.py",
+    "stpd/contracts.py",
+    "stpd/environment/__init__.py",
+    "stpd/environment/collector.py",
+    "stpd/environment/identity.py",
+    "stpd/environment/projector.py",
+    "stpd/environment/runtime_collection.py",
+    "stpd/game_seed.py",
+    "stpd/host_runtime_client.py",
+    "stpd/linear_q.py",
+    "stpd/models/__init__.py",
+    "stpd/models/_backend.py",
+    "stpd/models/batches.py",
+    "stpd/models/losses.py",
+    "stpd/models/objectives.py",
+    "stpd/models/s2_sdt.py",
+    "stpd/models/s2_simple.py",
+    "stpd/models/scheme1.py",
+    "stpd/package_identity.py",
+    "stpd/policy/__init__.py",
+    "stpd/policy/adapter.py",
+    "stpd/policy/s1.py",
+    "stpd/qwen/__init__.py",
+    "stpd/qwen/l1.py",
+    "stpd/qwen/l2.py",
+    "stpd/qwen/real_backend.py",
+    "stpd/representation.py",
+    "stpd/training/__init__.py",
+    "stpd/training/checkpoint.py",
+    "stpd/training/trainer.py",
+    "stpd/training_smoke.py",
+    "tools/policy_adapter.py",
+)
 
 
 class PolicyAdapterError(RuntimeError):
@@ -57,12 +93,11 @@ def _sha256(path: Path) -> str:
 
 
 def adapter_code_sha256() -> str:
-    """Digest the complete checked-in Python policy source closure."""
+    """Digest the reviewed runtime import closure, not unrelated research tooling."""
 
-    paths = sorted(
-        (*((ROOT / "stpd").rglob("*.py")), ADAPTER_ENTRYPOINT),
-        key=lambda path: path.relative_to(ROOT).as_posix(),
-    )
+    paths = [ROOT / relative for relative in ADAPTER_SOURCE_CLOSURE]
+    if paths[-1] != ADAPTER_ENTRYPOINT or any(not path.is_file() for path in paths):
+        raise PolicyAdapterError("policy adapter source closure is missing or inconsistent")
     files = [
         {"path": path.relative_to(ROOT).as_posix(), "sha256": _sha256(path)}
         for path in paths
@@ -111,6 +146,8 @@ def _validate_manifest_config(
     adapter = _object(manifest.get("adapter"), "manifest.adapter")
     if adapter.get("protocol") != ADAPTER_PROTOCOL:
         raise PolicyAdapterError("policy manifest protocol drift")
+    if adapter.get("code_digest_scope") != ADAPTER_CODE_DIGEST_SCOPE:
+        raise PolicyAdapterError("policy manifest code digest scope drift")
     expected_code_sha256 = adapter.get("code_sha256")
     if expected_code_sha256 != adapter_code_sha256():
         raise PolicyAdapterError("policy manifest adapter code checksum drift")

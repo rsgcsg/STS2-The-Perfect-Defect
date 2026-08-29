@@ -1,0 +1,128 @@
+# End-to-End Data Lifecycle
+
+This is the operational contract from verified Platform evidence to a training-host input.
+It does not authorize training or move gameplay authority into STPD.
+
+## Authority And Artifact Classes
+
+```text
+STS2 + Platform Annotator
+  -> immutable Human evidence and exact H/S/A/S' audit
+  -> verified Platform bundle
+  -> STPD ResearchTransition projection and B0
+  -> immutable canonical corpus (CANONICAL_RESEARCH)
+  -> versioned text/model view (DERIVED_MODEL_VIEW)
+  -> optional frozen-Qwen features (DERIVED_FEATURE_CACHE)
+  -> content-addressed training-input manifest
+  -> training host verifies bytes + identities
+  -> owner/scientific workflow separately authorizes optimizer creation
+```
+
+Platform evidence is the reconstruction authority for the Human witness. The canonical STPD
+corpus is the research authority for splits, eligibility and model-neutral transitions. Text,
+tokens and frozen features are disposable derived artifacts. Receipts, staging success and
+cache hits never grant training authorization.
+
+## Canonical Storage Decision
+
+`ResearchTransition v0` remains the logical scientific API. Its physical representation is
+canonical JSON fields in Zstd-compressed Parquet. The read-only profiler verifies manifest,
+file checksum, row hashes and semantic dataset hash before measuring it:
+
+```bash
+uv run python tools/profile_data_lifecycle.py <canonical-dataset>
+```
+
+Candidate layouts are temporary and must reconstruct every logical record exactly. The
+2026-08-29 experiment on the largest available admitted corpus (106 rows) found:
+
+| Layout | Bytes | Relative to current |
+|---|---:|---:|
+| current canonical columns | 86,148 | 1.000 |
+| dictionary on current columns | 87,077 | 1.011 |
+| content-addressed state/catalog objects | 96,296 | 1.118 |
+| monolithic canonical record JSON | 52,611 | 0.611 |
+
+Object normalization and dictionary encoding were worse at this scale. Monolithic JSON is
+smaller, but the gain does not yet justify losing typed scanning, and the frozen 1,962-row
+corpus is not physically present on this Mac. No canonical migration is authorized. Reopen
+only with a representative immutable corpus, exact reconstruction, read/scan benchmarks and
+a material end-to-end win.
+
+## Frozen Feature Artifact
+
+`tools/compile_joint_features.py` compiles Scheme 1 pooled joint features with the exact
+frozen `RealQwenBackend`. Its immutable manifest binds source corpus, serializer/input
+profile, Qwen/tokenizer/weights identity, compiler operation, shape and every file checksum.
+
+Identical state/action/model-view inputs share one feature row. `samples.parquet` retains
+transition, candidate ordering and chosen labels; `features.npy` is memory-mappable. Any
+source, serializer, profile, Qwen or compiler change creates a new artifact. The cache can
+always be deleted and rebuilt.
+
+The deterministic shape probe for the 106-row corpus produced 572 samples at hidden size
+1,024 in 2,432,912 artifact bytes. Extrapolating only the dense tensor to the documented
+11,348 candidate samples yields 46,481,408 bytes (44.33 MiB). This is storage engineering
+evidence, not measured Qwen throughput; this Mac lacks the full exact weights and an admitted
+CUDA training host.
+
+## Training-Host Handoff
+
+Build, stage and verify are separate operations:
+
+```bash
+uv run python tools/compile_joint_features.py \
+  --dataset <canonical-dataset> \
+  --output-root <derived-cache> \
+  --qwen-snapshot <verified-qwen-snapshot>
+
+uv run python tools/training_input.py build \
+  --dataset <canonical-dataset> \
+  --store <source-store> \
+  --lane scheme1-pooled-joint \
+  --serializer stpd-model-serialization-v1 \
+  --input-profile stpd-combat-v0-standard \
+  --qwen-identity <qwen-identity.json> \
+  --feature-artifact <derived-cache>/joint-features-... \
+  --consumer-entry-point "uv run python tools/s1_smoke.py run"
+
+uv run python tools/training_input.py stage \
+  --source-store <source-store> \
+  --receiver-store <training-host-store> \
+  --training-input-id <sha256>
+
+uv run python tools/training_input.py verify \
+  --store <training-host-store> \
+  --training-input-id <sha256>
+```
+
+Build refuses a dirty STPD worktree and binds the exact commit, `uv.lock` checksum and
+consumer entry point. The receiver transfers only absent SHA-256 objects, verifies nested
+feature/source/model-view bindings and writes a receipt. A new corpus or artifact creates a
+new manifest while unchanged objects are reused.
+
+The host receives canonical manifest/Parquet and only declared model-view or feature objects.
+It does not receive raw Human sessions, game files, hidden state, unrelated caches, weights
+from Git, an implicit "latest" dataset, or authorization to train.
+
+## Invalidation And Retention
+
+| Change | Canonical corpus | Text/token view | Pooled features | Training input |
+|---|---|---|---|---|
+| new admitted evidence | new corpus | rebuild | rebuild | new manifest; old objects reused |
+| split/B0/projection change | new corpus | rebuild | rebuild | new manifest |
+| serializer/input profile | unchanged | rebuild | rebuild | new manifest |
+| tokenizer/Qwen/feature operation | unchanged | affected view only | rebuild | new manifest |
+| STPD source or `uv.lock` | unchanged | verify applicability | verify applicability | new consumer identity |
+| transfer retry | unchanged | unchanged | unchanged | zero-byte reuse when complete |
+
+Raw evidence and canonical research follow their owning retention policies. Derived features
+and receiver stores are rebuildable caches. Model/checkpoint outputs are separate artifact
+classes and never write back into canonical data.
+
+## Evidence Boundary
+
+Portable tests prove deterministic identity, tamper rejection, drift rejection, immutable
+retry and exact reconstruction. The local experiment proves only the measured 106-row
+layout. No remote transfer, full-corpus profile, real-Qwen compile, optimizer run,
+model-quality improvement or training-host throughput is claimed.
