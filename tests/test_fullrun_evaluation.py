@@ -26,8 +26,13 @@ def test_tie_metrics_are_permutation_neutral_and_probability_correct() -> None:
 
 def test_extreme_scores_do_not_underflow_and_bad_labels_fail() -> None:
     assert candidate_metrics([1000.0, -1000.0], [1])["nll"] == pytest.approx(2000.0)
-    for scores, labels in [([], [0]), ([math.nan], [0]), ([1.0], [1]), ([1.0], [True]),
-                           ([1.0, 2.0], [0, 0])]:
+    for scores, labels in [
+        ([], [0]),
+        ([math.nan], [0]),
+        ([1.0], [1]),
+        ([1.0], [True]),
+        ([1.0, 2.0], [0, 0]),
+    ]:
         with pytest.raises(BoundaryError):
             candidate_metrics(scores, labels)
 
@@ -43,8 +48,16 @@ def test_offline_evaluation_never_defaults_to_sealed_test() -> None:
 
 
 def test_bootstrap_resamples_whole_runs_and_is_deterministic() -> None:
-    rows = [{"run_id": f"run-{i}", "surface": "event", "family": "choice", "candidate_count": 2,
-             **candidate_metrics([float(i), 0.0], [0])} for i in range(3)]
+    rows = [
+        {
+            "run_id": f"run-{i}",
+            "surface": "event",
+            "family": "choice",
+            "candidate_count": 2,
+            **candidate_metrics([float(i), 0.0], [0]),
+        }
+        for i in range(3)
+    ]
     first = summarize_rows(rows, seed=19, bootstrap=50)
     assert first == summarize_rows(rows, seed=19, bootstrap=50)
     assert first["bootstrap"]["unit"] == "whole_run"

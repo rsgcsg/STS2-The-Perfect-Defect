@@ -37,13 +37,22 @@ class ModelSample:
     chosen_index: int
 
     def to_dict(self) -> dict[str, Any]:
-        return {"transition_id": self.transition_id, "run_id": self.run_id, "split": self.split,
-                "surface": self.surface, "family": self.family, "state_text": self.state_text,
-                "action_texts": list(self.action_texts), "action_keys": list(self.action_keys),
-                "chosen_index": self.chosen_index}
+        return {
+            "transition_id": self.transition_id,
+            "run_id": self.run_id,
+            "split": self.split,
+            "surface": self.surface,
+            "family": self.family,
+            "state_text": self.state_text,
+            "action_texts": list(self.action_texts),
+            "action_keys": list(self.action_keys),
+            "chosen_index": self.chosen_index,
+        }
 
 
-def model_samples(dataset: AdmittedDataset, serializer: FullRunSerializer) -> tuple[ModelSample, ...]:
+def model_samples(
+    dataset: AdmittedDataset, serializer: FullRunSerializer
+) -> tuple[ModelSample, ...]:
     splits = dataset.splits.value()
     samples = []
     for record in dataset.records:
@@ -51,14 +60,25 @@ def model_samples(dataset: AdmittedDataset, serializer: FullRunSerializer) -> tu
         keys = tuple(action.key for action in record.actions)
         if record.chosen_key not in keys:
             raise BoundaryError("model_view", "chosen_action_not_in_catalog")
-        samples.append(ModelSample(record.transition_id, record.run_id, splits[record.run_id],
-                                   record.surface, record.family, state, actions, keys,
-                                   keys.index(record.chosen_key)))
+        samples.append(
+            ModelSample(
+                record.transition_id,
+                record.run_id,
+                splits[record.run_id],
+                record.surface,
+                record.family,
+                state,
+                actions,
+                keys,
+                keys.index(record.chosen_key),
+            )
+        )
     return tuple(samples)
 
 
-def publish_model_view(store: ArtifactStore, dataset_id: str, serializer: FullRunSerializer,
-                       producer: Producer) -> Manifest:
+def publish_model_view(
+    store: ArtifactStore, dataset_id: str, serializer: FullRunSerializer, producer: Producer
+) -> Manifest:
     dataset_manifest, dataset = load_dataset(store, dataset_id)
     samples = model_samples(dataset, serializer)
     with tempfile.TemporaryFile("w+b") as handle:
@@ -66,12 +86,21 @@ def publish_model_view(store: ArtifactStore, dataset_id: str, serializer: FullRu
             handle.write(json_bytes(sample.to_dict()))
         handle.seek(0)
         payload = store.put_payload("samples", handle, "application/x-ndjson")
-    manifest = Manifest("model_view", producer, parents=(Parent("dataset", dataset_id),),
-                        payloads=(payload,), parameters=FrozenObject.of({
-                            "schema": VIEW_SCHEMA, "serializer": serializer.identity,
-                            "scope": dataset.scope, "samples": len(samples),
-                            "dataset_logical_id": dataset_manifest.parameters.value()["logical_id"],
-                        }))
+    manifest = Manifest(
+        "model_view",
+        producer,
+        parents=(Parent("dataset", dataset_id),),
+        payloads=(payload,),
+        parameters=FrozenObject.of(
+            {
+                "schema": VIEW_SCHEMA,
+                "serializer": serializer.identity,
+                "scope": dataset.scope,
+                "samples": len(samples),
+                "dataset_logical_id": dataset_manifest.parameters.value()["logical_id"],
+            }
+        ),
+    )
     store.publish(manifest)
     return manifest
 
@@ -100,8 +129,11 @@ def load_model_view(store: ArtifactStore, view_id: str) -> tuple[Manifest, tuple
                 raise BoundaryError("model_view", "dataset_projection_or_label_mismatch")
         if handle.read(1):
             raise BoundaryError("model_view", "extra_sample")
-    if (parameters.get("samples") != len(expected) or parameters.get("scope") != dataset.scope
-            or parameters.get("dataset_logical_id") != dataset_manifest.parameters.value()["logical_id"]):
+    if (
+        parameters.get("samples") != len(expected)
+        or parameters.get("scope") != dataset.scope
+        or parameters.get("dataset_logical_id") != dataset_manifest.parameters.value()["logical_id"]
+    ):
         raise BoundaryError("model_view", "dataset_identity_mismatch")
     return manifest, expected
 
@@ -119,11 +151,13 @@ def validate_qwen_identity(identity: FrozenObject, scope: str) -> None:
             return
         value.validate_scientific_v0()
         pin = load_l2_pin()
-        if (value.model_revision != pin.repo_revision
-                or value.tokenizer_revision != pin.repo_revision
-                or value.config_sha256 != pin.l1.config_sha256
-                or value.tokenizer_sha256 != pin.l1.tokenizer_bundle_sha256
-                or (value.control == "pretrained" and value.weights_sha256 != pin.weights_sha256)):
+        if (
+            value.model_revision != pin.repo_revision
+            or value.tokenizer_revision != pin.repo_revision
+            or value.config_sha256 != pin.l1.config_sha256
+            or value.tokenizer_sha256 != pin.l1.tokenizer_bundle_sha256
+            or (value.control == "pretrained" and value.weights_sha256 != pin.weights_sha256)
+        ):
             raise BoundaryError("features", "qwen_pin_mismatch")
     except (TypeError, ValueError) as error:
         if isinstance(error, BoundaryError):
@@ -132,13 +166,14 @@ def validate_qwen_identity(identity: FrozenObject, scope: str) -> None:
 
 
 def joint_key(state: str, action: str, identity: FrozenObject) -> str:
-    return semantic_hash({"operation": "pooled-joint-v1", "state": state, "action": action,
-                          "qwen": identity.value()})
+    return semantic_hash(
+        {"operation": "pooled-joint-v1", "state": state, "action": action, "qwen": identity.value()}
+    )
 
 
-def feature_index(samples: tuple[ModelSample, ...], identity: FrozenObject) -> tuple[
-    tuple[str, ...], tuple[tuple[int, ...], ...], dict[str, tuple[str, str]]
-]:
+def feature_index(
+    samples: tuple[ModelSample, ...], identity: FrozenObject
+) -> tuple[tuple[str, ...], tuple[tuple[int, ...], ...], dict[str, tuple[str, str]]]:
     pairs: dict[str, tuple[str, str]] = {}
     sample_keys = []
     for sample in samples:
@@ -156,8 +191,14 @@ def feature_index(samples: tuple[ModelSample, ...], identity: FrozenObject) -> t
     return ordered, rows, pairs
 
 
-def compile_features(store: ArtifactStore, view_id: str, backend: QwenBackend,
-                     producer: Producer, *, batch_size: int = 8) -> Manifest:
+def compile_features(
+    store: ArtifactStore,
+    view_id: str,
+    backend: QwenBackend,
+    producer: Producer,
+    *,
+    batch_size: int = 8,
+) -> Manifest:
     import torch
 
     unsigned(batch_size, "features.batch_size")
@@ -173,12 +214,17 @@ def compile_features(store: ArtifactStore, view_id: str, backend: QwenBackend,
     keys, rows, pairs = feature_index(samples, identity)
     arrays: list[NDArray[np.float32]] = []
     for offset in range(0, len(keys), batch_size):
-        chunk = [pairs[key] for key in keys[offset:offset + batch_size]]
+        chunk = [pairs[key] for key in keys[offset : offset + batch_size]]
         with torch.no_grad():
             encoded = backend.encode_joint([pair[0] for pair in chunk], [pair[1] for pair in chunk])
-        if (not isinstance(encoded, torch.Tensor) or encoded.requires_grad or encoded.ndim != 2
-                or encoded.shape[0] != len(chunk) or encoded.shape[1] < 1
-                or not bool(torch.isfinite(encoded).all())):
+        if (
+            not isinstance(encoded, torch.Tensor)
+            or encoded.requires_grad
+            or encoded.ndim != 2
+            or encoded.shape[0] != len(chunk)
+            or encoded.shape[1] < 1
+            or not bool(torch.isfinite(encoded).all())
+        ):
             raise BoundaryError("features", "invalid_frozen_backend_output")
         arrays.append(encoded.detach().to(device="cpu", dtype=torch.float32).numpy())
     matrix = np.concatenate(arrays, axis=0).astype("<f4", copy=False)
@@ -186,15 +232,36 @@ def compile_features(store: ArtifactStore, view_id: str, backend: QwenBackend,
         np.save(handle, matrix, allow_pickle=False)
         handle.seek(0)
         features = store.put_payload("features", handle, "application/x-npy")
-    index_payload = store.put_payload("index", io.BytesIO(json_bytes({
-        "keys": list(keys), "sample_rows": [list(row) for row in rows],
-    })), "application/json")
-    manifest = Manifest("feature_set", producer, parents=(Parent("model_view", view_id),),
-                        payloads=(features, index_payload), parameters=FrozenObject.of({
-                            "schema": FEATURE_SCHEMA, "scope": scope, "qwen": identity.value(),
-                            "rows": len(keys), "hidden_size": int(matrix.shape[1]), "dtype": "float32",
-                            "samples": len(samples), "serializer": view.parameters.value()["serializer"],
-                        }))
+    index_payload = store.put_payload(
+        "index",
+        io.BytesIO(
+            json_bytes(
+                {
+                    "keys": list(keys),
+                    "sample_rows": [list(row) for row in rows],
+                }
+            )
+        ),
+        "application/json",
+    )
+    manifest = Manifest(
+        "feature_set",
+        producer,
+        parents=(Parent("model_view", view_id),),
+        payloads=(features, index_payload),
+        parameters=FrozenObject.of(
+            {
+                "schema": FEATURE_SCHEMA,
+                "scope": scope,
+                "qwen": identity.value(),
+                "rows": len(keys),
+                "hidden_size": int(matrix.shape[1]),
+                "dtype": "float32",
+                "samples": len(samples),
+                "serializer": view.parameters.value()["serializer"],
+            }
+        ),
+    )
     store.publish(manifest)
     return manifest
 
@@ -234,12 +301,18 @@ def load_features(store: ArtifactStore, feature_id: str) -> LoadedFeatures:
         if handle.read(1):
             raise BoundaryError("features", "trailing_array_content")
     hidden_size = unsigned(parameters.get("hidden_size"), "features.hidden_size")
-    if (not isinstance(matrix, np.ndarray) or matrix.dtype != np.dtype("<f4")
-            or matrix.shape != (len(keys), hidden_size) or hidden_size == 0
-            or not np.isfinite(matrix).all() or parameters.get("rows") != len(keys)
-            or parameters.get("samples") != len(samples) or parameters.get("scope") != scope
-            or parameters.get("dtype") != "float32"
-            or parameters.get("serializer") != view.parameters.value()["serializer"]):
+    if (
+        not isinstance(matrix, np.ndarray)
+        or matrix.dtype != np.dtype("<f4")
+        or matrix.shape != (len(keys), hidden_size)
+        or hidden_size == 0
+        or not np.isfinite(matrix).all()
+        or parameters.get("rows") != len(keys)
+        or parameters.get("samples") != len(samples)
+        or parameters.get("scope") != scope
+        or parameters.get("dtype") != "float32"
+        or parameters.get("serializer") != view.parameters.value()["serializer"]
+    ):
         raise BoundaryError("features", "matrix_or_identity_mismatch")
     matrix.flags.writeable = False
     return LoadedFeatures(manifest, view, samples, matrix, expected_rows)

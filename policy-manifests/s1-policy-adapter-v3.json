@@ -1,6 +1,6 @@
 {
   "schema": "sts2.policy-runtime/policy-manifest-1",
-  "manifest_id": "stpd-s1-human-combat-c70c482c-v3-portable-607b108f81ca",
+  "manifest_id": "stpd-s1-human-combat-c70c482c-v3-portable-607b108f81ca-shared-head-6472f5b7bcfa",
   "policy": {
     "id": "stpd-s1-human-combat",
     "version": "1.0.0",
@@ -12,7 +12,7 @@
     "version": "1.0.0",
     "protocol": "sts2.policy-runtime/decision-only-ndjson-1",
     "code_digest_scope": "runtime-import-closure-v1",
-    "code_sha256": "607b108f81cabc9721f9debd3d3a6c1e79f4e5a4bff8eba85308a2382fb74dfe"
+    "code_sha256": "6472f5b7bcfa004dbba607adf6e2f74689740293c940de5e799d39e6cbf9c54b"
   },
   "artifact": {
     "id": "checkpoint-step-1659",

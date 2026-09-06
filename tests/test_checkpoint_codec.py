@@ -10,9 +10,11 @@ from stpd.workers.checkpoint_codec import decode_checkpoint, encode_checkpoint
 
 
 def test_tensor_tree_roundtrip_preserves_optimizer_keys_and_tuples() -> None:
-    value = {"head": {"weight": torch.tensor([[1.0, 2.0]])},
-             "optimizer": {"state": {0: {"step": torch.tensor(1.0)}}, "betas": (0.9, 0.999)},
-             "flags": [True, None, "value", 17]}
+    value = {
+        "head": {"weight": torch.tensor([[1.0, 2.0]])},
+        "optimizer": {"state": {0: {"step": torch.tensor(1.0)}}, "betas": (0.9, 0.999)},
+        "flags": [True, None, "value", 17],
+    }
     raw = encode_checkpoint(value)
     restored = decode_checkpoint(raw)
     assert torch.equal(restored["head"]["weight"], value["head"]["weight"])

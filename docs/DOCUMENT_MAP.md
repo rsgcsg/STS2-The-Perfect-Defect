@@ -55,3 +55,5 @@ not copied source trees, shared branches or submodules.
 [Local-First manifest ADR](adr/0003-local-first-manifest-research.md)
 
 [Full-Run Research](FULLRUN_RESEARCH.md)
+
+[Full-Run Training](FULLRUN_TRAINING.md)

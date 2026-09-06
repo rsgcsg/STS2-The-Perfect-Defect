@@ -14,7 +14,10 @@ class ObjectStoreRunReporter:
         self.slots = slots
 
     def emit(self, event: Manifest) -> str:
-        if event.kind != "run_event" or event.parameters.value().get("schema") != "stpd/run-event-v1":
+        if (
+            event.kind != "run_event"
+            or event.parameters.value().get("schema") != "stpd/run-event-v1"
+        ):
             raise BoundaryError("reporter", "unsupported_event")
         run_id = event.parent("run")
         self.store.publish(event)
@@ -29,26 +32,44 @@ class ObjectStoreRunReporter:
             if error.code == "object_not_found":
                 return None
             raise
-        marker = object_fields(decode_json(raw), {"schema", "run_id", "result_id"}, "run_completion")
-        if (marker["schema"] != "stpd/run-completion-v1" or marker["run_id"] != run_id
-                or raw != json_bytes(marker)):
+        marker = object_fields(
+            decode_json(raw), {"schema", "run_id", "result_id"}, "run_completion"
+        )
+        if (
+            marker["schema"] != "stpd/run-completion-v1"
+            or marker["run_id"] != run_id
+            or raw != json_bytes(marker)
+        ):
             raise BoundaryError("reporter", "completion_marker_mismatch")
         result = self.store.get_manifest(digest(marker["result_id"], "reporter.result_id"))
-        if (result.kind != "run_result" or result.parent("run") != run_id
-                or result.parameters.value().get("schema") != "stpd/run-result-v1"):
+        if (
+            result.kind != "run_result"
+            or result.parent("run") != run_id
+            or result.parameters.value().get("schema") != "stpd/run-result-v1"
+        ):
             raise BoundaryError("reporter", "completion_result_mismatch")
         for parent in result.parents:
             self.store.get_manifest(parent.artifact_id)
         return result
 
     def complete(self, result: Manifest) -> str:
-        if result.kind != "run_result" or result.parameters.value().get("schema") != "stpd/run-result-v1":
+        if (
+            result.kind != "run_result"
+            or result.parameters.value().get("schema") != "stpd/run-result-v1"
+        ):
             raise BoundaryError("reporter", "unsupported_result")
         run_id = result.parent("run")
         self.store.publish(result)
-        self.slots.put_if_absent(f"run-completions/{run_id}.json", json_bytes({
-            "schema": "stpd/run-completion-v1", "run_id": run_id, "result_id": result.artifact_id,
-        }))
+        self.slots.put_if_absent(
+            f"run-completions/{run_id}.json",
+            json_bytes(
+                {
+                    "schema": "stpd/run-completion-v1",
+                    "run_id": run_id,
+                    "result_id": result.artifact_id,
+                }
+            ),
+        )
         return result.artifact_id
 
     def events(self, run_id: str) -> tuple[Manifest, ...]:
@@ -62,4 +83,6 @@ class ObjectStoreRunReporter:
                 if manifest.parameters.value().get("schema") != "stpd/run-event-v1":
                     raise BoundaryError("reporter", "unsupported_event")
                 found.append(manifest)
-        return tuple(sorted(found, key=lambda e: (e.parameters.value().get("step", 0), e.artifact_id)))
+        return tuple(
+            sorted(found, key=lambda e: (e.parameters.value().get("step", 0), e.artifact_id))
+        )

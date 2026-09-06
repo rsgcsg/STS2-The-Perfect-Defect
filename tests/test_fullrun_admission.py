@@ -86,3 +86,16 @@ def test_parquet_dataset_and_lineage_roundtrip(tmp_path: Path) -> None:
     assert restored.splits == dataset.splits
     assert restored.scope == "engineering"
     assert manifest.parent("evidence") == source.artifact_id
+
+
+def test_new_dataset_identity_cannot_relabel_an_unchanged_source(tmp_path: Path) -> None:
+    from test_artifact_store_v1 import PRODUCER, store
+
+    target = store(tmp_path)
+    source, projected = publish_source(
+        target, synthetic_bundle(runs=6), SyntheticSourceAdapter(), PRODUCER
+    )
+    changed = replace(projected.transitions[0], chosen_key=projected.transitions[0].actions[0].key)
+    forged = admit((replace(projected, transitions=(changed, *projected.transitions[1:])),))
+    with pytest.raises(BoundaryError, match="source_transition_projection_mismatch"):
+        publish_dataset(target, forged, (source,), PRODUCER)

@@ -40,8 +40,10 @@ def encode_checkpoint(state: Mapping[str, Any]) -> bytes:
                 entries.append([key, encode(item, depth + 1)])
             return {"kind": "mapping", "value": entries}
         if isinstance(value, (list, tuple)):
-            return {"kind": "tuple" if isinstance(value, tuple) else "list",
-                    "value": [encode(item, depth + 1) for item in value]}
+            return {
+                "kind": "tuple" if isinstance(value, tuple) else "list",
+                "value": [encode(item, depth + 1) for item in value],
+            }
         if value is None or type(value) in {bool, int, float, str}:
             return {"kind": "scalar", "value": value}
         raise BoundaryError("checkpoint", "unsupported_value_type")
@@ -61,12 +63,12 @@ def decode_checkpoint(raw: bytes) -> dict[str, Any]:
     size = int.from_bytes(raw[8:16], "little")
     if size > MAX_HEADER or size < 1 or size + 16 >= len(raw):
         raise BoundaryError("checkpoint", "header_limit")
-    header_raw = raw[16:16 + size]
+    header_raw = raw[16 : 16 + size]
     header = object_fields(decode_json(header_raw), {"schema", "tree"}, "checkpoint")
     if header["schema"] != "stpd/tensor-tree-v1" or header_raw != json_bytes(header):
         raise BoundaryError("checkpoint", "header_mismatch")
     try:
-        tensors = load(raw[16 + size:])
+        tensors = load(raw[16 + size :])
     except Exception as error:
         raise BoundaryError("checkpoint", "invalid_tensor_payload") from error
     used: set[str] = set()
@@ -97,8 +99,12 @@ def decode_checkpoint(raw: bytes) -> dict[str, Any]:
         if kind == "mapping" and isinstance(item, list):
             mapping: dict[Any, Any] = {}
             for entry in item:
-                if (not isinstance(entry, list) or len(entry) != 2
-                        or type(entry[0]) not in {str, int} or entry[0] in mapping):
+                if (
+                    not isinstance(entry, list)
+                    or len(entry) != 2
+                    or type(entry[0]) not in {str, int}
+                    or entry[0] in mapping
+                ):
                     raise BoundaryError("checkpoint", "invalid_mapping_entry")
                 mapping[entry[0]] = decode(entry[1], depth + 1)
             return mapping

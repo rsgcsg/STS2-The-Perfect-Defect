@@ -30,8 +30,9 @@ class RankingEngine:
     def __init__(self, features: LoadedFeatures, config: TrainingConfig) -> None:
         self.config = config
         self.features = features
-        self.train_indices = tuple(index for index, sample in enumerate(features.samples)
-                                   if sample.split == "train")
+        self.train_indices = tuple(
+            index for index, sample in enumerate(features.samples) if sample.split == "train"
+        )
         if not self.train_indices:
             raise BoundaryError("training", "empty_training_split")
         self.total_steps = config.max_steps or config.epochs * len(self.train_indices)
@@ -51,13 +52,23 @@ class RankingEngine:
                 values = [self.labels[index] for index in indices]
                 random.Random(f"stpd-label-v1:{config.seed}:{count}").shuffle(values)
                 self.labels.update(zip(indices, values, strict=True))
-        self.data_identity = semantic_hash({"feature_set": features.manifest.artifact_id,
-                                           "plan": self.plan[:self.total_steps], "labels": self.labels})
-        self.matrix = torch.tensor(np.array(features.matrix, copy=True), dtype=torch.float32,
-                                   device=config.device, requires_grad=False)
+        self.data_identity = semantic_hash(
+            {
+                "feature_set": features.manifest.artifact_id,
+                "plan": self.plan[: self.total_steps],
+                "labels": self.labels,
+            }
+        )
+        self.matrix = torch.tensor(
+            np.array(features.matrix, copy=True),
+            dtype=torch.float32,
+            device=config.device,
+            requires_grad=False,
+        )
         self.head = new_head(features.matrix.shape[1], config.head, config.seed, config.device)
-        self.optimizer = torch.optim.AdamW(self.head.parameters(), lr=config.learning_rate,
-                                           weight_decay=config.weight_decay)
+        self.optimizer = torch.optim.AdamW(
+            self.head.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
+        )
         self.step = 0
 
     def advance(self) -> float:
@@ -78,8 +89,10 @@ class RankingEngine:
         if not bool(torch.isfinite(loss)):
             raise BoundaryError("training", "non_finite_loss")
         loss.backward()
-        if any(parameter.grad is not None and not bool(torch.isfinite(parameter.grad).all())
-               for parameter in self.head.parameters()):
+        if any(
+            parameter.grad is not None and not bool(torch.isfinite(parameter.grad).all())
+            for parameter in self.head.parameters()
+        ):
             raise BoundaryError("training", "non_finite_gradient")
         self.optimizer.step()
         if any(not bool(torch.isfinite(parameter).all()) for parameter in self.head.parameters()):
@@ -99,20 +112,31 @@ class RankingEngine:
         return result
 
     def checkpoint(self) -> bytes:
-        state = {"schema": "stpd/ranking-checkpoint-v1", "data_identity": self.data_identity,
-                 "config": self.config.to_dict(), "step": self.step, "total_steps": self.total_steps,
-                 "torch_version": str(torch.__version__), "head": self.head.state_dict(),
-                 "optimizer": self.optimizer.state_dict(), "cpu_rng": torch.get_rng_state()}
+        state = {
+            "schema": "stpd/ranking-checkpoint-v1",
+            "data_identity": self.data_identity,
+            "config": self.config.to_dict(),
+            "step": self.step,
+            "total_steps": self.total_steps,
+            "torch_version": str(torch.__version__),
+            "head": self.head.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "cpu_rng": torch.get_rng_state(),
+        }
         return encode_checkpoint(state)
 
     def restore(self, raw: bytes) -> None:
         state = decode_checkpoint(raw)
-        if (not isinstance(state, dict) or state.get("schema") != "stpd/ranking-checkpoint-v1"
-                or state.get("data_identity") != self.data_identity
-                or state.get("config") != self.config.to_dict()
-                or state.get("torch_version") != str(torch.__version__)
-                or state.get("total_steps") != self.total_steps
-                or type(state.get("step")) is not int or not 0 <= state["step"] <= self.total_steps):
+        if (
+            not isinstance(state, dict)
+            or state.get("schema") != "stpd/ranking-checkpoint-v1"
+            or state.get("data_identity") != self.data_identity
+            or state.get("config") != self.config.to_dict()
+            or state.get("torch_version") != str(torch.__version__)
+            or state.get("total_steps") != self.total_steps
+            or type(state.get("step")) is not int
+            or not 0 <= state["step"] <= self.total_steps
+        ):
             raise BoundaryError("checkpoint", "resume_identity_mismatch")
         self.head.load_state_dict(state["head"], strict=True)
         self.optimizer.load_state_dict(state["optimizer"])
@@ -127,7 +151,10 @@ class RankingEngine:
     def model_bytes(self) -> bytes:
         from safetensors.torch import save
 
-        weights = {name: tensor.detach().cpu().contiguous() for name, tensor in self.head.state_dict().items()}
+        weights = {
+            name: tensor.detach().cpu().contiguous()
+            for name, tensor in self.head.state_dict().items()
+        }
         return cast(bytes, save(weights))
 
 

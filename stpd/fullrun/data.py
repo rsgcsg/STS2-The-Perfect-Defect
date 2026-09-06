@@ -116,6 +116,8 @@ def admit(projections: tuple[SourceProjection, ...], *, seed: int = 0) -> Admitt
         run = [record for record in records if record.run_id == run_id]
         if [record.step_index for record in run] != list(range(len(run))):
             raise BoundaryError("admission", "missing_run_step")
+        if not run[-1].terminal:
+            raise BoundaryError("admission", "missing_terminal_disposition")
         if any(record.terminal for record in run[:-1]):
             raise BoundaryError("admission", "decision_after_terminal")
         for projection in projections:
@@ -151,8 +153,10 @@ def publish_source(
 
 
 def _projections_from_manifests(
-    records: tuple[ResearchTransitionV1, ...], sources: tuple[Manifest, ...]
+    store: ArtifactStore, records: tuple[ResearchTransitionV1, ...], sources: tuple[Manifest, ...]
 ) -> tuple[SourceProjection, ...]:
+    from .fixtures import SyntheticSourceAdapter
+
     by_source = {source.payload("source").sha256: source for source in sources}
     if not sources or len(by_source) != len(sources):
         raise BoundaryError("dataset", "source_inventory_mismatch")
@@ -167,17 +171,28 @@ def _projections_from_manifests(
             or info.get("source_sha256") != source_hash
         ):
             raise BoundaryError("dataset", "invalid_source_manifest")
-        projections.append(
-            SourceProjection(
-                info["adapter"],
-                source_hash,
-                info["scope"],
-                FrozenObject.of(info["run_proofs"]),
-                tuple(
-                    record for record in records if record.provenance.bundle_sha256 == source_hash
-                ),
-            )
-        )
+        adapter = SyntheticSourceAdapter()
+        if info.get("adapter") != adapter.adapter_id:
+            raise BoundaryError("dataset", "final_platform_adapter_not_installed")
+        payload = source.payload("source")
+        if payload.size > 256 * 1024 * 1024:
+            raise BoundaryError("dataset", "source_bundle_size_limit")
+        projected = adapter.project(b"".join(store.read_payload(payload)))
+        if (
+            projected.source_sha256 != source_hash
+            or projected.scope != info.get("scope")
+            or projected.run_proofs.value() != info.get("run_proofs")
+        ):
+            raise BoundaryError("dataset", "source_attestation_mismatch")
+        expected = {record.transition_id: record.to_dict() for record in projected.transitions}
+        actual = {
+            record.transition_id: record.to_dict()
+            for record in records
+            if record.provenance.bundle_sha256 == source_hash
+        }
+        if actual != expected:
+            raise BoundaryError("dataset", "source_transition_projection_mismatch")
+        projections.append(projected)
     return tuple(projections)
 
 
@@ -190,7 +205,9 @@ def publish_dataset(
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    verified = admit(_projections_from_manifests(dataset.records, sources), seed=dataset.seed)
+    verified = admit(
+        _projections_from_manifests(store, dataset.records, sources), seed=dataset.seed
+    )
     if dataset.logical_id != verified.logical_id or dataset.scope != verified.scope:
         raise BoundaryError("dataset", "unadmitted_publication")
     rows = [
@@ -301,7 +318,7 @@ def load_dataset(store: ArtifactStore, artifact_id: str) -> tuple[Manifest, Admi
     if any(p.role != "evidence" for p in manifest.parents):
         raise BoundaryError("dataset", "source_inventory_mismatch")
     admitted = admit(
-        _projections_from_manifests(tuple(records), sources),
+        _projections_from_manifests(store, tuple(records), sources),
         seed=unsigned(parameters.get("seed"), "dataset.seed"),
     )
     if (

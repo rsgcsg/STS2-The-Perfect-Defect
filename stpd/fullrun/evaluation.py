@@ -22,9 +22,13 @@ EVALUATION_SCHEMA = "stpd/offline-ranking-evaluation-v1"
 def candidate_metrics(scores: Sequence[float], acceptable: Sequence[int]) -> dict[str, float]:
     values = tuple(float(value) for value in scores)
     labels = tuple(acceptable)
-    if (not values or any(not math.isfinite(value) for value in values) or not labels
-            or len(set(labels)) != len(labels)
-            or any(type(index) is not int or not 0 <= index < len(values) for index in labels)):
+    if (
+        not values
+        or any(not math.isfinite(value) for value in values)
+        or not labels
+        or len(set(labels)) != len(labels)
+        or any(type(index) is not int or not 0 <= index < len(values) for index in labels)
+    ):
         raise BoundaryError("evaluation", "invalid_scores_or_acceptable_actions")
     top = max(values)
     winners = [index for index, value in enumerate(values) if value == top]
@@ -46,15 +50,23 @@ def candidate_metrics(scores: Sequence[float], acceptable: Sequence[int]) -> dic
     exponentials = [math.exp(value - top) for value in values]
     denominator = sum(exponentials)
     accepted_max = max(values[index] for index in labels)
-    accepted_logsum = accepted_max + math.log(sum(math.exp(values[i] - accepted_max) for i in labels))
+    accepted_logsum = accepted_max + math.log(
+        sum(math.exp(values[i] - accepted_max) for i in labels)
+    )
     nll = top + math.log(denominator) - accepted_logsum
     ordered = sorted(values, reverse=True)
-    return {"top1": top1, "mrr": reciprocal, "nll": max(0.0, nll),
-            "confidence": 1.0 / denominator, "margin": ordered[0] - ordered[1]
-            if len(ordered) > 1 else 0.0}
+    return {
+        "top1": top1,
+        "mrr": reciprocal,
+        "nll": max(0.0, nll),
+        "confidence": 1.0 / denominator,
+        "margin": ordered[0] - ordered[1] if len(ordered) > 1 else 0.0,
+    }
 
 
-def action_only_prior(samples: tuple[ModelSample, ...]) -> Callable[[ModelSample], tuple[float, ...]]:
+def action_only_prior(
+    samples: tuple[ModelSample, ...],
+) -> Callable[[ModelSample], tuple[float, ...]]:
     counts: Counter[str] = Counter()
     for sample in samples:
         if sample.split == "train":
@@ -64,16 +76,22 @@ def action_only_prior(samples: tuple[ModelSample, ...]) -> Callable[[ModelSample
     return lambda sample: tuple(math.log(counts[action] + 1) for action in sample.action_texts)
 
 
-def summarize_rows(rows: list[dict[str, Any]], *, seed: int, bootstrap: int = 200) -> dict[str, Any]:
+def summarize_rows(
+    rows: list[dict[str, Any]], *, seed: int, bootstrap: int = 200
+) -> dict[str, Any]:
     unsigned(seed, "evaluation.seed")
     unsigned(bootstrap, "evaluation.bootstrap")
     if not rows:
         raise BoundaryError("evaluation", "empty_evaluation")
 
     def mean(selected: list[dict[str, Any]]) -> dict[str, float | int]:
-        return {"count": len(selected), **{
-            metric: statistics.fmean(row[metric] for row in selected)
-            for metric in ("top1", "mrr", "nll", "confidence", "margin")}}
+        return {
+            "count": len(selected),
+            **{
+                metric: statistics.fmean(row[metric] for row in selected)
+                for metric in ("top1", "mrr", "nll", "confidence", "margin")
+            },
+        }
 
     result: dict[str, Any] = {"overall": mean(rows)}
     for dimension in ("surface", "family", "candidate_count", "run_id"):
@@ -85,15 +103,23 @@ def summarize_rows(rows: list[dict[str, Any]], *, seed: int, bootstrap: int = 20
     for row in rows:
         bins[min(9, int(row["confidence"] * 10))].append(row)
     result["ece_10_bins"] = sum(
-        len(values) / len(rows) * abs(statistics.fmean(row["confidence"] for row in values)
-                                    - statistics.fmean(row["top1"] for row in values))
-        for values in bins.values())
+        len(values)
+        / len(rows)
+        * abs(
+            statistics.fmean(row["confidence"] for row in values)
+            - statistics.fmean(row["top1"] for row in values)
+        )
+        for values in bins.values()
+    )
     by_run: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         by_run[row["run_id"]].append(row)
     if len(by_run) < 2 or bootstrap < 20:
-        result["bootstrap"] = {"status": "insufficient_independent_runs_or_replicates",
-                               "unit": "whole_run", "runs": len(by_run)}
+        result["bootstrap"] = {
+            "status": "insufficient_independent_runs_or_replicates",
+            "unit": "whole_run",
+            "runs": len(by_run),
+        }
     else:
         rng = random.Random(seed)
         run_ids = sorted(by_run)
@@ -102,17 +128,32 @@ def summarize_rows(rows: list[dict[str, Any]], *, seed: int, bootstrap: int = 20
             selected = [row for _ in run_ids for row in by_run[rng.choice(run_ids)]]
             for metric in ("top1", "mrr", "nll"):
                 draws[metric].append(statistics.fmean(row[metric] for row in selected))
-        result["bootstrap"] = {"status": "computed", "unit": "whole_run", "runs": len(run_ids),
-                               "seed": seed, "replicates": bootstrap,
-                               "percentile_95": {metric: [sorted(values)[int(bootstrap * 0.025)],
-                                                          sorted(values)[min(bootstrap - 1, int(bootstrap * 0.975))]]
-                                                 for metric, values in draws.items()}}
+        result["bootstrap"] = {
+            "status": "computed",
+            "unit": "whole_run",
+            "runs": len(run_ids),
+            "seed": seed,
+            "replicates": bootstrap,
+            "percentile_95": {
+                metric: [
+                    sorted(values)[int(bootstrap * 0.025)],
+                    sorted(values)[min(bootstrap - 1, int(bootstrap * 0.975))],
+                ]
+                for metric, values in draws.items()
+            },
+        }
     return result
 
 
-def evaluate_samples(samples: tuple[ModelSample, ...], scorer: Callable[[int], Sequence[float]],
-                     *, partition: str = "dev", seed: int = 0, bootstrap: int = 200,
-                     permit_test: bool = False) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def evaluate_samples(
+    samples: tuple[ModelSample, ...],
+    scorer: Callable[[int], Sequence[float]],
+    *,
+    partition: str = "dev",
+    seed: int = 0,
+    bootstrap: int = 200,
+    permit_test: bool = False,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     if partition not in {"dev", "test"} or (partition == "test" and not permit_test):
         raise BoundaryError("evaluation", "sealed_test_requires_explicit_protocol_admission")
     rows = []
@@ -123,15 +164,31 @@ def evaluate_samples(samples: tuple[ModelSample, ...], scorer: Callable[[int], S
         if len(scores) != len(sample.action_texts):
             raise BoundaryError("evaluation", "candidate_alignment_mismatch")
         metrics = candidate_metrics(scores, (sample.chosen_index,))
-        rows.append({"transition_id": sample.transition_id, "run_id": sample.run_id,
-                     "surface": sample.surface, "family": sample.family, "split": sample.split,
-                     "candidate_count": len(scores), **metrics})
+        rows.append(
+            {
+                "transition_id": sample.transition_id,
+                "run_id": sample.run_id,
+                "surface": sample.surface,
+                "family": sample.family,
+                "split": sample.split,
+                "candidate_count": len(scores),
+                **metrics,
+            }
+        )
     return rows, summarize_rows(rows, seed=seed, bootstrap=bootstrap)
 
 
-def publish_evaluation(store: ArtifactStore, model: Manifest, view_id: str,
-                       rows: list[dict[str, Any]], summary: dict[str, Any],
-                       producer: Producer, *, partition: str, baseline: str = "model") -> Manifest:
+def publish_evaluation(
+    store: ArtifactStore,
+    model: Manifest,
+    view_id: str,
+    rows: list[dict[str, Any]],
+    summary: dict[str, Any],
+    producer: Producer,
+    *,
+    partition: str,
+    baseline: str = "model",
+) -> Manifest:
     import pyarrow as pa
     import pyarrow.parquet as pq
 
@@ -139,14 +196,25 @@ def publish_evaluation(store: ArtifactStore, model: Manifest, view_id: str,
         pq.write_table(pa.Table.from_pylist(rows), handle, compression="zstd", version="2.6")
         handle.seek(0)
         row_payload = store.put_payload("metrics", handle, "application/vnd.apache.parquet")
-    summary_payload = store.put_payload("summary", io.BytesIO(json_bytes(summary)), "application/json")
-    manifest = Manifest("offline_evaluation", producer,
-                        (Parent("model", model.artifact_id), Parent("model_view", view_id)),
-                        (row_payload, summary_payload), FrozenObject.of({
-                            "schema": EVALUATION_SCHEMA, "partition": partition, "baseline": baseline,
-                            "tie_policy": "uniform_within_equal_score_blocks", "rows": len(rows),
-                            "scope": model.parameters.value()["scope"],
-                            "scientific_verdict": "not_claimed",
-                        }))
+    summary_payload = store.put_payload(
+        "summary", io.BytesIO(json_bytes(summary)), "application/json"
+    )
+    manifest = Manifest(
+        "offline_evaluation",
+        producer,
+        (Parent("model", model.artifact_id), Parent("model_view", view_id)),
+        (row_payload, summary_payload),
+        FrozenObject.of(
+            {
+                "schema": EVALUATION_SCHEMA,
+                "partition": partition,
+                "baseline": baseline,
+                "tie_policy": "uniform_within_equal_score_blocks",
+                "rows": len(rows),
+                "scope": model.parameters.value()["scope"],
+                "scientific_verdict": "not_claimed",
+            }
+        ),
+    )
     store.publish(manifest)
     return manifest
