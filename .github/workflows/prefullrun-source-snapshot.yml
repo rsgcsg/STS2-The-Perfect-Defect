@@ -1,0 +1,34 @@
+name: prefullrun-source-snapshot
+on:
+  push:
+    branches: [ops/prefullrun/finish-v2]
+    paths: [.github/workflows/prefullrun-source-snapshot.yml]
+permissions:
+  contents: read
+concurrency:
+  group: prefullrun-source-snapshot
+  cancel-in-progress: true
+jobs:
+  source:
+    if: github.repository == 'rsgcsg/STS2-The-Perfect-Defect'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export committed source only
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/stpd-source"
+          git rev-parse HEAD > "$RUNNER_TEMP/stpd-source/HEAD.txt"
+          git bundle create "$RUNNER_TEMP/stpd-source/source.bundle" --all
+          sha256sum "$RUNNER_TEMP/stpd-source/source.bundle"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: prefullrun-source-${{ github.sha }}
+          path: ${{ runner.temp }}/stpd-source/
+          retention-days: 3
+          if-no-files-found: error
