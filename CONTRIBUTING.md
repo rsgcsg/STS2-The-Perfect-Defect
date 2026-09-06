@@ -1,61 +1,44 @@
 # Contributing
 
-STPD is pre-alpha and evidence-first. Small, reversible changes with clear ownership are
-preferred over framework-wide rewrites.
+STPD is pre-alpha and evidence-first. Read [Development Workflow](docs/DEVELOPMENT_WORKFLOW.md),
+[Engineering Governance](docs/ENGINEERING_GOVERNANCE.md), and the owning contract before editing.
+Normal changes start from exact current develop and use a short-lived topic PR. Never
+force-push or directly update protected branches. The historical H1/combat-v0 lanes remain
+reproducible; a new Full-Run contract does not silently redefine them.
 
-Read the [development workflow](docs/DEVELOPMENT_WORKFLOW.md). Ordinary changes
-start from current `origin/develop` on one short-lived topic branch and enter
-`develop` through a pull request. `main` is reserved for governed releases and
-hotfixes; never direct-push `main` or `develop`.
+## Setup and checks
 
-## Setup
+Python >=3.11,<3.12 and uv.lock define the only supported developer environment:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
-python3 -m unittest discover -s tests -v
-python3 -m compileall -q stpd tests
+uv sync --locked --all-extras
+npm ci
+uv run --locked python tools/project.py context
+uv run --locked python tools/project.py check
+uv run --locked python tools/project.py closeout
 ```
 
-The pure test suite must not require STS2, Headless, Connector binaries, Qwen weights, a
-GPU, or network access.
+The same root gate runs on Linux and Windows. Cold dependency provisioning can require
+network; tests need no game, Human corpus, Qwen weights, GPU, or production credentials.
+[Testing](docs/TESTING.md) distinguishes local checks, CI and real-world evidence.
 
-## Change categories
+## Changes and review
 
-- **contract**: schemas, typed ports, serialization, leakage boundaries;
-- **environment**: consumption of the public Player Environment only;
-- **data**: ingestion, manifests, eligibility, splits, deduplication;
-- **representation**: ResearchState/ModelState/ModelAction and Qwen backend;
-- **model**: Scheme 1, S2-Simple, S2-SDT;
-- **training**: losses, sampling, optimization, checkpoints;
-- **evaluation**: B0-B7 benchmarks and statistics;
-- **qualification**: current linear-Q and Host/Reference smokes;
-- **docs/ops**: project system, evidence, release, and memory.
+Identify one primary owner: contract, environment adapter, data, representation, model,
+training, evaluation, qualification, or operations. Keep structural refactors separate from
+scientific experiments. Prefer the smallest clean causal design, not a tiny diff that leaves
+a broken abstraction in place. Public contracts are typed and have positive, negative,
+tamper, identity-drift and recovery tests where applicable.
 
-A change should normally have one primary category.
+Platform owns game/environment authority. STPD consumes exact public releases or explicitly
+non-stable candidates; it does not reconstruct legality, Commit, successor, or Human/native
+correlation. Keep runtime IDs and future information out of model features.
 
-STPD is a research project built on the upper-level STS2 AI Platform
-Foundation. Cross-repository changes use separate PRs, and STPD must pin an
-exact Platform release or explicitly non-stable candidate rather than a
-floating branch or sibling checkout.
+PRs bind exact base/head, owner, change class, failure model, tests, identity impact, rollback,
+merge method and non-claims. Update canonical documents, DOCUMENT_MAP and bounded memory when
+facts change. Required checks and review conditions apply at the latest head. Topic squash
+merge is normal; source-bound runtime/scientific evidence does not automatically transfer.
 
-## Pull request checklist
-
-- [ ] Owning layer and non-goals are stated.
-- [ ] Public interfaces are typed and documented.
-- [ ] Tests cover success and failure behavior.
-- [ ] No Host-local IDs or hidden facts enter model inputs.
-- [ ] Data/model/Host revisions and seeds are explicit.
-- [ ] New canonical docs are linked from `docs/DOCUMENT_MAP.md`.
-- [ ] `docs/STATUS.md` and memory files are updated when facts change.
-- [ ] Raw data, weights, credentials, proprietary files, and private paths are absent.
-- [ ] Claims distinguish implementation, test, runtime evidence, and inference.
-
-## Evidence
-
-Local outputs belong in ignored directories. Commit only reviewed summaries, manifests,
-checksums, and reproducible commands. A result from one source/data/model/Host tuple does
-not qualify another tuple.
-
-See [Project System](docs/PROJECT_SYSTEM.md) and [Code Style](docs/CODE_STYLE.md).
+Do not commit raw/private data, proprietary files, model weights, credentials, caches or large
+outputs. Store artifacts outside Git and record immutable manifests/checksums. Failed runs
+remain failed evidence. A passing test or completed training run is not model-quality proof.

@@ -1,41 +1,34 @@
 ## Change identity
 
-- Repository: `rsgcsg/STS2-The-Perfect-Defect`
-- Base branch:
-- Base SHA:
-- Workstream:
-- Primary owner:
-- Change category/owning layer:
+- Repository: rsgcsg/STS2-The-Perfect-Defect
+- Exact base branch/SHA:
+- Exact latest head branch/SHA:
+- Change class (G0-G6), primary owner and owning fact:
+- Merge method and any stacked prerequisites:
 
-## Scope
+## Scope and design
 
-- Problem:
-- Implemented change:
+- Problem, implemented change and justified design deviations:
+- Failure model and recovery:
+- Affected contracts/consumers:
+- Exact Platform pin and cross-repo impact:
+- Data / Model / Scientific-protocol / Service impact:
 - Non-goals:
-- Affected contracts/schemas/manifests:
-- Cross-repository dependency and exact Platform pin:
 
-## Evidence
+## Evidence at this head
 
-- Source/test commands and results:
-- Runtime/GPU/data/model evidence:
-- Exact source/data/model/Platform/Host/Connector identities:
-- Evidence level:
-- Remaining non-claims:
+- Focused tests and fresh review:
+- Full Linux / Windows / locked-python CI:
+- Package, patch hygiene and fixture E2E:
+- Exact source/data/model/runtime/protocol identities where applicable:
+- Remaining non-claims and real external/Human gates:
 
 ## Rollback
 
-Describe code/config rollback and artifact/evidence quarantine.
+Explain code/config rollback and artifact/evidence quarantine without rewriting history.
 
-## Checklist
+## Review
 
-- [ ] Public interfaces are typed and documented.
-- [ ] This branch was based on current `origin/develop` (or documented release/hotfix base).
-- [ ] The change has one primary responsibility and does not mix Platform workstreams.
-- [ ] Pure tests pass without STS2, Qwen weights, GPU, or network.
-- [ ] No hidden facts, Host-local IDs, or native operands enter model inputs.
-- [ ] Data/model/environment provenance and seeds are explicit.
-- [ ] New canonical docs are linked from `docs/DOCUMENT_MAP.md`.
-- [ ] Status, ADR, and memory files are updated when facts or decisions change.
-- [ ] Raw data, weights, proprietary files, credentials, and private paths are absent.
-- [ ] Claims distinguish implementation, tests, runtime evidence, and inference.
+Confirm typed boundaries, failure regressions, no hidden/native/future model features,
+immutable provenance, updated canonical docs/routes/memory, no secrets/raw data/weights,
+and no transfer of source/test evidence into runtime or scientific claims.

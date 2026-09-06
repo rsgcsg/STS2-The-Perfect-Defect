@@ -1,57 +1,44 @@
 # Code and Style Guide
 
-## Language baseline
+## Language and tooling
 
-- Python 3.9 or newer, UTF-8, LF endings.
-- Four-space indentation and a target line length of 100 characters.
-- Public functions, classes, dataclasses, and protocol methods use type hints.
-- `from __future__ import annotations` is preferred in new modules.
+Python >=3.11,<3.12, UTF-8, LF, four spaces, target line length 100. pyproject.toml and
+uv.lock are machine authority. Ruff and Mypy are required through the common repository gate;
+use Pytest, compileall and package build as documented in [Testing](TESTING.md).
+No formatter/linter churn without a demonstrated need. .editorconfig configures editors;
+.gitattributes controls checkout text bytes across operating systems.
 
-`.editorconfig` carries the editor-neutral formatting baseline. A formatter/linter becomes a
-required gate only after it is added to the development dependencies and the existing tree
-passes it; documentation must not claim an unconfigured gate.
+## Ownership and interfaces
 
-## Design rules
+One module owns one class of fact. Prefer typed public functions, dataclass(frozen=True),
+explicit JSON codecs and small Protocols. Compose rather than inherit when simpler. No
+arbitrary dictionaries as unvalidated durable contracts, generic utils dumping grounds,
+module-level mutable experiment state or cosmetic directory migrations.
 
-- Prefer small modules with one owner: environment, data, representation, model, training,
-  evaluation, experiment, or qualification.
-- Use `Protocol` at external boundaries, `dataclass(frozen=True)` for immutable identities,
-  and `TypedDict`/schemas for serialized records.
-- Avoid inheritance when composition or a small protocol is sufficient.
-- Avoid generic `utils.py`; name modules after the responsibility they own.
-- Do not create empty abstraction layers before a second concrete use exists.
-- Configuration is explicit; no hidden global seed, device, dtype, path, or model revision.
+Research, data, representation, Qwen, model, training, evaluation and peripheral mechanisms
+remain distinct. Core code does not import a storage SDK, SQLite, web framework or cloud
+provider. Adapters depend inward. Dashboard/Registry/analysis are projections, not scientific
+admission authorities. Platform legality and causality never migrate into this repository.
 
-## Determinism and errors
+## Determinism, leakage and failures
 
-- Derive and record Python, framework, data-loader, and experiment seeds.
-- Sort or preserve candidate ordering intentionally; never depend on localized labels.
-- Hash manifests and artifacts using stable canonical serialization.
-- Fail closed on incomplete action sets, identity drift, unknown outcomes, schema mismatch,
-  future leakage, and missing provenance.
-- Errors should name stage, identity, expected condition, and available recovery.
+Explicitly bind source, uv.lock, Dataset, Qwen/tokenizer, serializer, candidate alignment,
+configuration, seeds, device and dtype. Preserve semantic ordering where meaningful; never
+use candidate position as a label feature. Manifest canonicalization and byte hashes are
+versioned contracts. Durable object changes produce new identities, not silent overwrites.
 
-## Logging and evidence
+Classify errors by stage, identity, expected/observed condition and recovery. Reject missing
+provenance, unknown schema, incomplete catalogs, cross-split leakage, tampering and identity
+drift. Never replace an unknown result with guessed success. Failures need regression tests.
 
-- Use structured records for experiments and machine checks.
-- Human logs explain progress; machine reports carry verdicts.
-- Never write secrets, raw save data, Steam identifiers, private paths, or full external
-  examples into committed reports.
-- Distinguish `implemented`, `tested`, `runtime_measured`, `qualified`, and `inferred`.
+## Model and evidence
 
-## Testing
+Models consume admitted model views, not raw Connector JSON. Qwen goes through its exact
+pinned backend; the first Full-Run Scheme1 scorer is shared across surfaces. Metadata can
+stratify reports without selecting scene-specific heads. Frozen backbone gradients remain
+absent. Checkpoints bind model/optimizer/input/config identities and resume state.
 
-- Pure unit tests must work without STS2, Headless, Connector binaries, Qwen weights, GPU,
-  or network.
-- Contract tests cover positive and fail-closed negative paths.
-- Data tests cover leakage, deduplication, split isolation, and provenance.
-- Model tests use tiny deterministic fixtures and verify candidate-score alignment.
-- Runtime and GPU experiments are separate evidence commands, not unit tests.
-
-## Model code
-
-- Model forward paths consume typed ModelState/ModelAction batches, not raw Connector JSON.
-- Qwen access goes through the pinned backend port.
-- Scheme-specific code owns only its architecture; common data/evaluation code is shared.
-- Checkpoints include config, source/data/model identities, and optimizer state where needed.
-- A cached forward pass and a cold forward pass are reported separately.
+Use deterministic tiny/FakeQwen fixtures in CI. Report cold and cached performance separately.
+Structured reports carry actual evidence; human logs explain it. Secrets, private paths,
+identifiers, raw saves, weights and full external examples never enter committed reports.
+Engineering, data, training, evaluation, service and scientific claims are independent.

@@ -1,38 +1,116 @@
-name: ci
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-
-permissions:
-  contents: read
-
-jobs:
-  locked-python:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-      - name: Install Python and locked environment
-        run: uv sync --locked --all-extras
-      - name: Install versioned Player Environment SDK
-        run: npm ci
-      - name: Verify public Platform packages
-        run: uv run python tools/doctor.py
-      - name: Static checks
-        run: |
-          uv run ruff check .
-          uv run mypy stpd
-      - name: Unit tests
-        run: |
-          npm run check:connector-sdk
-          uv run pytest -q
-      - name: Compile check
-        run: uv run python -m compileall -q stpd tests
+{
+  "name": "ci",
+  "on": {
+    "pull_request": {},
+    "push": {
+      "branches": [
+        "main",
+        "develop",
+        "release/**",
+        "hotfix/**"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "concurrency": {
+    "group": "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}",
+    "cancel-in-progress": true
+  },
+  "jobs": {
+    "linux-portable": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 30,
+      "steps": [
+        {
+          "uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "with": {
+            "fetch-depth": 0,
+            "persist-credentials": false,
+            "ref": "${{ github.event.pull_request.head.sha || github.sha }}"
+          }
+        },
+        {
+          "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "with": {
+            "node-version": "20",
+            "cache": "npm"
+          }
+        },
+        {
+          "uses": "astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e",
+          "with": {
+            "enable-cache": true
+          }
+        },
+        {
+          "name": "Install locked Python environment",
+          "run": "uv sync --locked --all-extras"
+        },
+        {
+          "name": "Install exact Platform consumer packages",
+          "run": "npm ci"
+        },
+        {
+          "name": "Complete portable contract",
+          "run": "uv run --locked python tools/project.py check --base \"${{ github.event.pull_request.base.sha || github.event.before }}\""
+        }
+      ]
+    },
+    "windows-portable": {
+      "runs-on": "windows-latest",
+      "timeout-minutes": 30,
+      "steps": [
+        {
+          "uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "with": {
+            "fetch-depth": 0,
+            "persist-credentials": false,
+            "ref": "${{ github.event.pull_request.head.sha || github.sha }}"
+          }
+        },
+        {
+          "uses": "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "with": {
+            "node-version": "20",
+            "cache": "npm"
+          }
+        },
+        {
+          "uses": "astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e",
+          "with": {
+            "enable-cache": true
+          }
+        },
+        {
+          "name": "Install locked Python environment",
+          "run": "uv sync --locked --all-extras"
+        },
+        {
+          "name": "Install exact Platform consumer packages",
+          "run": "npm ci"
+        },
+        {
+          "name": "Complete portable contract",
+          "run": "uv run --locked python tools/project.py check --base \"${{ github.event.pull_request.base.sha || github.event.before }}\""
+        }
+      ]
+    },
+    "locked-python": {
+      "runs-on": "ubuntu-latest",
+      "if": "${{ always() }}",
+      "needs": [
+        "linux-portable",
+        "windows-portable"
+      ],
+      "steps": [
+        {
+          "name": "Require both portable lanes",
+          "shell": "bash",
+          "run": "test \"${{ needs.linux-portable.result }}\" = success\ntest \"${{ needs.windows-portable.result }}\" = success"
+        }
+      ]
+    }
+  }
+}
