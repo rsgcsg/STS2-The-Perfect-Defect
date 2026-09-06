@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import hashlib
 import io
 import os
@@ -105,7 +106,9 @@ class ManifestArtifactStore:
             raise StoreError("use_streaming_for_large_payload")
         return b"".join(self.read_payload(payload))
 
-    def put_bytes(self, role: str, value: bytes, media_type: str = "application/json") -> Payload:
+    def put_bytes(
+        self, role: str, value: builtins.bytes, media_type: str = "application/json"
+    ) -> Payload:
         return self.put_payload(role, io.BytesIO(value), media_type)
 
     def publish(self, manifest: Manifest) -> str:
