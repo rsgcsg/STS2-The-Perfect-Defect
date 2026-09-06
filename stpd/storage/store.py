@@ -9,7 +9,7 @@ import os
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
-from typing import BinaryIO, Protocol
+from typing import Protocol
 
 from ..artifact_contracts import Manifest, Payload
 from ..json_boundary import array, decode_json, digest, json_bytes, object_fields, unsigned
@@ -19,9 +19,15 @@ CHUNK_BYTES = 8 * 1024 * 1024
 PAYLOAD_SCHEMA = "stpd/payload-index-v1"
 
 
+class BinarySource(Protocol):
+    """The only stream operation required; includes wrapped Windows temporary files."""
+
+    def read(self, size: int = -1, /) -> bytes: ...
+
+
 class ArtifactStore(Protocol):
     def put_payload(
-        self, role: str, source: BinaryIO, media_type: str = "application/octet-stream"
+        self, role: str, source: BinarySource, media_type: str = "application/octet-stream"
     ) -> Payload: ...
 
     def read_payload(self, payload: Payload) -> Iterator[bytes]: ...
@@ -38,7 +44,7 @@ class ManifestArtifactStore:
         self.blobs = blobs
 
     def put_payload(
-        self, role: str, source: BinaryIO, media_type: str = "application/octet-stream"
+        self, role: str, source: BinarySource, media_type: str = "application/octet-stream"
     ) -> Payload:
         whole = hashlib.sha256()
         chunks = []
