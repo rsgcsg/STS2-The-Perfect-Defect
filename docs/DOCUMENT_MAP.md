@@ -51,3 +51,5 @@ stpd/data/human_annotator.py consumes it without making this map a second schema
 Platform owns model-neutral environment/runtime/evidence contracts. STPD owns research,
 data, representation, training and evaluation. External repositories are exact dependencies,
 not copied source trees, shared branches or submodules.
+
+[Local-First manifest ADR](adr/0003-local-first-manifest-research.md)

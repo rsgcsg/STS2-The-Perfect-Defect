@@ -14,8 +14,9 @@ from .store import ArtifactStore
 
 
 class Registry(Protocol):
-    def rebuild(self, manifests: Iterable[Manifest],
-                cached_ids: frozenset[str] = frozenset()) -> int: ...
+    def rebuild(
+        self, manifests: Iterable[Manifest], cached_ids: frozenset[str] = frozenset()
+    ) -> int: ...
     def get(self, artifact_id: str) -> Manifest: ...
     def manifests(self, kind: str | None = None) -> tuple[Manifest, ...]: ...
     def lineage(self, artifact_id: str) -> tuple[Manifest, ...]: ...
@@ -31,11 +32,13 @@ class SQLiteRegistry:
         with self._connection() as connection:
             version = connection.execute("PRAGMA user_version").fetchone()[0]
             if version not in {0, self.SCHEMA_VERSION}:
-                raise BoundaryError("registry", "unsupported_cache_schema",
-                                    "rebuild a separate cache")
+                raise BoundaryError(
+                    "registry", "unsupported_cache_schema", "rebuild a separate cache"
+                )
             if version == 0:
                 tables = connection.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
                 if tables:
                     raise BoundaryError("registry", "unversioned_nonempty_database")
                 connection.executescript("""
@@ -61,8 +64,9 @@ class SQLiteRegistry:
         finally:
             connection.close()
 
-    def rebuild(self, manifests: Iterable[Manifest],
-                cached_ids: frozenset[str] = frozenset()) -> int:
+    def rebuild(
+        self, manifests: Iterable[Manifest], cached_ids: frozenset[str] = frozenset()
+    ) -> int:
         records: dict[str, Manifest] = {}
         for manifest in manifests:
             previous = records.setdefault(manifest.artifact_id, manifest)
@@ -70,28 +74,37 @@ class SQLiteRegistry:
                 raise BoundaryError("registry", "identity_collision")
         for manifest in records.values():
             if any(parent.artifact_id not in records for parent in manifest.parents):
-                raise BoundaryError("registry", "dangling_parent",
-                                    "sync the complete manifest closure")
+                raise BoundaryError(
+                    "registry", "dangling_parent", "sync the complete manifest closure"
+                )
         if not cached_ids <= records.keys():
             raise BoundaryError("registry", "cache_state_without_manifest")
         with self._connection() as connection:
             connection.execute("DELETE FROM edges")
             connection.execute("DELETE FROM artifacts")
-            connection.executemany("INSERT INTO artifacts VALUES (?, ?, ?, ?)", [
-                (identity, manifest.kind, manifest.to_bytes(), int(identity in cached_ids))
-                for identity, manifest in sorted(records.items())
-            ])
-            connection.executemany("INSERT INTO edges VALUES (?, ?, ?)", [
-                (identity, parent.artifact_id, parent.role)
-                for identity, manifest in sorted(records.items()) for parent in manifest.parents
-            ])
+            connection.executemany(
+                "INSERT INTO artifacts VALUES (?, ?, ?, ?)",
+                [
+                    (identity, manifest.kind, manifest.to_bytes(), int(identity in cached_ids))
+                    for identity, manifest in sorted(records.items())
+                ],
+            )
+            connection.executemany(
+                "INSERT INTO edges VALUES (?, ?, ?)",
+                [
+                    (identity, parent.artifact_id, parent.role)
+                    for identity, manifest in sorted(records.items())
+                    for parent in manifest.parents
+                ],
+            )
         return len(records)
 
     def get(self, artifact_id: str) -> Manifest:
         digest(artifact_id, "registry.id")
         with self._connection() as connection:
             row = connection.execute(
-                "SELECT manifest, kind FROM artifacts WHERE id=?", (artifact_id,)).fetchone()
+                "SELECT manifest, kind FROM artifacts WHERE id=?", (artifact_id,)
+            ).fetchone()
         if row is None:
             raise BoundaryError("registry", "not_indexed", "sync or rebuild from manifests")
         manifest = Manifest.from_bytes(row[0], artifact_id)
@@ -117,7 +130,8 @@ class SQLiteRegistry:
         digest(artifact_id, "registry.id")
         with self._connection() as connection:
             row = connection.execute(
-                "SELECT cached FROM artifacts WHERE id=?", (artifact_id,)).fetchone()
+                "SELECT cached FROM artifacts WHERE id=?", (artifact_id,)
+            ).fetchone()
         return row is not None and row[0] == 1
 
     def lineage(self, artifact_id: str) -> tuple[Manifest, ...]:
@@ -133,8 +147,9 @@ class SQLiteRegistry:
         return tuple(found[key] for key in sorted(found))
 
 
-def sync_registry(store: ArtifactStore, registry: Registry,
-                  cached_ids: frozenset[str] = frozenset()) -> int:
+def sync_registry(
+    store: ArtifactStore, registry: Registry, cached_ids: frozenset[str] = frozenset()
+) -> int:
     pending = list(store.manifest_ids())
     records: dict[str, Manifest] = {}
     while pending:

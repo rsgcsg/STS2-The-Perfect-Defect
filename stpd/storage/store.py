@@ -19,8 +19,9 @@ PAYLOAD_SCHEMA = "stpd/payload-index-v1"
 
 
 class ArtifactStore(Protocol):
-    def put_payload(self, role: str, source: BinaryIO,
-                    media_type: str = "application/octet-stream") -> Payload: ...
+    def put_payload(
+        self, role: str, source: BinaryIO, media_type: str = "application/octet-stream"
+    ) -> Payload: ...
 
     def read_payload(self, payload: Payload) -> Iterator[bytes]: ...
 
@@ -35,8 +36,9 @@ class ManifestArtifactStore:
     def __init__(self, blobs: BlobStore) -> None:
         self.blobs = blobs
 
-    def put_payload(self, role: str, source: BinaryIO,
-                    media_type: str = "application/octet-stream") -> Payload:
+    def put_payload(
+        self, role: str, source: BinaryIO, media_type: str = "application/octet-stream"
+    ) -> Payload:
         whole = hashlib.sha256()
         chunks = []
         size = 0
@@ -60,16 +62,19 @@ class ManifestArtifactStore:
             chunks.append({"sha256": chunk_id, "size": len(data)})
             size += len(data)
         payload = Payload(role, whole.hexdigest(), size, media_type)
-        index = {"schema": PAYLOAD_SCHEMA, "sha256": payload.sha256,
-                 "size": size, "chunks": chunks}
+        index = {"schema": PAYLOAD_SCHEMA, "sha256": payload.sha256, "size": size, "chunks": chunks}
         self.blobs.put_if_absent(f"payload-indexes/v1/{payload.sha256}.json", json_bytes(index))
         return payload
 
     def read_payload(self, payload: Payload) -> Iterator[bytes]:
         raw = self.blobs.get(f"payload-indexes/v1/{payload.sha256}.json")
         index = object_fields(decode_json(raw), {"schema", "sha256", "size", "chunks"}, "payload")
-        if (index["schema"] != PAYLOAD_SCHEMA or index["sha256"] != payload.sha256
-                or index["size"] != payload.size or raw != json_bytes(index)):
+        if (
+            index["schema"] != PAYLOAD_SCHEMA
+            or index["sha256"] != payload.sha256
+            or index["size"] != payload.size
+            or raw != json_bytes(index)
+        ):
             raise StoreError("payload_index_mismatch")
         whole = hashlib.sha256()
         size = 0
@@ -121,8 +126,9 @@ class ManifestArtifactStore:
         for key in self.blobs.keys("manifests/"):
             if not key.endswith(".json"):
                 raise StoreError("unexpected_manifest_key")
-            identities.append(digest(key.removeprefix("manifests/").removesuffix(".json"),
-                                     "manifest_key"))
+            identities.append(
+                digest(key.removeprefix("manifests/").removesuffix(".json"), "manifest_key")
+            )
         return tuple(sorted(identities))
 
     def materialize(self, payload: Payload, destination: Path) -> Path:

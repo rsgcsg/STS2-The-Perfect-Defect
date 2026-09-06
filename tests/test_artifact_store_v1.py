@@ -36,7 +36,7 @@ def test_frozen_object_copies_and_manifest_roundtrip() -> None:
         Manifest.from_bytes(json_bytes(altered))
 
 
-@pytest.mark.parametrize("raw", [b'{"x":1,"x":2}', b'{"x":NaN}', b'{"x":Infinity}', b'\xff'])
+@pytest.mark.parametrize("raw", [b'{"x":1,"x":2}', b'{"x":NaN}', b'{"x":Infinity}', b"\xff"])
 def test_bad_json_is_rejected(raw: bytes) -> None:
     with pytest.raises(BoundaryError):
         decode_json(raw)

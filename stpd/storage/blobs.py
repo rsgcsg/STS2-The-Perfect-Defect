@@ -11,8 +11,9 @@ MAX_BLOB_BYTES = 16 * 1024 * 1024
 
 
 class StoreError(BoundaryError):
-    def __init__(self, code: str,
-                 recovery: str = "verify store configuration and exact objects") -> None:
+    def __init__(
+        self, code: str, recovery: str = "verify store configuration and exact objects"
+    ) -> None:
         super().__init__("artifact_store", code, recovery)
 
 
@@ -32,10 +33,19 @@ def safe_key(key: str, *, prefix: bool = False) -> str:
         raise StoreError("invalid_object_key")
     for part in candidate.split("/"):
         stem = part.split(".", 1)[0]
-        if part in {"", ".", ".."} or part.endswith(".") or stem in {
-            "con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)),
-            *(f"lpt{i}" for i in range(1, 10)),
-        }:
+        if (
+            part in {"", ".", ".."}
+            or part.endswith(".")
+            or stem
+            in {
+                "con",
+                "prn",
+                "aux",
+                "nul",
+                *(f"com{i}" for i in range(1, 10)),
+                *(f"lpt{i}" for i in range(1, 10)),
+            }
+        ):
             raise StoreError("nonportable_object_key")
     return key
 

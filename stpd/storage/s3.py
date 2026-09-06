@@ -35,9 +35,15 @@ class S3Config:
         if self.endpoint is not None:
             parsed = urlsplit(self.endpoint)
             local = parsed.hostname in {"localhost", "127.0.0.1", "::1"}
-            if (not parsed.hostname or parsed.username or parsed.password or parsed.query
-                    or parsed.fragment or parsed.scheme not in {"https", "http"}
-                    or (parsed.scheme == "http" and not local)):
+            if (
+                not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+                or parsed.scheme not in {"https", "http"}
+                or (parsed.scheme == "http" and not local)
+            ):
                 raise StoreError("unsafe_endpoint_configuration")
 
 
@@ -47,12 +53,21 @@ def client_for(config: S3Config) -> S3Client:
     import boto3
     from botocore.config import Config
 
-    return cast(S3Client, boto3.client(
-        "s3", endpoint_url=config.endpoint, region_name=config.region,
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"},
-                      connect_timeout=15, read_timeout=60,
-                      retries={"mode": "standard", "max_attempts": 3}),
-    ))
+    return cast(
+        S3Client,
+        boto3.client(
+            "s3",
+            endpoint_url=config.endpoint,
+            region_name=config.region,
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+                connect_timeout=15,
+                read_timeout=60,
+                retries={"mode": "standard", "max_attempts": 3},
+            ),
+        ),
+    )
 
 
 def _error_code(error: Exception) -> str:
@@ -78,10 +93,14 @@ class S3BlobStore:
         for _ in range(3):
             try:
                 self.client.put_object(
-                    Bucket=self.config.bucket, Key=self._key(key), Body=data,
-                    ContentLength=len(data), IfNoneMatch="*",
+                    Bucket=self.config.bucket,
+                    Key=self._key(key),
+                    Body=data,
+                    ContentLength=len(data),
+                    IfNoneMatch="*",
                     ContentMD5=base64.b64encode(
-                        hashlib.md5(data, usedforsecurity=False).digest()).decode("ascii"),
+                        hashlib.md5(data, usedforsecurity=False).digest()
+                    ).decode("ascii"),
                     Metadata={"sha256": hashlib.sha256(data).hexdigest()},
                 )
                 return True
@@ -152,7 +171,7 @@ class S3BlobStore:
                 key = entry.get("Key") if isinstance(entry, dict) else None
                 if not isinstance(key, str) or not key.startswith(full_prefix):
                     raise StoreError("invalid_s3_listing_key")
-                relative = key[len(self.config.prefix) + 1:] if self.config.prefix else key
+                relative = key[len(self.config.prefix) + 1 :] if self.config.prefix else key
                 found.add(safe_key(relative))
             if page.get("IsTruncated", False) is False:
                 return tuple(sorted(found))

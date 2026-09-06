@@ -19,11 +19,28 @@ from .json_boundary import (
 )
 
 MANIFEST_SCHEMA = "stpd/artifact-manifest-v1"
-KINDS = frozenset({
-    "evidence", "dataset", "model_view", "feature_set", "training_input", "experiment",
-    "run", "checkpoint", "model", "offline_evaluation", "live_evaluation", "performance",
-    "run_event", "run_result", "gold_tasks", "gold_labels", "protocol", "analysis",
-})
+KINDS = frozenset(
+    {
+        "evidence",
+        "dataset",
+        "model_view",
+        "feature_set",
+        "training_input",
+        "experiment",
+        "run",
+        "checkpoint",
+        "model",
+        "offline_evaluation",
+        "live_evaluation",
+        "performance",
+        "run_event",
+        "run_result",
+        "gold_tasks",
+        "gold_labels",
+        "protocol",
+        "analysis",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -38,8 +55,11 @@ class Producer:
         digest(self.uv_lock_sha256, "producer.uv_lock_sha256")
 
     def to_dict(self) -> dict[str, str]:
-        return {"repository": self.repository, "source_revision": self.source_revision,
-                "uv_lock_sha256": self.uv_lock_sha256}
+        return {
+            "repository": self.repository,
+            "source_revision": self.source_revision,
+            "uv_lock_sha256": self.uv_lock_sha256,
+        }
 
     @classmethod
     def decode(cls, value: object) -> Producer:
@@ -74,8 +94,12 @@ class Payload:
         text(self.media_type, "payload.media_type", maximum=128)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"role": self.role, "sha256": self.sha256, "size": self.size,
-                "media_type": self.media_type}
+        return {
+            "role": self.role,
+            "sha256": self.sha256,
+            "size": self.size,
+            "media_type": self.media_type,
+        }
 
     @classmethod
     def decode(cls, value: object) -> Payload:
@@ -94,9 +118,12 @@ class Manifest:
     def __post_init__(self) -> None:
         if not isinstance(self.kind, str) or self.kind not in KINDS:
             raise BoundaryError("manifest", "unknown_kind")
-        if (not isinstance(self.parents, tuple) or not isinstance(self.payloads, tuple)
-                or any(not isinstance(p, Parent) for p in self.parents)
-                or any(not isinstance(p, Payload) for p in self.payloads)):
+        if (
+            not isinstance(self.parents, tuple)
+            or not isinstance(self.payloads, tuple)
+            or any(not isinstance(p, Parent) for p in self.parents)
+            or any(not isinstance(p, Payload) for p in self.payloads)
+        ):
             raise BoundaryError("manifest", "mutable_or_untyped_collections")
         if len(set(self.parents)) != len(self.parents):
             raise BoundaryError("manifest", "duplicate_parent")
@@ -106,11 +133,14 @@ class Manifest:
             raise BoundaryError("manifest", "untyped_boundary")
 
     def body(self) -> dict[str, Any]:
-        return {"schema": MANIFEST_SCHEMA, "kind": self.kind,
-                "producer": self.producer.to_dict(),
-                "parents": [p.to_dict() for p in sorted(self.parents)],
-                "payloads": [p.to_dict() for p in sorted(self.payloads)],
-                "parameters": self.parameters.value()}
+        return {
+            "schema": MANIFEST_SCHEMA,
+            "kind": self.kind,
+            "producer": self.producer.to_dict(),
+            "parents": [p.to_dict() for p in sorted(self.parents)],
+            "payloads": [p.to_dict() for p in sorted(self.payloads)],
+            "parameters": self.parameters.value(),
+        }
 
     @property
     def artifact_id(self) -> str:
@@ -133,9 +163,19 @@ class Manifest:
 
     @classmethod
     def from_bytes(cls, raw: bytes, expected_id: str | None = None) -> Manifest:
-        obj = object_fields(decode_json(raw), {
-            "schema", "artifact_id", "kind", "producer", "parents", "payloads", "parameters",
-        }, "manifest")
+        obj = object_fields(
+            decode_json(raw),
+            {
+                "schema",
+                "artifact_id",
+                "kind",
+                "producer",
+                "parents",
+                "payloads",
+                "parameters",
+            },
+            "manifest",
+        )
         if obj["schema"] != MANIFEST_SCHEMA:
             raise BoundaryError("manifest", "unsupported_schema")
         parents = []
@@ -144,9 +184,13 @@ class Manifest:
             parents.append(Parent(parent["role"], parent["artifact_id"]))
         if not isinstance(obj["parameters"], dict):
             raise BoundaryError("manifest.parameters", "not_an_object")
-        result = cls(obj["kind"], Producer.decode(obj["producer"]), tuple(parents),
-                     tuple(Payload.decode(p) for p in array(obj["payloads"], "manifest.payloads")),
-                     FrozenObject.of(obj["parameters"]))
+        result = cls(
+            obj["kind"],
+            Producer.decode(obj["producer"]),
+            tuple(parents),
+            tuple(Payload.decode(p) for p in array(obj["payloads"], "manifest.payloads")),
+            FrozenObject.of(obj["parameters"]),
+        )
         if obj["artifact_id"] != result.artifact_id or (
             expected_id is not None
             and digest(expected_id, "manifest.expected") != result.artifact_id

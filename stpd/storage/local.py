@@ -65,9 +65,12 @@ class LocalBlobStore:
 
     def keys(self, prefix: str) -> tuple[str, ...]:
         safe_key(prefix, prefix=True)
-        return tuple(sorted(
-            path.relative_to(self.root).as_posix()
-            for path in self.root.rglob("*")
-            if path.is_file() and not path.name.startswith(".pending-")
-            and path.relative_to(self.root).as_posix().startswith(prefix)
-        ))
+        return tuple(
+            sorted(
+                path.relative_to(self.root).as_posix()
+                for path in self.root.rglob("*")
+                if path.is_file()
+                and not path.name.startswith(".pending-")
+                and path.relative_to(self.root).as_posix().startswith(prefix)
+            )
+        )

@@ -15,6 +15,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+research = [
+  "boto3>=1.35,<2",
+  "duckdb>=1.4,<2",
+]
 l1 = [
   "huggingface-hub>=0.34,<2",
   "tokenizers>=0.21,<1",
@@ -77,3 +81,7 @@ torch = [
 name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true
+
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore", "botocore.*"]
+ignore_missing_imports = true

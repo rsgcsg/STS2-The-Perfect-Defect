@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from test_artifact_store_v1 import PRODUCER, store
 
 from stpd.artifact_contracts import Manifest, Parent
 from stpd.json_boundary import BoundaryError
@@ -13,8 +14,6 @@ from stpd.storage.blobs import StoreError
 from stpd.storage.registry import SQLiteRegistry, sync_registry
 from stpd.storage.s3 import S3BlobStore, S3Config
 from stpd.storage.store import ManifestArtifactStore, copy_artifact
-
-from test_artifact_store_v1 import PRODUCER, store
 
 
 class FakeS3Error(Exception):
@@ -54,8 +53,11 @@ class FakeS3:
         values = sorted(key for key in self.objects if key.startswith(kwargs["Prefix"]))
         index = int(kwargs.get("ContinuationToken", "0"))
         more = index + 1 < len(values)
-        return {"Contents": [{"Key": key} for key in values[index:index + 1]],
-                "IsTruncated": more, "NextContinuationToken": str(index + 1)}
+        return {
+            "Contents": [{"Key": key} for key in values[index : index + 1]],
+            "IsTruncated": more,
+            "NextContinuationToken": str(index + 1),
+        }
 
 
 def test_same_domain_flow_on_local_and_s3_contract(tmp_path: Path) -> None:
@@ -88,8 +90,10 @@ def test_s3_conditional_write_failures_never_fall_back_to_overwrite() -> None:
     assert "stpd/objects/b" not in fake.objects
 
 
-@pytest.mark.parametrize("endpoint", ["http://example.com", "https://key:secret@example.com",
-                                      "https://example.com?token=abc"])
+@pytest.mark.parametrize(
+    "endpoint",
+    ["http://example.com", "https://key:secret@example.com", "https://example.com?token=abc"],
+)
 def test_secrets_and_unencrypted_remote_endpoints_rejected(endpoint: str) -> None:
     with pytest.raises(StoreError):
         S3Config("bucket", endpoint=endpoint)
@@ -139,21 +143,39 @@ def test_s3_wire_contract_uses_real_sdk_validation_without_network() -> None:
     import boto3
     from botocore.stub import Stubber
 
-    client = boto3.client("s3", region_name="us-east-1", endpoint_url="https://example.invalid",
-                          aws_access_key_id="fixture", aws_secret_access_key="fixture")
+    client = boto3.client(
+        "s3",
+        region_name="us-east-1",
+        endpoint_url="https://example.invalid",
+        aws_access_key_id="fixture",
+        aws_secret_access_key="fixture",
+    )
     adapter = S3BlobStore(S3Config("bucket"), client)
     raw = b"wire-contract"
-    expected = {"Bucket": "bucket", "Key": "stpd/objects/a", "Body": raw,
-                "ContentLength": len(raw), "IfNoneMatch": "*",
-                "ContentMD5": base64.b64encode(
-                    hashlib.md5(raw, usedforsecurity=False).digest()).decode("ascii"),
-                "Metadata": {"sha256": hashlib.sha256(raw).hexdigest()}}
+    expected = {
+        "Bucket": "bucket",
+        "Key": "stpd/objects/a",
+        "Body": raw,
+        "ContentLength": len(raw),
+        "IfNoneMatch": "*",
+        "ContentMD5": base64.b64encode(hashlib.md5(raw, usedforsecurity=False).digest()).decode(
+            "ascii"
+        ),
+        "Metadata": {"sha256": hashlib.sha256(raw).hexdigest()},
+    }
     with Stubber(client) as stub:
         stub.add_response("put_object", {}, expected)
-        stub.add_client_error("put_object", service_error_code="PreconditionFailed",
-                              http_status_code=412, expected_params=expected)
-        stub.add_response("get_object", {"Body": io.BytesIO(raw), "ContentLength": len(raw)},
-                          {"Bucket": "bucket", "Key": "stpd/objects/a"})
+        stub.add_client_error(
+            "put_object",
+            service_error_code="PreconditionFailed",
+            http_status_code=412,
+            expected_params=expected,
+        )
+        stub.add_response(
+            "get_object",
+            {"Body": io.BytesIO(raw), "ContentLength": len(raw)},
+            {"Bucket": "bucket", "Key": "stpd/objects/a"},
+        )
         assert adapter.put_if_absent("objects/a", raw)
         assert not adapter.put_if_absent("objects/a", raw)
         stub.assert_no_pending_responses()
