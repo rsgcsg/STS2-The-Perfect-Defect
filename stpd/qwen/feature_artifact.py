@@ -180,10 +180,9 @@ def compile_joint_feature_artifact(
         if sample["chosen"]:
             transition_id = str(sample["transition_id"])
             chosen_by_transition[transition_id] = chosen_by_transition.get(transition_id, 0) + 1
-    if (
-        set(chosen_by_transition) != rank_transition_ids
-        or set(chosen_by_transition.values()) != {1}
-    ):
+    if set(chosen_by_transition) != rank_transition_ids or set(chosen_by_transition.values()) != {
+        1
+    }:
         raise FeatureArtifactError(
             "each rank-eligible transition must select exactly one candidate"
         )
@@ -251,6 +250,7 @@ def compile_joint_feature_artifact(
             )
             + "\n",
             encoding="utf-8",
+            newline="\n",
         )
         pq.write_table(
             pa.Table.from_pylist(samples),
@@ -273,7 +273,7 @@ def compile_joint_feature_artifact(
         }
         manifest_payload["manifest_content_id"] = semantic_hash(manifest_payload)
         (temporary / "manifest.json").write_text(
-            canonical_json(manifest_payload) + "\n", encoding="utf-8"
+            canonical_json(manifest_payload) + "\n", encoding="utf-8", newline="\n"
         )
         destination = _atomic_directory(temporary, destination)
     finally:

@@ -12,7 +12,7 @@ import os
 import shutil
 import tempfile
 from collections.abc import Mapping, Sequence
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from ..canonical import canonical_json, semantic_hash
@@ -67,7 +67,7 @@ def _atomic_write(path: Path, content: str) -> None:
     os.close(file_descriptor)
     temporary = Path(temporary_name)
     try:
-        temporary.write_text(content, encoding="utf-8")
+        temporary.write_text(content, encoding="utf-8", newline="\n")
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
@@ -383,7 +383,7 @@ def _verify_feature_binding(
         or training_view.get("qwen_identity") != model_view.get("qwen_identity")
     ):
         raise TrainingHandoffError("derived feature model-view drift")
-    prefix = str(Path(manifest_logical).parent)
+    prefix = PurePosixPath(manifest_logical).parent.as_posix()
     for value in _sequence(feature_manifest.get("files"), "derived feature files"):
         item = _object(value, "derived feature file")
         logical_path = f"{prefix}/{item.get('path')}"
@@ -445,9 +445,7 @@ def stage_training_input(
     }
     receipt_id = semantic_hash(receipt_payload)
     receipt = {**receipt_payload, "receipt_id": receipt_id}
-    _atomic_write(
-        receiver / "receipts" / f"{receipt_id}.json", canonical_json(receipt) + "\n"
-    )
+    _atomic_write(receiver / "receipts" / f"{receipt_id}.json", canonical_json(receipt) + "\n")
     return receipt
 
 
