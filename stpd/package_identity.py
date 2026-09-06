@@ -21,9 +21,12 @@ def file_sha256(path: Path) -> str:
 
 
 def directory_sha256(directory: Path) -> str:
-    """Hash package paths and bytes without depending on filesystem metadata."""
+    """Hash canonical relative paths and exact bytes, never OS-specific Path ordering."""
     digest = hashlib.sha256()
-    files = sorted(path for path in directory.rglob("*") if path.is_file())
+    files = sorted(
+        (path for path in directory.rglob("*") if path.is_file()),
+        key=lambda path: path.relative_to(directory).as_posix(),
+    )
     for path in files:
         relative = path.relative_to(directory).as_posix().encode()
         digest.update(relative)
@@ -68,5 +71,8 @@ def validate_installed_package(
         raise PackageIdentityError("installed package version differs from pin")
     content_sha256 = directory_sha256(package_root)
     if content_sha256 != expected["package_content_sha256"]:
-        raise PackageIdentityError("installed package content differs from pin")
+        raise PackageIdentityError(
+            "installed package content differs from pin: "
+            f"expected={expected['package_content_sha256']} observed={content_sha256}"
+        )
     return {**expected, "package_content_sha256": content_sha256}
