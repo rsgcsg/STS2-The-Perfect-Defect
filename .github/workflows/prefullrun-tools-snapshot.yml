@@ -17,18 +17,18 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
-      - name: Prepare supplementary Python 3.13 wheels and exact npm consumer
+      - name: Prepare supplemental tokenizer and exact source snapshot
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/offline-tools/wheels"
-          python -m pip download --dest "$RUNNER_TEMP/offline-tools/wheels" --only-binary=:all: --python-version 3.13 --implementation cp --abi cp313 --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 pyarrow==23.0.1 duckdb==1.5.5 ruff==0.16.4 mypy==1.20.2
-          python -m pip wheel --no-deps --wheel-dir "$RUNNER_TEMP/offline-tools/wheels" 'git+https://github.com/rsgcsg/STS2-AI-PLATFORM.git@a5f733d32b3657168c593552eaac4d850284d181#subdirectory=components/evidence'
-          npm ci
-          tar -czf "$RUNNER_TEMP/offline-tools/node_modules.tar.gz" node_modules
+          python -m pip download --no-deps --dest "$RUNNER_TEMP/offline-tools/wheels" --only-binary=:all: --python-version 3.13 --implementation cp --abi cp313 --abi abi3 --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 tokenizers==0.22.2
+          git bundle create "$RUNNER_TEMP/offline-tools/source.bundle" --all
+          git rev-parse HEAD > "$RUNNER_TEMP/offline-tools/HEAD.txt"
           printf '%s\n' 'Supplementary Python 3.13 tools only. Not locked Python 3.11 CI evidence.' > "$RUNNER_TEMP/offline-tools/NON_CLAIMS.txt"
-          (cd "$RUNNER_TEMP/offline-tools" && sha256sum wheels/* node_modules.tar.gz > SHA256SUMS)
+          (cd "$RUNNER_TEMP/offline-tools" && sha256sum wheels/* source.bundle > SHA256SUMS)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: prefullrun-offline-tools-${{ github.sha }}
