@@ -11,17 +11,22 @@ from ..contracts import ContractError, QwenBackend
 from ._backend import tensor
 
 
+def build_scheme1_head(hidden_size: int, *, head: str = "mlp") -> nn.Module:
+    """One architecture authority for live-Qwen and precompiled-feature consumers."""
+    if type(hidden_size) is not int or hidden_size < 1:
+        raise ValueError("Scheme1 hidden size must be a positive integer")
+    if head == "linear":
+        return nn.Linear(hidden_size, 1)
+    if head == "mlp":
+        return nn.Sequential(nn.Linear(hidden_size, 256), nn.GELU(), nn.Linear(256, 1))
+    raise ValueError("Scheme1 head must be linear or mlp")
+
+
 class Scheme1Scorer(nn.Module):
     def __init__(self, backend: QwenBackend, hidden_size: int, *, head: str = "mlp") -> None:
         super().__init__()
         self.backend = backend
-        self.head: nn.Module
-        if head == "linear":
-            self.head = nn.Linear(hidden_size, 1)
-        elif head == "mlp":
-            self.head = nn.Sequential(nn.Linear(hidden_size, 256), nn.GELU(), nn.Linear(256, 1))
-        else:
-            raise ValueError("Scheme1 head must be linear or mlp")
+        self.head = build_scheme1_head(hidden_size, head=head)
 
     def forward(self, state_text: str, action_texts: tuple[str, ...]) -> Tensor:
         if not state_text or not action_texts:
