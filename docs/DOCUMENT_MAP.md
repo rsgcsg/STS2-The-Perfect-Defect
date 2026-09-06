@@ -53,3 +53,5 @@ data, representation, training and evaluation. External repositories are exact d
 not copied source trees, shared branches or submodules.
 
 [Local-First manifest ADR](adr/0003-local-first-manifest-research.md)
+
+[Full-Run Research](FULLRUN_RESEARCH.md)

@@ -40,15 +40,28 @@ def test_candidate_permutation_preserves_text_and_input_fingerprint() -> None:
 
 def test_provenance_and_future_successor_never_enter_input() -> None:
     record = transition()
-    changed = replace(record, run_id="different-run", successor=SemanticState(
-        FrozenObject.of({"future_outcome": "win"}), FrozenObject()))
+    changed = replace(
+        record,
+        run_id="different-run",
+        successor=SemanticState(FrozenObject.of({"future_outcome": "win"}), FrozenObject()),
+    )
     serializer = FullRunSerializer()
     assert serializer.serialize(record) == serializer.serialize(changed)
     assert record.provenance.native_root_ref not in serializer.serialize_state(record.state)
 
 
-@pytest.mark.parametrize("field", ["runtime_instance_id", "nativeObjectID", "timestamp",
-                                   "chosen_key", "candidate_position", "run_outcome", "successor"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "runtime_instance_id",
+        "nativeObjectID",
+        "timestamp",
+        "chosen_key",
+        "candidate_position",
+        "run_outcome",
+        "successor",
+    ],
+)
 def test_leakage_is_rejected(field: str) -> None:
     record = transition()
     state = replace(record.state, decision=FrozenObject.of({field: "forbidden"}))

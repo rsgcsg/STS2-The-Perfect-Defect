@@ -45,9 +45,14 @@ def test_incomplete_catalog_missing_steps_and_mixed_scope_fail_closed() -> None:
         admit((replace(source, transitions=(changed, *source.transitions[1:])),))
     with pytest.raises(BoundaryError, match="missing_run_step"):
         admit((replace(source, transitions=source.transitions[1:]),))
-    other = replace(source, scope="platform_qualified", transitions=tuple(
-        replace(r, provenance=replace(r.provenance, scope="platform_qualified"))
-        for r in source.transitions))
+    other = replace(
+        source,
+        scope="platform_qualified",
+        transitions=tuple(
+            replace(r, provenance=replace(r.provenance, scope="platform_qualified"))
+            for r in source.transitions
+        ),
+    )
     with pytest.raises(BoundaryError, match="mixed_engineering"):
         admit((source, other))
 
@@ -55,8 +60,13 @@ def test_incomplete_catalog_missing_steps_and_mixed_scope_fail_closed() -> None:
 def test_repeated_semantic_decisions_join_entire_runs() -> None:
     source = projection()
     rows = list(source.transitions)
-    rows[12] = replace(rows[12], state=rows[0].state, actions=rows[0].actions,
-                       chosen_key=rows[0].chosen_key, catalog_count=rows[0].catalog_count)
+    rows[12] = replace(
+        rows[12],
+        state=rows[0].state,
+        actions=rows[0].actions,
+        chosen_key=rows[0].chosen_key,
+        catalog_count=rows[0].catalog_count,
+    )
     joined = admit((replace(source, transitions=tuple(rows)),))
     assert joined.splits.value()[rows[0].run_id] == joined.splits.value()[rows[12].run_id]
 
@@ -65,7 +75,9 @@ def test_parquet_dataset_and_lineage_roundtrip(tmp_path: Path) -> None:
     from test_artifact_store_v1 import PRODUCER, store
 
     target = store(tmp_path)
-    source, projected = publish_source(target, synthetic_bundle(runs=6), SyntheticSourceAdapter(), PRODUCER)
+    source, projected = publish_source(
+        target, synthetic_bundle(runs=6), SyntheticSourceAdapter(), PRODUCER
+    )
     dataset = admit((projected,), seed=19)
     manifest = publish_dataset(target, dataset, (source,), PRODUCER)
     restored_manifest, restored = load_dataset(target, manifest.artifact_id)
