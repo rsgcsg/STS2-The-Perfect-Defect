@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any
 
 import torch
 from safetensors.torch import load, save
@@ -51,7 +51,7 @@ def encode_checkpoint(state: Mapping[str, Any]) -> bytes:
     header = json_bytes({"schema": "stpd/tensor-tree-v1", "tree": encode(state)})
     if len(header) > MAX_HEADER:
         raise BoundaryError("checkpoint", "header_limit")
-    encoded = MAGIC + len(header).to_bytes(8, "little") + header + cast(bytes, save(tensors))
+    encoded = MAGIC + len(header).to_bytes(8, "little") + header + save(tensors)
     if len(encoded) > MAX_BYTES:
         raise BoundaryError("checkpoint", "payload_limit")
     return encoded

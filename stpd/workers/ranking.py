@@ -56,7 +56,7 @@ class RankingEngine:
             {
                 "feature_set": features.manifest.artifact_id,
                 "plan": self.plan[: self.total_steps],
-                "labels": self.labels,
+                "labels": [[index, label] for index, label in sorted(self.labels.items())],
             }
         )
         self.matrix = torch.tensor(
@@ -155,7 +155,7 @@ class RankingEngine:
             name: tensor.detach().cpu().contiguous()
             for name, tensor in self.head.state_dict().items()
         }
-        return cast(bytes, save(weights))
+        return save(weights)
 
 
 def load_head(raw: bytes, hidden_size: int, config: TrainingConfig) -> nn.Module:
