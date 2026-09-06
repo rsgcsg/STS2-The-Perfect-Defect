@@ -1,0 +1,225 @@
+diff --git a/stpd/data/training_handoff.py b/stpd/data/training_handoff.py
+index 54402d0..b55b594 100644
+--- a/stpd/data/training_handoff.py
++++ b/stpd/data/training_handoff.py
+@@ -12,7 +12,7 @@ import os
+ import shutil
+ import tempfile
+ from collections.abc import Mapping, Sequence
+-from pathlib import Path
++from pathlib import Path, PurePosixPath
+ from typing import Any
+ 
+ from ..canonical import canonical_json, semantic_hash
+@@ -47,32 +47,65 @@ def _sequence(value: Any, name: str) -> Sequence[Any]:
+     return value
+ 
+ 
+-def _atomic_copy(source: Path, destination: Path) -> None:
++def _publish_temporary(temporary: Path, destination: Path) -> None:
++    """Publish verified bytes once; never replace an existing immutable object."""
++    try:
++        os.link(temporary, destination)
++    except FileExistsError:
++        if destination.is_symlink() or not destination.is_file():
++            raise TrainingHandoffError("immutable destination is not a regular file") from None
++        if temporary.stat().st_size != destination.stat().st_size or (
++            _sha256(temporary) != _sha256(destination)
++        ):
++            raise TrainingHandoffError(
++                "immutable publication collision; refusing overwrite"
++            ) from None
++
++
++def _atomic_copy(source: Path, destination: Path, expected_digest: str | None = None) -> None:
+     destination.parent.mkdir(parents=True, exist_ok=True)
+-    file_descriptor, temporary_name = tempfile.mkstemp(
+-        prefix=f".{destination.name}.", dir=destination.parent
+-    )
+-    os.close(file_descriptor)
+-    temporary = Path(temporary_name)
++    descriptor, name = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
++    temporary = Path(name)
+     try:
+-        shutil.copyfile(source, temporary)
+-        os.replace(temporary, destination)
++        with os.fdopen(descriptor, "wb") as output, source.open("rb") as incoming:
++            shutil.copyfileobj(incoming, output)
++            output.flush()
++            os.fsync(output.fileno())
++        if expected_digest is not None and _sha256(temporary) != expected_digest:
++            raise TrainingHandoffError("source changed during immutable publication")
++        _publish_temporary(temporary, destination)
+     finally:
+         temporary.unlink(missing_ok=True)
+ 
+ 
+ def _atomic_write(path: Path, content: str) -> None:
+     path.parent.mkdir(parents=True, exist_ok=True)
+-    file_descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+-    os.close(file_descriptor)
+-    temporary = Path(temporary_name)
++    descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
++    temporary = Path(name)
+     try:
+-        temporary.write_text(content, encoding="utf-8")
+-        os.replace(temporary, path)
++        with os.fdopen(descriptor, "wb") as output:
++            output.write(content.encode("utf-8"))
++            output.flush()
++            os.fsync(output.fileno())
++        _publish_temporary(temporary, path)
+     finally:
+         temporary.unlink(missing_ok=True)
+ 
+ 
++def _logical_path(value: str) -> str:
++    # Logical paths are POSIX protocol fields, never host filesystem spellings.
++    if (
++        not isinstance(value, str)
++        or not value
++        or "\\" in value
++        or ":" in value
++        or value.startswith("/")
++        or any(part in {"", ".", ".."} for part in value.split("/"))
++    ):
++        raise TrainingHandoffError("training artifact logical_path must be portable and relative")
++    return value
++
++
+ def _object_path(store: Path, digest: str) -> Path:
+     if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+         raise TrainingHandoffError("object digest must be lowercase SHA-256")
+@@ -86,11 +119,12 @@ def _put_object(store: Path, source: Path) -> dict[str, Any]:
+         if _sha256(destination) != digest or destination.stat().st_size != source.stat().st_size:
+             raise TrainingHandoffError("content-addressed object collision or corruption")
+     else:
+-        _atomic_copy(source, destination)
+-    return {"sha256": digest, "bytes": source.stat().st_size}
++        _atomic_copy(source, destination, digest)
++    return {"sha256": digest, "bytes": destination.stat().st_size}
+ 
+ 
+ def _load_manifest(store: Path, training_input_id: str) -> dict[str, Any]:
++    _object_path(store, training_input_id)  # validate before constructing a filesystem path
+     path = store / "manifests" / f"{training_input_id}.json"
+     try:
+         manifest = json.loads(path.read_text(encoding="utf-8"))
+@@ -111,8 +145,7 @@ def _declared_artifact(
+ ) -> tuple[Path, dict[str, Any]]:
+     if not source.is_file():
+         raise TrainingHandoffError(f"declared training artifact is missing: {source}")
+-    if Path(logical_path).is_absolute() or ".." in Path(logical_path).parts:
+-        raise TrainingHandoffError("training artifact logical_path must be portable and relative")
++    _logical_path(logical_path)
+     if artifact_class not in {
+         "CANONICAL_RESEARCH",
+         "DERIVED_MODEL_VIEW",
+@@ -324,7 +357,7 @@ def verify_training_input(
+     total_bytes = 0
+     for value in objects:
+         item = _object(value, "training-input object")
+-        logical_path = str(item.get("logical_path", ""))
++        logical_path = _logical_path(str(item.get("logical_path", "")))
+         if not logical_path or logical_path in logical_paths:
+             raise TrainingHandoffError("training-input logical paths are empty or duplicated")
+         logical_paths.add(logical_path)
+@@ -383,7 +416,7 @@ def _verify_feature_binding(
+         or training_view.get("qwen_identity") != model_view.get("qwen_identity")
+     ):
+         raise TrainingHandoffError("derived feature model-view drift")
+-    prefix = str(Path(manifest_logical).parent)
++    prefix = PurePosixPath(manifest_logical).parent.as_posix()
+     for value in _sequence(feature_manifest.get("files"), "derived feature files"):
+         item = _object(value, "derived feature file")
+         logical_path = f"{prefix}/{item.get('path')}"
+@@ -419,10 +452,7 @@ def stage_training_input(
+                 raise TrainingHandoffError("receiver object is corrupt; refusing overwrite")
+             reused += 1
+             continue
+-        _atomic_copy(source_object, destination)
+-        if _sha256(destination) != digest:
+-            destination.unlink(missing_ok=True)
+-            raise TrainingHandoffError("receiver object failed post-transfer checksum")
++        _atomic_copy(source_object, destination, digest)
+         transferred += 1
+         transferred_bytes += destination.stat().st_size
+     source_manifest = source / "manifests" / f"{training_input_id}.json"
+@@ -431,7 +461,7 @@ def stage_training_input(
+         if receiver_manifest.read_bytes() != source_manifest.read_bytes():
+             raise TrainingHandoffError("receiver manifest collision")
+     else:
+-        _atomic_copy(source_manifest, receiver_manifest)
++        _atomic_copy(source_manifest, receiver_manifest, _sha256(source_manifest))
+     verification = verify_training_input(receiver, training_input_id)
+     receipt_payload = {
+         "schema": STAGING_RECEIPT_SCHEMA,
+@@ -445,9 +475,7 @@ def stage_training_input(
+     }
+     receipt_id = semantic_hash(receipt_payload)
+     receipt = {**receipt_payload, "receipt_id": receipt_id}
+-    _atomic_write(
+-        receiver / "receipts" / f"{receipt_id}.json", canonical_json(receipt) + "\n"
+-    )
++    _atomic_write(receiver / "receipts" / f"{receipt_id}.json", canonical_json(receipt) + "\n")
+     return receipt
+ 
+ 
+ diff --git a/tests/test_legacy_publication_safety.py b/tests/test_legacy_publication_safety.py
+new file mode 100644
+index 0000000..8cae83c
+--- /dev/null
++++ b/tests/test_legacy_publication_safety.py
+@@ -0,0 +1,52 @@
++"""Historical lifecycle bytes stay compatible while publication fails closed."""
++
++from __future__ import annotations
++
++import hashlib
++from concurrent.futures import ThreadPoolExecutor
++from pathlib import Path
++
++import pytest
++
++from stpd.data.training_handoff import (
++    TrainingHandoffError,
++    _atomic_copy,
++    _atomic_write,
++    _load_manifest,
++    _logical_path,
++)
++
++
++def test_publication_is_concurrent_idempotent_and_never_overwrites(tmp_path: Path) -> None:
++    destination = tmp_path / "immutable.json"
++    with ThreadPoolExecutor(max_workers=8) as pool:
++        list(pool.map(lambda _: _atomic_write(destination, "same\n"), range(16)))
++    assert destination.read_bytes() == b"same\n"
++    with pytest.raises(TrainingHandoffError, match="collision"):
++        _atomic_write(destination, "different\n")
++    assert destination.read_bytes() == b"same\n"
++    assert not list(tmp_path.glob(".immutable.json.*"))
++
++
++def test_changed_copy_never_publishes_a_wrong_digest(tmp_path: Path) -> None:
++    source, destination = tmp_path / "source", tmp_path / "target"
++    source.write_bytes(b"changed")
++    expected = hashlib.sha256(b"original").hexdigest()
++    with pytest.raises(TrainingHandoffError, match="source changed"):
++        _atomic_copy(source, destination, expected)
++    assert not destination.exists()
++    destination.write_bytes(b"existing")
++    with pytest.raises(TrainingHandoffError, match="collision"):
++        _atomic_copy(source, destination, hashlib.sha256(b"changed").hexdigest())
++    assert destination.read_bytes() == b"existing"
++
++
++@pytest.mark.parametrize("value", ["../escape", "a/../b", "a\\b", "C:/file", "/file", "a//b"])
++def test_logical_paths_are_host_independent(value: str) -> None:
++    with pytest.raises(TrainingHandoffError):
++        _logical_path(value)
++
++
++def test_manifest_id_is_checked_before_opening_a_path(tmp_path: Path) -> None:
++    with pytest.raises(TrainingHandoffError, match="digest"):
++        _load_manifest(tmp_path, "../../outside")
