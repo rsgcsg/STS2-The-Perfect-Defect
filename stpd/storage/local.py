@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import stat
 import tempfile
 from pathlib import Path
 
@@ -17,13 +18,19 @@ class LocalBlobStore:
     def _path(self, key: str) -> Path:
         safe_key(key)
         path = self.root.joinpath(*key.split("/"))
+        # safe_key forbids traversal. Do not resolve a concurrently linked leaf
+        # through an OS-dependent alternate hard-link name. Reject all reparse points.
         current = self.root
         for part in key.split("/"):
             current = current / part
-            if current.is_symlink():
-                raise StoreError("symlink_object_path")
-        if not path.resolve().is_relative_to(self.root):
-            raise StoreError("object_path_escape")
+            try:
+                metadata = os.lstat(current)
+            except FileNotFoundError:
+                continue
+            if stat.S_ISLNK(metadata.st_mode) or (
+                getattr(metadata, "st_file_attributes", 0) & 0x400
+            ):
+                raise StoreError("reparse_object_path")
         return path
 
     def put_if_absent(self, key: str, data: bytes) -> bool:
