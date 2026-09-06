@@ -1,0 +1,70 @@
+name: prefullrun-worker-repair-once
+on:
+  push:
+    branches: [training/prefullrun/worker-evaluation-v1]
+    paths: [.github/workflows/prefullrun-worker-repair-once.yml]
+permissions:
+  contents: read
+jobs:
+  repair:
+    if: github.repository == 'rsgcsg/STS2-The-Perfect-Defect' && github.ref == 'refs/heads/training/prefullrun/worker-evaluation-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.10'
+      - run: uv sync --locked --all-extras
+      - name: Repair exact known failures and preserve tested source
+        env:
+          REPAIR_TOKEN: ${{ github.token }}
+        run: |
+          uv run --locked python - <<'PY'
+          import base64, json, os, subprocess
+          from pathlib import Path
+          branch = 'training/prefullrun/worker-evaluation-v1'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/' + branch
+          assert not subprocess.check_output(['git','status','--porcelain'])
+          p = Path('stpd/workers/ranking.py'); s = p.read_text()
+          assert s.count('"labels": self.labels,') == 1
+          s = s.replace('"labels": self.labels,', '"labels": [[index, label] for index, label in sorted(self.labels.items())],')
+          assert s.count('return cast(bytes, save(weights))') == 1
+          s = s.replace('return cast(bytes, save(weights))', 'return save(weights)')
+          p.write_text(s, newline='\n')
+          p = Path('stpd/workers/checkpoint_codec.py'); s = p.read_text()
+          assert s.count('cast(bytes, save(tensors))') == 1
+          s = s.replace('cast(bytes, save(tensors))', 'save(tensors)').replace('from typing import Any, cast', 'from typing import Any')
+          p.write_text(s, newline='\n')
+          workflow = '.github/workflows/prefullrun-worker-repair-once.yml'
+          Path(workflow).unlink()
+          subprocess.run(['uv','run','--locked','ruff','format','stpd/workers/ranking.py','stpd/workers/checkpoint_codec.py'],check=True)
+          checks = {}
+          for name, command in {
+              'ruff': ['uv','run','--locked','ruff','check','.'],
+              'mypy': ['uv','run','--locked','mypy','stpd','tools'],
+              'worker_tests': ['uv','run','--locked','pytest','-q','tests/test_fullrun_worker.py','tests/test_checkpoint_codec.py','tests/test_fullrun_features.py','tests/test_fullrun_evaluation.py','tests/test_run_reporter.py','tests/test_fullrun_admission.py'],
+          }.items():
+              checks[name] = subprocess.run(command).returncode
+          evidence = 'docs/evidence/WORKER_REPAIR_2026-09-06.md'
+          Path(evidence).write_text('# Worker repair\n\nSupported-toolchain worktree checks, not latest-head full CI.\n\n```json\n' + json.dumps({'input_head':os.environ['GITHUB_SHA'],'checks':checks,'non_claims':['Windows','full CI','scientific result','program readiness']},indent=2) + '\n```\n',newline='\n')
+          allowed = {'stpd/workers/ranking.py','stpd/workers/checkpoint_codec.py',workflow,evidence}
+          changed = set(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())
+          untracked = set(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changed | untracked <= allowed
+          subprocess.run(['git','diff','--check'],check=True)
+          subprocess.run(['git','add','-A','--',*sorted(allowed)],check=True)
+          subprocess.run(['git','-c','user.name=STPD Engineering Automation','-c','user.email=stpd-engineering@users.noreply.github.com','commit','-m','fix(training): canonicalize plan labels before hashing'],check=True)
+          header = 'AUTHORIZATION: basic ' + base64.b64encode(('x-access-token:'+os.environ['REPAIR_TOKEN']).encode()).decode()
+          env = dict(os.environ,GIT_CONFIG_COUNT='1',GIT_CONFIG_KEY_0='http.https://github.com/.extraheader',GIT_CONFIG_VALUE_0=header)
+          remote = subprocess.check_output(['git','ls-remote','--exit-code','origin','refs/heads/'+branch],env=env,text=True).split()[0]
+          assert remote == os.environ['GITHUB_SHA']
+          subprocess.run(['git','push','origin','HEAD:refs/heads/'+branch],env=env,check=True)
+          raise SystemExit(int(any(checks.values())))
+          PY
