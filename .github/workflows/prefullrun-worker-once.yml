@@ -1,0 +1,30 @@
+name: prefullrun-worker-once
+on:
+  push:
+    branches: [training/prefullrun/worker-evaluation-v1]
+    paths: [.github/workflows/prefullrun-worker-once.yml, tools/prefullrun_worker_once.py]
+permissions:
+  contents: read
+concurrency:
+  group: prefullrun-worker-once
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'rsgcsg/STS2-The-Perfect-Defect' && github.ref == 'refs/heads/training/prefullrun/worker-evaluation-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.12.10'
+      - run: uv sync --locked --all-extras
+      - run: uv run --locked python tools/prefullrun_worker_once.py
+        env:
+          STPD_SOURCE_TOKEN: ${{ github.token }}
