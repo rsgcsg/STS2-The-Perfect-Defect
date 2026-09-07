@@ -1,0 +1,14 @@
+{
+  "seed": 41,
+  "epochs": 2,
+  "max_steps": 4,
+  "learning_rate": 0.01,
+  "weight_decay": 0.0,
+  "head": "linear",
+  "device": "cpu",
+  "dtype": "float32",
+  "checkpoint_interval": 2,
+  "candidate_order": "canonical",
+  "label_control": "observed",
+  "purpose": "engineering"
+}

@@ -4,6 +4,8 @@ import json
 import unittest
 from pathlib import Path
 
+from jsonschema import Draft202012Validator
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -21,6 +23,7 @@ class ProjectStructureTest(unittest.TestCase):
             "docs/CODE_STYLE.md",
             "docs/INTERFACES.md",
             "docs/DATA_AND_PROVENANCE.md",
+            "docs/DATA_LIFECYCLE.md",
             "docs/QWEN_INTEGRATION.md",
             "docs/BENCHMARKS.md",
             "docs/V0_EXECUTION_PLAN.md",
@@ -44,6 +47,7 @@ class ProjectStructureTest(unittest.TestCase):
             "CODE_STYLE.md",
             "INTERFACES.md",
             "DATA_AND_PROVENANCE.md",
+            "DATA_LIFECYCLE.md",
             "HUMAN_CORPUS.md",
             "QWEN_INTEGRATION.md",
             "BENCHMARKS.md",
@@ -59,6 +63,7 @@ class ProjectStructureTest(unittest.TestCase):
             {
                 "experiment-manifest-v0.schema.json",
                 "data-manifest-v0.schema.json",
+                "frozen-joint-feature-manifest-v1.schema.json",
                 "human-collection-campaign-v1.schema.json",
                 "human-collection-profile-v1.schema.json",
                 "human-corpus-combination-v1.schema.json",
@@ -66,12 +71,14 @@ class ProjectStructureTest(unittest.TestCase):
                 "research-action-v0.schema.json",
                 "research-state-v0.schema.json",
                 "research-transition-v0.schema.json",
+                "training-input-manifest-v1.schema.json",
             },
         )
         ids = set()
         for path in schema_paths:
             value = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(value["$schema"], "https://json-schema.org/draft/2020-12/schema")
+            Draft202012Validator.check_schema(value)
             self.assertNotIn(value["$id"], ids)
             ids.add(value["$id"])
 

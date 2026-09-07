@@ -10,3 +10,5 @@ Current records:
 
 - [ADR-0001: project boundaries and current smoke](0001-project-boundaries-and-current-smoke.md)
 - [ADR-0002: versioned unified Human serialization](0002-versioned-unified-human-serialization.md)
+
+[ADR-0003: Local-First manifest research](0003-local-first-manifest-research.md)

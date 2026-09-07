@@ -1,113 +1,70 @@
 # STPD Agent Guide
 
-## Mission
+## Mission and authority
 
-Advance STPD as a reproducible research project without copying game authority into the
-learner. Be explicit about what is implemented, measured, inferred, planned, or unknown.
+Advance reproducible research. Distinguish implementation, tests, measurements, proposals,
+and unknowns. Platform is the model-neutral environment foundation; STPD is the independently
+governed research consumer. STS2/Host and Platform own rules, RNG, legality, native execution,
+Commit, Human/native correlation, semantic state and causal successor truth. STPD owns research
+projection, datasets, model representation, training, evaluation, and scientific provenance.
 
-## Required read order
+Preserve `H != S` and `A_public != A_sem(S)`. Never reconstruct missing native authority in STPD.
+A model chooses only from the complete authoritative candidate catalog. Never add Qwen,
+reward, policy, or tensor semantics to Platform contracts. Exact-pin public Platform releases
+or explicitly non-stable candidates; never use floating branches or sibling imports.
 
-Before editing:
+## Read and work order
 
-1. `README.md`;
-2. `docs/DOCUMENT_MAP.md`;
-3. `docs/STATUS.md`;
-4. `docs/memory/CURRENT.md` and `docs/memory/DECISIONS.md`;
-5. the relevant canonical document;
-6. the exact code and tests being changed.
+Read README, docs/DOCUMENT_MAP.md, docs/STATUS.md, docs/memory/CURRENT.md and DECISIONS.md,
+then the owning canonical documents, exact source, and tests. Read
+[Development Workflow](docs/DEVELOPMENT_WORKFLOW.md) and
+[Engineering Governance](docs/ENGINEERING_GOVERNANCE.md) before editing.
 
-Also read `docs/DEVELOPMENT_WORKFLOW.md`. Normal work starts from current
-`origin/develop`, uses one short-lived topic branch/worktree per writer and
-targets `develop` by pull request. Do not direct-push `main` or `develop` or
-create permanent component/model develop branches.
+Resolve current remote develop, PR topology, rules and exact base; fetch/prune when the
+execution environment supports Git networking. Use one short-lived branch/worktree per writer.
+Do not direct-push main/develop, force-update history, or overwrite concurrent work. A connector
+read is not a local checkout. Persist meaningful work to a topic branch early.
 
-Do not infer current state from a chat transcript or an old report when the repository
-contains a newer exact source.
+Identify the owning fact, design the smallest clean causal change, test the failure model,
+review the actual diff, repair findings, then update canonical docs and evidence. Failed gates
+are work to repair, not permission to weaken them. Worker statements are not evidence.
+Merge requires explicit authorization, latest-head checks and all current repository rules.
 
-## Authority boundaries
+## One supported bootstrap and gate
 
-- STS2 and the selected Host own game rules, RNG, effects, Commit, and successor truth.
-- STS2-AI-PLATFORM owns the Host Runtime and the Connector's Host-neutral
-  Player Environment contract and versioned consumer SDK.
-- STPD owns research projection, serialization, datasets, labels, rewards, models,
-  training, evaluation, and experiment bookkeeping.
-- Never reconstruct legality, hidden state, or native operands in STPD.
-- Never add Qwen-, reward-, tensor-, or policy-specific fields to Platform contracts.
-- A model may only choose from the current complete finite action catalog.
-
-Platform is the upper-level foundation; STPD is an independently governed
-research project beneath it, not a peer platform. STPD must exact-pin a public
-Platform release or explicitly non-stable candidate and must not depend on
-floating Platform branches.
-
-## Current code classification
-
-The current `linear_q`, learner, contention, and Reference-transfer modules form the
-**H1 integration/qualification lane**. They are not the final v0 model, but they are useful
-and must remain runnable unless a reviewed migration includes compatibility imports and
-replacement tests.
-
-Do not rename or relocate them merely to make the tree look final.
-
-## Work loop
-
-For every coherent change:
-
-1. pin the relevant source/data/model/Host identities;
-2. identify the owning layer and smallest change;
-3. add or update tests before claiming behavior;
-4. run the smallest useful checks, then the integration checks required by the change;
-5. record evidence and non-claims;
-6. update canonical docs when behavior or status changes;
-7. update the memory files for the next human or agent.
-
-A failed gate is an engineering input, not permission to weaken the gate.
-
-Each PR records its base SHA, workstream, owner, cross-repository identity,
-evidence level, rollback and non-claims. Merge never promotes source/test to
-runtime, GPU, data, model-quality or qualification evidence.
-
-## Documentation and memory
-
-- Canonical architecture/status/contract statements live under `docs/`.
-- Working memory lives under `docs/memory/` and may not override canonical documents.
-- Accepted long-lived decisions get an ADR under `docs/adr/` and an entry in
-  `docs/memory/DECISIONS.md`.
-- `docs/memory/CURRENT.md` is short and current; `HANDOFF.md` records the latest handoff;
-  `OPEN_QUESTIONS.md` is the unresolved queue.
-- Update links in `docs/DOCUMENT_MAP.md` when adding a canonical document.
-
-## Code rules
-
-- Python 3.11 from the locked `uv` environment; explicit type hints on public interfaces.
-- Prefer `dataclass`, `TypedDict`, and `Protocol` at boundaries.
-- Keep environment, data, representation, model, training, and evaluation concerns
-  orthogonal.
-- No module-level mutable experiment state.
-- Determinism, seeds, revisions, and device/dtype are explicit configuration.
-- Errors are typed or clearly classified; missing evidence fails closed.
-- Model and dataset code must not depend on local paths, Steam IDs, or unversioned caches.
-- Follow `docs/CODE_STYLE.md`.
-
-## Data and model safety
-
-Do not commit:
-
-- proprietary game files, saves, raw Headless traces, or private identifiers;
-- external datasets without clear redistribution rights;
-- model weights, hidden-state caches, secrets, tokens, or service credentials;
-- generated reports containing private paths or runtime identifiers.
-
-Commit manifests, schemas, checksums, summaries, and reproducible commands instead.
-
-## Test expectations
-
-Pure repository checks must not require STS2 or proprietary files:
+Python >=3.11,<3.12 is the machine contract in pyproject.toml and uv.lock.
 
 ```bash
-python3 -m unittest discover -s tests -v
-python3 -m compileall -q stpd tests
+uv sync --locked --all-extras
+npm ci
+uv run --locked python tools/project.py context
+uv run --locked python tools/project.py check
+uv run --locked python tools/project.py closeout
 ```
 
-Runtime/learner evidence is separate and must bind exact Headless, Connector, game,
-model, dataset, and source identities. Never call a harness implementation a runtime pass.
+Dependency provisioning may need network. The portable test workload needs no STS2,
+proprietary files, raw Human corpus, Qwen weights, GPU, or production credentials.
+Linux and Windows execute the same root gate. See [Testing](docs/TESTING.md).
+
+## Code and identity
+
+Use typed public boundaries, frozen durable identities, explicit codecs, and small Protocols.
+Keep research/data/model/training independent of storage vendors, SQLite, web UI, and GPU
+providers. Source, lock, data, Qwen/tokenizer, serializer, seed, device and dtype are explicit.
+Errors identify stage, expected/observed condition and recovery. No generic utility dumping
+ground or module-level mutable experiment state. Follow [Code Style](docs/CODE_STYLE.md).
+
+Preserve the historical H1, combat-v0, serializer-v0/v1 and completed S1 smoke lanes unless a
+reviewed, tested migration replaces them. Do not relocate them for aesthetics. New Full-Run
+contracts are versioned separately. Synthetic evidence never becomes a qualified Human corpus.
+
+## Documentation and safety
+
+Canonical docs own durable statements; memory is routing, not authority. CURRENT is at most
+3 KiB. Append accepted decisions and link ADRs from DOCUMENT_MAP. Historical evidence remains
+immutable and scoped to its exact source/artifact/runtime/data/model/protocol tuple.
+
+Never commit secrets, raw Human data, private paths/identifiers, proprietary game files, saves,
+weights, hidden-state caches, or large generated artifacts. Commit schemas, manifests,
+checksums, reproducible commands and reviewed summaries. Keep engineering, data, training,
+evaluation, service and scientific evidence independent. No merge transfers evidence.

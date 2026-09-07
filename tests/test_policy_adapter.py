@@ -21,6 +21,7 @@ from stpd.policy import (
     adapter_code_sha256,
     serve_ndjson,
 )
+from stpd.policy.adapter import ADAPTER_CODE_DIGEST_SCOPE, ADAPTER_SOURCE_CLOSURE
 from stpd.representation import InputProfile, ModelSerializerV1
 from stpd.training.checkpoint import CheckpointIdentity, TrainerState
 
@@ -167,6 +168,7 @@ def _adapter_fixture(
             "id": "stpd-fixture",
             "version": "1",
             "protocol": "sts2.policy-runtime/decision-only-ndjson-1",
+            "code_digest_scope": ADAPTER_CODE_DIGEST_SCOPE,
             "code_sha256": adapter_code_sha256(),
         },
         "artifact": {
@@ -295,6 +297,8 @@ def test_checked_in_policy_manifest_pins_current_source_and_frozen_config() -> N
     config = json.loads(config_path.read_text(encoding="utf-8"))
 
     assert manifest["adapter"]["code_sha256"] == adapter_code_sha256()
+    assert manifest["adapter"]["code_digest_scope"] == ADAPTER_CODE_DIGEST_SCOPE
+    assert "stpd/data/training_handoff.py" not in ADAPTER_SOURCE_CLOSURE
     assert config_pin["sha256"] == hashlib.sha256(config_path.read_bytes()).hexdigest()
     assert manifest["artifact"]["sha256"] == config["checkpoint_sha256"]
     assert manifest["support"]["game_versions"] == [config["live_identity"]["game_version"]]
@@ -302,6 +306,29 @@ def test_checked_in_policy_manifest_pins_current_source_and_frozen_config() -> N
     assert manifest["requirements"]["environment"]["modset_fingerprint"] == config[
         "live_identity"
     ]["modset_fingerprint"]
+
+
+def test_policy_digest_scope_matches_fresh_runtime_import_closure() -> None:
+    root = DEFAULT_MANIFEST.parents[1]
+    script = """
+import json
+import sys
+from pathlib import Path
+import stpd.policy.adapter
+root = Path.cwd().resolve()
+paths = sorted({
+    Path(module.__file__).resolve().relative_to(root).as_posix()
+    for name, module in sys.modules.items()
+    if (name == 'stpd' or name.startswith('stpd.'))
+    and getattr(module, '__file__', None)
+    and str(Path(module.__file__).resolve()).startswith(str(root))
+})
+print(json.dumps(paths))
+"""
+    loaded = json.loads(
+        subprocess.check_output([sys.executable, "-c", script], cwd=root, text=True)
+    )
+    assert set(loaded) == set(ADAPTER_SOURCE_CLOSURE) - {"tools/policy_adapter.py"}
 
 
 def test_unified_platform_v3_binding_preserves_the_frozen_s1_policy() -> None:

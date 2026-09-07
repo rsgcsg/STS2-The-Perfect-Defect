@@ -1,76 +1,68 @@
 # Document Map
 
-This map is the entry point for human and agent navigation.
+Routing only: exact source/contracts/tests and scoped artifact/runtime evidence establish
+facts. Canonical documents describe supported claims; ADRs/plans define accepted intent;
+working memory and historical conversations do not prove implementation. Separate evidence
+classes are defined in [Engineering Governance](ENGINEERING_GOVERNANCE.md).
 
-## Source-of-truth order
+## Entry and engineering
 
-1. Executable code, tests, and machine-readable schemas.
-2. `STATUS.md` for current claims and non-claims.
-3. Architecture and interface documents for durable boundaries.
-4. The v0 plan and roadmap for intended work.
-5. ADRs for accepted long-lived decisions.
-6. Memory files for short-lived working context.
-7. External notes and conversations as research input only.
+| Document | Responsibility |
+|---|---|
+| [New Engineer Guide](NEW_ENGINEER_GUIDE.md) | first checkout and ownership orientation |
+| [Status](STATUS.md) | implemented/measured state and non-claims |
+| [Project System](PROJECT_SYSTEM.md) | context/check/closeout and bounded memory |
+| [Development Workflow](DEVELOPMENT_WORKFLOW.md) | branches, PRs, releases and exact dependencies |
+| [Engineering Governance](ENGINEERING_GOVERNANCE.md) | ownership, failure models, review and evidence |
+| [Testing](TESTING.md) | complete portable gate and external qualification boundaries |
+| [Code Style](CODE_STYLE.md) | language, typed interfaces and determinism |
+| [Architecture](ARCHITECTURE.md) | research/environment dependency direction |
+| [Interfaces](INTERFACES.md) | versioned environment, data, model and artifact contracts |
 
-When two levels disagree, stop and resolve the drift; do not silently pick the preferred
-answer.
+## Research and operations
 
-## Canonical documents
+| Document | Responsibility |
+|---|---|
+| [Data and Provenance](DATA_AND_PROVENANCE.md) | admission, zones, splits and external data |
+| [Data Lifecycle](DATA_LIFECYCLE.md) | canonical storage, derived features and staging |
+| [Human Corpus](HUMAN_CORPUS.md) | profiles, verified bundles and corpus admission |
+| [Qwen Integration](QWEN_INTEGRATION.md) | pinned backbone and cache contract |
+| [Qwen L2 Operations](QWEN_L2_OPERATIONS.md) | exact weight admission and owner gates |
+| [Live S1 Operations](LIVE_S1_OPERATIONS.md) | historical S1 policy adapter/parity |
+| [Benchmarks](BENCHMARKS.md) | B0-B7 mechanics and evidence scope |
+| [Scientific Protocol](SCIENTIFIC_EXPERIMENT_PROTOCOL.md) | historical combat-v0 protocol |
+| [v0 Plan](V0_EXECUTION_PLAN.md) | retained combat-v0 study |
+| [Roadmap](ROADMAP.md) | priorities and phase definitions |
+| [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md) | historical L1 handoff |
 
-| Document | Purpose | Update when |
-|---|---|---|
-| [Status](STATUS.md) | current implemented/measured/planned state | a fact or claim changes |
-| [Architecture](ARCHITECTURE.md) | ownership, layers, dependency direction | a boundary changes |
-| [Interfaces](INTERFACES.md) | environment, data, model, artifact formats | a public contract changes |
-| [Data and Provenance](DATA_AND_PROVENANCE.md) | data zones, eligibility, splits, external data | data policy changes |
-| [Human Corpus Lane](HUMAN_CORPUS.md) | collection profiles, bundles, registry, corpus and smoke handoff | human corpus semantics or operations change |
-| [Qwen Integration](QWEN_INTEGRATION.md) | frozen-backbone adapter and cache contract | Qwen use changes |
-| [Qwen L2 Operations](QWEN_L2_OPERATIONS.md) | exact full-weight admission, engineering smokes, data preparation and owner stop | L2 operational identity changes |
-| [Experimental Live S1 Operations](LIVE_S1_OPERATIONS.md) | retained golden runner and migration to the Platform Policy Runtime | live policy adapter/regression changes |
-| [B0-B7 Benchmarks](BENCHMARKS.md) | executable gates, reports, and evidence boundaries | benchmark mechanics change |
-| [Scientific Experiment Protocol](SCIENTIFIC_EXPERIMENT_PROTOCOL.md) | frozen 10-config matrix, controls, Gates 0-5, Gold and owner-training boundaries | scientific protocol changes |
-| [v0 Execution Plan](V0_EXECUTION_PLAN.md) | v0 experiments, benchmarks, gates, deliverables | v0 scope changes |
-| [Roadmap](ROADMAP.md) | phase sequencing and definitions of done | priority/phase changes |
-| [Project System](PROJECT_SYSTEM.md) | docs, memory, experiment and decision workflow | project workflow changes |
-| [Development Workflow](DEVELOPMENT_WORKFLOW.md) | branches, PRs, releases, agents and Platform dependency governance | collaboration or release process changes |
-| [Code Style](CODE_STYLE.md) | code and formatting conventions | style/test rules change |
-| [Pre-Qwen Operations](PRE_QWEN_OPERATIONS.md) | doctor, artifacts, historical L1 handoff | L1 operational identity changes |
+## Evidence, decisions and memory
 
-## Current evidence
+[AgenticSTS Audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md) and
+[Data Lifecycle Closeout](evidence/DATA_LIFECYCLE_ENGINEERING_CLOSEOUT_2026-08-29.md)
+remain scoped historical records. The Platform Annotator schema is externally owned;
+stpd/data/human_annotator.py consumes it without making this map a second schema authority.
 
-- [AgenticSTS data-admission audit](evidence/AGENTICSTS_DATA_ADMISSION_AUDIT_2026-08-22.md)
+[ADR Index](adr/README.md), [ADR-0001](adr/0001-project-boundaries-and-current-smoke.md),
+[ADR-0002](adr/0002-versioned-unified-human-serialization.md),
+[Memory Instructions](memory/README.md), [Current Context](memory/CURRENT.md),
+[Decisions](memory/DECISIONS.md), [Open Questions](memory/OPEN_QUESTIONS.md),
+[Latest Handoff](memory/HANDOFF.md), and [Machine Contracts](../schemas/README.md).
 
-The Human Annotator raw contract is owned by the Annotator component in
-`STS2-AI-PLATFORM`. STPD's strict importer is
-`stpd/data/human_annotator.py`; this map does not duplicate that external schema.
+Platform owns model-neutral environment/runtime/evidence contracts. STPD owns research,
+data, representation, training and evaluation. External repositories are exact dependencies,
+not copied source trees, shared branches or submodules.
 
-## Working memory
+[Local-First manifest ADR](adr/0003-local-first-manifest-research.md)
 
-- [Memory instructions](memory/README.md)
-- [Current context](memory/CURRENT.md)
-- [Accepted decisions](memory/DECISIONS.md)
-- [Open questions](memory/OPEN_QUESTIONS.md)
-- [Latest handoff](memory/HANDOFF.md)
+[Full-Run Research](FULLRUN_RESEARCH.md)
 
-Memory is deliberately simple Markdown. It helps continuity but cannot override code,
-schemas, status, or ADRs.
+[Full-Run Training](FULLRUN_TRAINING.md)
 
-## Decisions
+## Pre-Full-Run convergence
 
-- [ADR index](adr/README.md)
-- [ADR-0001: project boundaries and current smoke](adr/0001-project-boundaries-and-current-smoke.md)
-- [ADR-0002: versioned unified Human serialization](adr/0002-versioned-unified-human-serialization.md)
+- [Local operations and exact Worker launch](PREFULLRUN_OPERATIONS.md)
+- [Local DuckDB and dashboard](LOCAL_WORKBENCH.md)
+- [Gold and E0-E7 engineering tooling](FULLRUN_GOLD.md)
 
-## Machine-readable contracts
-
-See [`../schemas/README.md`](../schemas/README.md).
-
-## External project roots
-
-- `STS2-AI-PLATFORM`: the upper-level Platform Foundation owning Host lifecycle,
-  exact identity, Human Annotator, Evidence, Policy Runtime and the Host-neutral
-  Player Environment contract/SDK/authority.
-- `STS2-The-Perfect-Defect`: an independent research project under that
-  Platform, owning research projection, data, Qwen/model, training and evaluation.
-
-External repositories are dependencies, not submodules or copied sources.
+- [Pre-Full-Run AI closeout](PREFULLRUN_AI_CLOSEOUT.md)
+- [Human and external-input handoff](PREFULLRUN_HUMAN_HANDOFF.md)

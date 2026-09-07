@@ -25,7 +25,37 @@ shipped STS2 / qualified Platform Host Runtime
    data -> representation -> model -> training -> evaluation
 ```
 
-## What exists today
+## Current Pre-Full-Run engineering
+
+The Local-First Full-Run lane is separate from historical combat-v0. Platform owns semantic
+state, complete `A_sem(S)`, Human choice/Commit and causal successor; STPD consumes that
+contract without reconstructing native authority. The only installed Full-Run source adapter
+is explicitly synthetic pending Platform's final qualified bundle.
+
+The implemented flow is Dataset → provisional ModelView → frozen FeatureSet → TrainingInput
+→ disposable Worker → Checkpoint/Model → OfflineEvaluation. Local/S3-compatible ArtifactStore
+owns immutable bytes/manifests, SQLite is rebuildable, and DuckDB plus a static local dashboard
+provide projections. One shared Linear/MLP candidate scorer spans all surfaces; Qwen never
+outputs native commands. Gold tooling and E0–E7 configuration do not imply Human labels or a
+scientific campaign.
+
+```bash
+uv sync --locked --all-extras
+npm ci
+uv run --locked python tools/project.py check
+uv run --locked python -m stpd.workbench --help
+```
+
+The common gate includes a clean-source CPU E2E with replacement-process resume, store
+transfer, Registry deletion/rebuild and dashboard/analysis. Hosted Linux and Windows run
+that same gate; latest exact-source evidence determines readiness.
+See [operations](docs/PREFULLRUN_OPERATIONS.md), [research](docs/FULLRUN_RESEARCH.md),
+[training](docs/FULLRUN_TRAINING.md), [Gold](docs/FULLRUN_GOLD.md), and
+[workbench](docs/LOCAL_WORKBENCH.md). The final qualified Platform adapter, real corpus/Standard
+freeze, Human Gold, storage/GPU account qualification and real STS2 live evaluation remain
+external or next-phase gates.
+
+## Retained historical combat-v0 and integration evidence
 
 The current package contains the v0 engineering lane, an admitted real frozen-Qwen L2
 backend, and the retained H1 integration regression tools:
@@ -168,6 +198,7 @@ candidate artifact identity, and exact loaded Host identity remain independent e
 - [Architecture](docs/ARCHITECTURE.md)
 - [Interfaces](docs/INTERFACES.md)
 - [Data and provenance](docs/DATA_AND_PROVENANCE.md)
+- [End-to-end data lifecycle and training-host handoff](docs/DATA_LIFECYCLE.md)
 - [Human corpus lane](docs/HUMAN_CORPUS.md)
 - [Qwen integration](docs/QWEN_INTEGRATION.md)
 - [Qwen L2 operations and owner handoff](docs/QWEN_L2_OPERATIONS.md)

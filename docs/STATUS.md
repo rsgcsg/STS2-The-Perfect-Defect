@@ -1,5 +1,14 @@
 # Current Status
 
+## Pre-Full-Run engineering closeout
+
+The coherent Local-First implementation is delivered through convergence PR #7. Its exact
+latest-source qualification and integrated develop SHA are attached to that commit in
+`refs/notes/stpd-prefullrun`, with hosted Linux/Windows/locked-python and clean CPU E2E
+receipts. See [AI closeout](PREFULLRUN_AI_CLOSEOUT.md) for retrieval and evidence boundaries,
+and [Human handoff](PREFULLRUN_HUMAN_HANDOFF.md) for external gates. A missing/stale receipt
+never establishes readiness. All historical statements below retain their original scope.
+
 ## Repository governance
 
 Public `main` commit `4c4bbca5e5bf16656bd7c0ba175ff5c069c81818`
@@ -21,6 +30,16 @@ versioned Manifest at source/test; scientific Core remains blocked by missing Hu
 The repository contains a real frozen pretrained backend and same-architecture random
 control, but no scientific Core model result, Human Gold result, B6 result, or final STPD
 v0 claim.
+
+The data lifecycle now has a measured, manifest-first engineering path. A read-only profiler
+keeps the canonical `ResearchTransition`/Parquet representation after object-reference and
+dictionary probes were larger on the biggest corpus physically available on this Mac. Scheme
+1 pooled Qwen features are immutable rebuildable artifacts, and training-host staging is
+content-addressed, incremental, tamper-evident and bound to exact corpus/model-view/Qwen/STPD
+source/`uv.lock` identities. Staging remains unauthorized for training. The full 1,962-row
+corpus, exact Qwen weights and a remote training host were unavailable here, so full-scale
+storage, GPU compile and remote-transfer performance remain unmeasured. See
+[End-to-End Data Lifecycle](DATA_LIFECYCLE.md).
 
 ## Exact environment lane
 

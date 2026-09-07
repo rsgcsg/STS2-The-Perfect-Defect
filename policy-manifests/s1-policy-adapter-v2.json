@@ -1,6 +1,6 @@
 {
   "schema": "sts2.policy-runtime/policy-manifest-1",
-  "manifest_id": "stpd-s1-human-combat-c70c482c-v2",
+  "manifest_id": "stpd-s1-human-combat-c70c482c-v2-portable-607b108f81ca-shared-head-6472f5b7bcfa",
   "policy": {
     "id": "stpd-s1-human-combat",
     "version": "1.0.0",
@@ -11,7 +11,8 @@
     "id": "stpd-s1-decision-adapter",
     "version": "1.0.0",
     "protocol": "sts2.policy-runtime/decision-only-ndjson-1",
-    "code_sha256": "f451e5bad4002c3806cdeade624c114b6d80a04b8806e0e89a661703845fe262"
+    "code_digest_scope": "runtime-import-closure-v1",
+    "code_sha256": "6472f5b7bcfa004dbba607adf6e2f74689740293c940de5e799d39e6cbf9c54b"
   },
   "artifact": {
     "id": "checkpoint-step-1659",
@@ -33,7 +34,11 @@
       "connector_module_version_id": "2b038591-46a5-4507-8419-ef8ee7f30a93",
       "modset_status": "canary_exact_observer_modset",
       "modset_fingerprint": "acb0373e41839e2c91e1a7ece1bb203a72ca3088a532f797a5a48b046b835715",
-      "loaded_mod_ids": ["STS2_HUMAN_ANNOTATOR", "STS2_MCP", "STS2_PLATFORM_LIVE_UI"]
+      "loaded_mod_ids": [
+        "STS2_HUMAN_ANNOTATOR",
+        "STS2_MCP",
+        "STS2_PLATFORM_LIVE_UI"
+      ]
     },
     "reads": [],
     "whole_decision_admission": true,
@@ -43,10 +48,19 @@
     "successor_required": true
   },
   "support": {
-    "game_versions": ["v0.111.0"],
-    "game_commits": ["41cef1ea"],
-    "interaction_kinds": ["combat_turn"],
-    "action_verbs": ["play", "end_turn"]
+    "game_versions": [
+      "v0.111.0"
+    ],
+    "game_commits": [
+      "41cef1ea"
+    ],
+    "interaction_kinds": [
+      "combat_turn"
+    ],
+    "action_verbs": [
+      "play",
+      "end_turn"
+    ]
   },
   "adapter_config": {
     "s1": {
@@ -68,7 +82,10 @@
         "character_definition_id": "DEFECT",
         "ascension": 0,
         "context_kind": "combat",
-        "research_action_kinds": ["play_card", "end_turn"]
+        "research_action_kinds": [
+          "play_card",
+          "end_turn"
+        ]
       }
     }
   },
