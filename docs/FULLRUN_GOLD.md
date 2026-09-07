@@ -78,3 +78,29 @@ pretrained advantage, model quality, cloud qualification, or live capability.
 Synthetic fixtures remain appropriate for portable tests of sampling, candidate permutation,
 dispositions, isolation, and configuration failure. They must be identified as synthetic in
 test code and never relabelled as Human Gold.
+
+## Durable collection and sealed access
+
+Gold-dev uses only existing Dataset dev runs; Gold-test uses only existing test runs. The
+campaign never rebuilds partitions from train/dev/test or breaks semantic-component isolation.
+Tasks bind exact Dataset, serialized state/catalog and display permutation in their identity;
+loading re-derives them from the admitted source. Each task/annotator pair is unique, agreement
+uses every distinct annotator pair, and label state/display identity must match exactly.
+
+```bash
+uv run --locked python -m stpd.fullrun.gold_cli tasks --dataset <id> --split gold_dev --count 12
+uv run --locked python -m stpd.fullrun.gold_cli export --artifact <task-manifest-id> --output .local/tasks.json
+uv run --locked python -m stpd.fullrun.gold_cli labels --artifact <task-manifest-id> --annotations .local/annotations.json
+uv run --locked python -m stpd.fullrun.gold_cli report --artifact <label-manifest-id>
+uv run --locked python -m stpd.fullrun.gold_cli harness
+```
+
+Annotations use `stpd/fullrun-gold-annotation-v1` with annotation_id, task_id, annotator_id,
+gold_split, candidate_action_keys, candidate_display_order, disposition, acceptable_actions,
+best_action, confidence, origin and state_hash. Exported tasks provide exact candidates;
+`state_hash` is `GoldTask.state_hash`. A Human supplies the actual choices and dispositions.
+`human` origin is an explicit attestation, not machine proof of operator identity.
+Synthetic-source tasks require `--synthetic-fixture` and `origin=synthetic_fixture`; they can
+never create qualified Human Gold. The default report for sealed test exposes collection
+coverage only. Tuning is rejected. Evaluation requires an exact frozen Gold evaluation protocol
+binding label/model IDs; those future scientific artifacts are not created by this tooling.
