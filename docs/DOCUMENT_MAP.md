@@ -57,3 +57,9 @@ not copied source trees, shared branches or submodules.
 [Full-Run Research](FULLRUN_RESEARCH.md)
 
 [Full-Run Training](FULLRUN_TRAINING.md)
+
+## Pre-Full-Run convergence
+
+- [Local operations and exact Worker launch](PREFULLRUN_OPERATIONS.md)
+- [Local DuckDB and dashboard](LOCAL_WORKBENCH.md)
+- [Gold and E0-E7 engineering tooling](FULLRUN_GOLD.md)

@@ -131,6 +131,7 @@ def portable_commands(python: str = sys.executable) -> tuple[tuple[str, ...], ..
         (python, "-m", "mypy", "stpd", "tools"),
         ("npm", "run", "check:connector-sdk"),
         (python, "-m", "pytest", "-q"),
+        (python, "-m", "stpd.workbench", "e2e", "--output", ".local/cpu-e2e.json"),
         (python, "-m", "compileall", "-q", "stpd", "tests", "tools"),
         ("uv", "build"),
         ("git", "diff", "--check"),
@@ -173,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:
         check(ROOT, args.base)
         head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT))
+        require(not dirty, "checkout changed during portable gate; commit and rerun")
         print(json.dumps({"schema": "stpd-portable-result-1", "source": head,
                           "dirty": dirty, "verdict": "PORTABLE_LOCAL_PASS",
                           "non_claims": ["Windows/Linux CI", "runtime", "data", "training",

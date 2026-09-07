@@ -65,6 +65,6 @@ resolved by candidate position. Uniform-legal and train-fitted action-only basel
 same exact candidate sets. All reports explicitly say scientific verdict not claimed.
 
 Platform qualification, final Standard serializer profiling/freeze, real Human Gold, real
-cloud execution and final STS2 live evaluation remain separate later evidence gates. CLI,
-provider launch, dashboard/analysis, Gold tooling and the complete readiness E2E are completed
-by subsequent program work, not claimed by this document.
+cloud execution and final STS2 live evaluation remain separate later evidence gates. The [local operations](PREFULLRUN_OPERATIONS.md) surface now provides CLI, generic provider
+launch, dashboard/analysis, Gold tooling and the clean-checkout CPU E2E. Latest-head
+qualification receipts independently establish the result of those gates.

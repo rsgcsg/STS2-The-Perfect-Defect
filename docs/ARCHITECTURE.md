@@ -1,6 +1,35 @@
 # Architecture
 
-## Goal
+## Current Full-Run architecture
+
+GitHub owns source. Local tools own control and analysis; generic S3-compatible or local
+ArtifactStore owns immutable artifacts. SQLite Registry is a rebuildable manifest projection.
+DuckDB and local static HTML consume projections. Cloud GPU is disposable compute using the
+same Worker contract. Registry/RunReporter may later gain Hub adapters without changing IDs.
+No permanent service or provider-specific training branch is required.
+
+Platform owns S, complete A_sem(S), exact Human action, native Commit and causal successor.
+Preserve H != S and A_public != A_sem(S). `stpd/fullrun` consumes a separately versioned
+ResearchTransitionV1; only the synthetic source adapter is installed before final Platform
+qualification. It does not reinterpret historical public bindings as final semantic evidence.
+
+```text
+qualified Platform source (future exact adapter) / explicit synthetic engineering source
+  -> ResearchTransitionV1 -> admission/dedup/whole-run component split -> Dataset
+  -> provisional Lite/Standard/Full ModelView -> frozen Qwen/FakeQwen FeatureSet
+  -> exact TrainingInput -> Experiment/Run -> provider-neutral Worker
+  -> durable Checkpoint/resume -> shared Linear/MLP Model -> OfflineEvaluation
+ArtifactStore <-> rebuildable Registry -> DuckDB / local Dashboard / readiness receipts
+Gold tasks/annotations and E0-E7 protocol tooling remain research-owned and isolated
+```
+
+Core contracts live in `artifact_contracts.py`, `fullrun/`, and `workers/`; mechanisms live
+in `storage/` and `workbench/`. Training consumes immutable feature vectors and never chooses
+its dataset, scientific config or semantic actions. `surface`, `family`, and `domain` are
+metadata for stratification rather than model routing. Standard remains provisional pending
+real-corpus profiling. Historical research and live policy namespaces remain reproducible.
+
+## Historical v0 goal
 
 STPD is a research system for learning and evaluating action scores over the complete
 finite legal action set supplied by the Player Environment:

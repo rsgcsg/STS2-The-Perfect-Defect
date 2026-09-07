@@ -16,7 +16,7 @@ real-game installation. The lock may include GPU-capable framework wheels, but C
 requires GPU hardware or downloads model weights.
 
 The root gate validates repository/CI contracts, runs tools/doctor.py, Ruff on the whole tree,
-Mypy on stpd/tools, the existing Connector SDK test, the complete Pytest suite, compileall,
+Mypy on stpd/tools, the existing Connector SDK test, the complete Pytest suite, clean-source cross-process CPU E2E, compileall,
 `uv build`, working-tree and HEAD patch hygiene, and optional exact-base diff hygiene.
 Focused tests accelerate development but never replace this gate.
 
@@ -45,3 +45,14 @@ scientific inference and service deployment are separate dimensions. A fixture E
 engineering evidence. A completed GPU run does not prove quality; a green build does not prove
 real-game qualification. Record source, command, environment, input/artifact identities,
 results and non-claims. Never transfer evidence across changed identities without proof.
+
+The gate writes its local E2E receipt to ignored `.local/cpu-e2e.json`. It fails if the checkout
+changes while checks run. For a reviewed exact-source readiness receipt after hosted CI:
+
+```bash
+uv run --locked python tools/qualify_prefullrun.py --ci-run <exact-ci-run-id>
+uv run --locked python -m stpd.workbench readiness --evidence .local/qualification.json
+```
+
+The capture tool reads current GitHub CI head/jobs, reruns the full local closeout gate and
+binds both to the same Producer. No manually asserted ancestor pass is sufficient.
