@@ -45,7 +45,9 @@ def test_repeated_concurrent_publish_is_exact_and_idempotent(tmp_path: Path) -> 
     with ThreadPoolExecutor(max_workers=8) as pool:
         for index in range(20):
             key = f"objects/{index}"
-            results = list(pool.map(lambda _, key=key: store.put_if_absent(key, b"same"), range(16)))
+            results = list(
+                pool.map(lambda _, key=key: store.put_if_absent(key, b"same"), range(16))
+            )
             assert sum(results) == 1
             assert store.get(key) == b"same"
     assert not list(tmp_path.rglob(".pending-*"))
