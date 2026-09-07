@@ -78,10 +78,12 @@ def candidate_metrics(scores: Sequence[float], acceptable: Sequence[int]) -> dic
     exponentials = [math.exp(value - top) for value in values]
     denominator = sum(exponentials)
     accepted_max = max(values[index] for index in labels)
-    accepted_logsum = accepted_max + math.log(
+    accepted_offset_logsum = math.log(
         sum(math.exp(values[i] - accepted_max) for i in labels)
     )
-    nll = top + math.log(denominator) - accepted_logsum
+    # Subtract large logits before adding logarithms. Adding log(N) to 1e308
+    # would round away the entire probability term even for an equal-score tie.
+    nll = (top - accepted_max) + math.log(denominator) - accepted_offset_logsum
     ordered = sorted(values, reverse=True)
     result = {
         "top1": top1,

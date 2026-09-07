@@ -63,3 +63,16 @@ def test_bootstrap_resamples_whole_runs_and_is_deterministic() -> None:
     assert first["bootstrap"]["unit"] == "whole_run"
     assert first["bootstrap"]["runs"] == 3
     assert 0.0 <= first["ece_10_bins"] <= 1.0
+
+
+def test_metrics_preserve_probability_under_large_logit_translation() -> None:
+    import math
+
+    import pytest
+
+    from stpd.json_boundary import BoundaryError
+
+    assert candidate_metrics((1e308, 1e308), (0,))["nll"] == pytest.approx(math.log(2))
+    assert candidate_metrics((-1e308, -1e308), (0,))["nll"] == pytest.approx(math.log(2))
+    with pytest.raises(BoundaryError, match="metric_overflow"):
+        candidate_metrics((1e308, -1e308), (1,))
