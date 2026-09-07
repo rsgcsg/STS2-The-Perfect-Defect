@@ -1,0 +1,227 @@
+{
+  "architecture": "Platform-owned S/A_sem/Commit/successor; synthetic-only source adapter; separate FullRun research contracts; provisional views; frozen features/input; shared Linear/MLP; disposable workers; immutable ArtifactStore/RunReporter; rebuildable Registry; DuckDB/local HTML; Gold/sealed isolation; provider-neutral launch",
+  "canonical_docs": {
+    "ai_closeout": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/blob/67566db562b95f57468290b97659c9f2e3862fe1/docs/PREFULLRUN_AI_CLOSEOUT.md",
+    "human_handoff": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/blob/67566db562b95f57468290b97659c9f2e3862fe1/docs/PREFULLRUN_HUMAN_HANDOFF.md"
+  },
+  "ci": {
+    "conclusion": "success",
+    "head_sha": "67566db562b95f57468290b97659c9f2e3862fe1",
+    "jobs": {
+      "linux-portable": "success",
+      "locked-python": "success",
+      "windows-portable": "success"
+    },
+    "run_id": 34119519815,
+    "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/actions/runs/34119519815"
+  },
+  "e2e": {
+    "dataset_id": "64309e912b164302ed10ed275ba423bf85bec53e04db9aafff3a65ce2525a4a2",
+    "deduplicated": 72,
+    "e0_e7_config": "PASS",
+    "feature_set_id": "6326edbbbd98dd92a0ae79f360f9b86531a6962ac25aa74f4482e63f1b6e73e9",
+    "gold_tooling": "SYNTHETIC_FIXTURE_PASS",
+    "model_view_id": "9ed54ea9bd60238fb69d21fca7769715d5a5b4a10f6ab8cd4390ec5b45a7a809",
+    "non_claims": [
+      "Platform qualified data",
+      "Human Gold",
+      "real Qwen",
+      "GPU",
+      "real S3",
+      "model quality",
+      "live STS2"
+    ],
+    "producer": {
+      "repository": "rsgcsg/STS2-The-Perfect-Defect",
+      "source_revision": "67566db562b95f57468290b97659c9f2e3862fe1",
+      "uv_lock_sha256": "ee0a7b73c1666c3950f2b00e1bbc6bfb35db63970aadbdccfa1a5fb7ccfbf059"
+    },
+    "projections": {
+      "dashboard": "PASS",
+      "duckdb": "PASS",
+      "lineage": "PASS",
+      "readiness_without_ci_receipt": "EVIDENCE_REQUIRED"
+    },
+    "records": 72,
+    "registry_deleted_and_rebuilt": "PASS",
+    "replacement_process_resume": "PASS",
+    "schema": "stpd/cpu-e2e-v1",
+    "scope": "synthetic_engineering",
+    "sync": {
+      "conditional_smoke": "NOT_RUN",
+      "integrity": "PASS",
+      "non_claims": [
+        "provider-wide qualification",
+        "scientific validity"
+      ],
+      "schema": "stpd/store-doctor-v1",
+      "verified_manifests": 40
+    },
+    "verdict": "CPU_E2E_PASS",
+    "whole_runs": 6,
+    "workers": [
+      {
+        "checkpoint_id": "78c602fe72dd084fb67b365a7bd675390ba15154ad1e332e919c99ea3c436529",
+        "head": "linear",
+        "result_id": "0310bcf7cfedb495403ab243a9bcfe57d25569dcd20c1814faa1208429d2b44a",
+        "run_id": "8a996833d0e5c970b05bd67307f1537089a7a612bc45bb62280ca89d87c9e68d"
+      },
+      {
+        "checkpoint_id": "fc8922973cf9b5ecd1cbbf62454f006c01aa09a5f92cf3330b46936cebe94f2e",
+        "head": "mlp",
+        "result_id": "ab77edd374e4a623b059c35deee6f5f6083af7abdbf07f64ad31f8d8d0311eb5",
+        "run_id": "b77067c6aa5c67d5bcbe7e5866ca73c66e2173880420605fe2ab395759c68066"
+      }
+    ]
+  },
+  "integration": {
+    "discarded_product_scaffolding": [
+      "prefullrun-source-snapshot.yml",
+      "prefullrun-tools-snapshot.yml"
+    ],
+    "final_develop_sha": "67566db562b95f57468290b97659c9f2e3862fe1",
+    "final_task_head": "538f5e55a05bd23cbcfb89926f231e8d55d6c260",
+    "merge_method": "normal merge, no bypass",
+    "open_task_prs": 0,
+    "preserved_historical_branches": true,
+    "prs": [
+      {
+        "headRefOid": "538f5e55a05bd23cbcfb89926f231e8d55d6c260",
+        "mergeCommit": {
+          "oid": "67566db562b95f57468290b97659c9f2e3862fe1"
+        },
+        "number": 7,
+        "state": "MERGED",
+        "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/pull/7"
+      },
+      {
+        "headRefOid": "dcda0798dc2ab7bb160514299e159d9e6034fa5b",
+        "mergeCommit": {
+          "oid": "55502276a3644b7d59a571b487e00c0b3e278e35"
+        },
+        "number": 6,
+        "state": "MERGED",
+        "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/pull/6"
+      },
+      {
+        "headRefOid": "38d32dbf440b5121c3bfd915f6d8cbf22b1dfc63",
+        "mergeCommit": {
+          "oid": "38d32dbf440b5121c3bfd915f6d8cbf22b1dfc63"
+        },
+        "number": 5,
+        "state": "MERGED",
+        "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/pull/5"
+      },
+      {
+        "headRefOid": "267a07544ffdfa13c0753962c924ca2d91e8b416",
+        "mergeCommit": {
+          "oid": "dc31024ef8e8e6e4e651971f81af181bf090c3b4"
+        },
+        "number": 4,
+        "state": "MERGED",
+        "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/pull/4"
+      },
+      {
+        "headRefOid": "7f1c77ed724aca3dee0ebecfb780197e80b9dc85",
+        "mergeCommit": {
+          "oid": "7f1c77ed724aca3dee0ebecfb780197e80b9dc85"
+        },
+        "number": 3,
+        "state": "MERGED",
+        "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/pull/3"
+      },
+      {
+        "headRefOid": "393791804b5e398d81e4d8fa67d9f9f8d9a15e76",
+        "mergeCommit": {
+          "oid": "67566db562b95f57468290b97659c9f2e3862fe1"
+        },
+        "number": 2,
+        "state": "MERGED",
+        "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/pull/2"
+      },
+      {
+        "headRefOid": "09fe0f01f407fda37b0aae093189bdccdc304946",
+        "mergeCommit": {
+          "oid": "ae4c8ac43caf224b01951c030842a60814a09bea"
+        },
+        "number": 1,
+        "state": "MERGED",
+        "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/pull/1"
+      }
+    ],
+    "superseded_topology": "PR2-6 source retained through ancestry; GitHub marked all MERGED after PR7 integration",
+    "task_pr": 7
+  },
+  "portable": "PASS",
+  "portable_details": {
+    "clean_independent_checkout": "PASS",
+    "compileall": "PASS",
+    "connector_sdk": {
+      "passed": 4
+    },
+    "hosted_ci_log_sha256": "8e0f0b0d94a91bd17727044d51e790d8c5bc05a385eca79518b9d000f9575b8d",
+    "local_closeout_log_sha256": "8e08fbf395aed1bef4b6081c373110d9b8a71753bf45865a15e0327fd7e08496",
+    "mypy": {
+      "source_files": 116,
+      "verdict": "PASS"
+    },
+    "package_build": "wheel and sdist PASS",
+    "patch_hygiene": "PASS",
+    "pytest": {
+      "linux_seconds": 55.25,
+      "passed": 329,
+      "windows_seconds": 101.81
+    },
+    "python": "3.11.15",
+    "ruff": "PASS"
+  },
+  "producer": {
+    "repository": "rsgcsg/STS2-The-Perfect-Defect",
+    "source_revision": "67566db562b95f57468290b97659c9f2e3862fe1",
+    "uv_lock_sha256": "ee0a7b73c1666c3950f2b00e1bbc6bfb35db63970aadbdccfa1a5fb7ccfbf059"
+  },
+  "readiness": {
+    "categories": {
+      "analysis_dashboard": "AI ENGINEERING PASS",
+      "artifact_registry": "AI ENGINEERING PASS",
+      "data_representation": "AI ENGINEERING PASS",
+      "external_gpu": "EXTERNAL INPUT REQUIRED",
+      "external_object_store": "EXTERNAL INPUT REQUIRED",
+      "gold_campaign_tooling": "AI ENGINEERING PASS",
+      "governance": "AI ENGINEERING PASS",
+      "human_gold": "HUMAN REQUIRED",
+      "model_evaluation": "AI ENGINEERING PASS",
+      "platform_full_run": "PLATFORM FINAL BUNDLE REQUIRED",
+      "portable_ci_contract": "AI ENGINEERING PASS",
+      "real_sts2_live_evaluation": "HUMAN REQUIRED",
+      "research_contracts": "AI ENGINEERING PASS",
+      "scientific_campaign": "NOT SCIENTIFICALLY CLAIMED",
+      "worker_checkpoint": "AI ENGINEERING PASS"
+    },
+    "evidence_trust": "reviewed local receipt; verify hosted run independently",
+    "non_claims": [
+      "real Full-Run Dataset",
+      "Human Gold labels",
+      "S3 deployment qualified",
+      "GPU provider qualified",
+      "Qwen advantage",
+      "model quality",
+      "scientific campaign complete",
+      "real STS2 live evaluation"
+    ],
+    "producer": {
+      "repository": "rsgcsg/STS2-The-Perfect-Defect",
+      "source_revision": "67566db562b95f57468290b97659c9f2e3862fe1",
+      "uv_lock_sha256": "ee0a7b73c1666c3950f2b00e1bbc6bfb35db63970aadbdccfa1a5fb7ccfbf059"
+    },
+    "receipts": {
+      "clean_cpu_e2e": true,
+      "exact_source": true,
+      "linux_windows_locked_python": true,
+      "portable": true
+    },
+    "schema": "stpd/prefullrun-readiness-v1",
+    "verdict": "STPD_PRE_FULLRUN_AI_ENGINEERING_READY"
+  },
+  "schema": "stpd/prefullrun-qualification-v1"
+}
