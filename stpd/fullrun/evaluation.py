@@ -14,7 +14,7 @@ from typing import Any
 from ..artifact_contracts import Manifest, Parent, Producer
 from ..json_boundary import BoundaryError, FrozenObject, json_bytes, unsigned
 from ..storage.store import ArtifactStore
-from .features import ModelSample
+from .features import ModelSample, load_model_view
 
 EVALUATION_SCHEMA = "stpd/offline-ranking-evaluation-v1"
 
@@ -191,6 +191,67 @@ def publish_evaluation(
 ) -> Manifest:
     import pyarrow as pa
     import pyarrow.parquet as pq
+
+    if model.kind != "model" or model.parameters.value().get("schema") != "stpd/scheme1-model-v1":
+        raise BoundaryError("evaluation", "model_contract_mismatch")
+    if model.producer != producer:
+        raise BoundaryError("evaluation", "model_producer_mismatch")
+    if partition not in {"dev", "test"}:
+        raise BoundaryError("evaluation", "invalid_evaluation_partition")
+    view, expected_samples = load_model_view(store, view_id)
+    model_parameters = model.parameters.value()
+    view_parameters = view.parameters.value()
+    training_input = store.get_manifest(model.parent("training_input"))
+    if (
+        model.parent("model_view") != view_id
+        or training_input.kind != "training_input"
+        or training_input.parent("model_view") != view_id
+        or training_input.parameters.value().get("qwen") != model_parameters.get("qwen")
+        or model_parameters.get("scope") != view_parameters.get("scope")
+        or model_parameters.get("serializer") != view_parameters.get("serializer")
+    ):
+        raise BoundaryError("evaluation", "model_view_identity_mismatch")
+    expected = {
+        sample.transition_id: sample
+        for sample in expected_samples
+        if sample.split == partition
+    }
+    transition_ids = [row.get("transition_id") for row in rows]
+    if any(not isinstance(value, str) for value in transition_ids) or len(
+        set(transition_ids)
+    ) != len(rows):
+        raise BoundaryError("evaluation", "row_inventory_mismatch")
+    required = {
+        "transition_id",
+        "run_id",
+        "surface",
+        "family",
+        "split",
+        "candidate_count",
+        "top1",
+        "mrr",
+        "nll",
+        "confidence",
+        "margin",
+    }
+    for row in rows:
+        if set(row) != required:
+            raise BoundaryError("evaluation", "row_schema_mismatch")
+        sample = expected.get(row["transition_id"])
+        if sample is None or any(
+            row[field] != getattr(sample, field)
+            for field in ("run_id", "surface", "family", "split")
+        ):
+            raise BoundaryError("evaluation", "row_input_mismatch")
+        if row["candidate_count"] != len(sample.action_texts):
+            raise BoundaryError("evaluation", "candidate_alignment_mismatch")
+        if type(row["candidate_count"]) is not int or row["candidate_count"] < 1:
+            raise BoundaryError("evaluation", "invalid_candidate_count")
+        metrics = tuple(row[name] for name in ("top1", "mrr", "nll", "confidence", "margin"))
+        if any(type(value) not in {int, float} or not math.isfinite(value) for value in metrics):
+            raise BoundaryError("evaluation", "invalid_metric")
+        if not 0 <= row["top1"] <= 1 or not 0 <= row["mrr"] <= 1 or not 0 <= row["confidence"] <= 1:
+            raise BoundaryError("evaluation", "metric_out_of_range")
 
     with tempfile.TemporaryFile("w+b") as handle:
         pq.write_table(pa.Table.from_pylist(rows), handle, compression="zstd", version="2.6")

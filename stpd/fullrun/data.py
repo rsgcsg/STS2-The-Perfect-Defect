@@ -246,10 +246,18 @@ def publish_dataset(
     splits_payload = store.put_payload(
         "splits", io.BytesIO(json_bytes(dataset.splits.value())), "application/json"
     )
+    evidence_roles = (
+        ("evidence",)
+        if len(sources) == 1
+        else tuple(f"evidence_{source.payload('source').sha256}" for source in sources)
+    )
     manifest = Manifest(
         "dataset",
         producer,
-        parents=tuple(Parent("evidence", source.artifact_id) for source in sources),
+        parents=tuple(
+            Parent(role, source.artifact_id)
+            for role, source in zip(evidence_roles, sources, strict=True)
+        ),
         payloads=(records_payload, splits_payload),
         parameters=FrozenObject.of(
             {
@@ -315,7 +323,7 @@ def load_dataset(store: ArtifactStore, artifact_id: str) -> tuple[Manifest, Admi
                     raise BoundaryError("dataset", "column_record_alignment_mismatch")
                 records.append(record)
     sources = tuple(store.get_manifest(parent.artifact_id) for parent in manifest.parents)
-    if any(p.role != "evidence" for p in manifest.parents):
+    if any(p.role != "evidence" and not p.role.startswith("evidence_") for p in manifest.parents):
         raise BoundaryError("dataset", "source_inventory_mismatch")
     admitted = admit(
         _projections_from_manifests(store, tuple(records), sources),
