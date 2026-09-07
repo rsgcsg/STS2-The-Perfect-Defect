@@ -1,0 +1,100 @@
+{
+  "ci": {
+    "conclusion": "success",
+    "head_sha": "538f5e55a05bd23cbcfb89926f231e8d55d6c260",
+    "jobs": {
+      "linux-portable": "success",
+      "locked-python": "success",
+      "windows-portable": "success"
+    },
+    "run_id": 34098937476,
+    "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/actions/runs/34098937476"
+  },
+  "e2e": {
+    "dataset_id": "96c87f75932c9f2b1b936d88f1355796242ab1d7c0c458d0f16406dd3ec95eac",
+    "deduplicated": 72,
+    "e0_e7_config": "PASS",
+    "feature_set_id": "81f6bbc20ad7f2219fee94388d06cf424edbd07f4cff8dff44a144e61f007d48",
+    "gold_tooling": "SYNTHETIC_FIXTURE_PASS",
+    "model_view_id": "c69fc4b095e725db7a71f82f01f7e7c10bdd1c5fefc924923fca2e4cf4fa9cda",
+    "non_claims": [
+      "Platform qualified data",
+      "Human Gold",
+      "real Qwen",
+      "GPU",
+      "real S3",
+      "model quality",
+      "live STS2"
+    ],
+    "producer": {
+      "repository": "rsgcsg/STS2-The-Perfect-Defect",
+      "source_revision": "538f5e55a05bd23cbcfb89926f231e8d55d6c260",
+      "uv_lock_sha256": "ee0a7b73c1666c3950f2b00e1bbc6bfb35db63970aadbdccfa1a5fb7ccfbf059"
+    },
+    "projections": {
+      "dashboard": "PASS",
+      "duckdb": "PASS",
+      "lineage": "PASS",
+      "readiness_without_ci_receipt": "EVIDENCE_REQUIRED"
+    },
+    "records": 72,
+    "registry_deleted_and_rebuilt": "PASS",
+    "replacement_process_resume": "PASS",
+    "schema": "stpd/cpu-e2e-v1",
+    "scope": "synthetic_engineering",
+    "sync": {
+      "conditional_smoke": "NOT_RUN",
+      "integrity": "PASS",
+      "non_claims": [
+        "provider-wide qualification",
+        "scientific validity"
+      ],
+      "schema": "stpd/store-doctor-v1",
+      "verified_manifests": 40
+    },
+    "verdict": "CPU_E2E_PASS",
+    "whole_runs": 6,
+    "workers": [
+      {
+        "checkpoint_id": "7a9c8ffb9cbd44979dac5cbf9feecc183cad20c1af46e9b309f236eb0a396135",
+        "head": "linear",
+        "result_id": "c8e1b380fd8626005ec75c88faee9accc789b9e086d6da07bd78b16554ef9251",
+        "run_id": "fcfcc709c4fd138118ed54c0d2a92a20c4d94c667800e139ce8f77fd61a38249"
+      },
+      {
+        "checkpoint_id": "36c1346ac08e81ac55c2a074d3e8777abcaab0c50be7c1f549285030c905cc36",
+        "head": "mlp",
+        "result_id": "45fa770e66a7f27ba01147ffa3e60142cafc16948eec569d8bfc0c3b07db1969",
+        "run_id": "fa96c44400316a029ce94b3ab72bb2f4236a228681adb3ddc8040bb39096a439"
+      }
+    ]
+  },
+  "integration": {
+    "develop_sha": "67566db562b95f57468290b97659c9f2e3862fe1",
+    "note_scope": "task head; merge head qualified separately",
+    "task_head": "538f5e55a05bd23cbcfb89926f231e8d55d6c260",
+    "task_pr": 7
+  },
+  "portable": "PASS",
+  "portable_details": {
+    "clean_checkout": "PASS",
+    "compileall": "PASS",
+    "connector_sdk": {
+      "passed": 4
+    },
+    "mypy": "PASS",
+    "package_build": "PASS",
+    "patch_hygiene": "PASS",
+    "pytest": {
+      "passed": 329
+    },
+    "python": "3.11.15",
+    "ruff": "PASS"
+  },
+  "producer": {
+    "repository": "rsgcsg/STS2-The-Perfect-Defect",
+    "source_revision": "538f5e55a05bd23cbcfb89926f231e8d55d6c260",
+    "uv_lock_sha256": "ee0a7b73c1666c3950f2b00e1bbc6bfb35db63970aadbdccfa1a5fb7ccfbf059"
+  },
+  "schema": "stpd/prefullrun-qualification-v1"
+}
