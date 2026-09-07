@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/schemas/frozen-joint-feature-manifest-v1.schema.json",
+  "title": "STPD Frozen Joint Feature Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "source_dataset", "training_view", "shape", "sample_count", "unique_feature_count", "training_authorized", "retention_class", "feature_spec_id", "artifact_id", "files", "manifest_content_id"],
+  "properties": {
+    "schema": {"const": "stpd/frozen-joint-feature-manifest-v1"},
+    "source_dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_id", "manifest_sha256", "semantic_dataset_hash", "rows"],
+      "properties": {
+        "manifest_id": {"type": "string", "minLength": 1},
+        "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "semantic_dataset_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "rows": {"type": "integer", "minimum": 1}
+      }
+    },
+    "training_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lane", "compiler_version", "serializer_version", "input_profile", "qwen_identity", "operation", "storage_dtype", "feature_schema"],
+      "properties": {
+        "lane": {"const": "scheme1-pooled-joint"},
+        "compiler_version": {"const": "stpd-joint-feature-compiler-v1"},
+        "serializer_version": {"type": "string", "minLength": 1},
+        "input_profile": {"type": "string", "minLength": 1},
+        "qwen_identity": {"type": "object", "minProperties": 1},
+        "operation": {"const": "encode_joint_masked_mean"},
+        "storage_dtype": {"const": "float32"},
+        "feature_schema": {"const": "pooled-joint-v1"}
+      }
+    },
+    "shape": {"type": "array", "prefixItems": [{"type": "integer", "minimum": 1}, {"type": "integer", "minimum": 1}], "items": false},
+    "sample_count": {"type": "integer", "minimum": 1},
+    "unique_feature_count": {"type": "integer", "minimum": 1},
+    "training_authorized": {"const": false},
+    "retention_class": {"const": "rebuildable_derived_feature_cache"},
+    "feature_spec_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifact_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "files": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "bytes"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "manifest_content_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

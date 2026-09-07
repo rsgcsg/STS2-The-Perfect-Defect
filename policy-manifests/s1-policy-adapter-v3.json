@@ -1,6 +1,6 @@
 {
   "schema": "sts2.policy-runtime/policy-manifest-1",
-  "manifest_id": "stpd-s1-human-combat-c70c482c-v3",
+  "manifest_id": "stpd-s1-human-combat-c70c482c-v3-portable-607b108f81ca-shared-head-6472f5b7bcfa",
   "policy": {
     "id": "stpd-s1-human-combat",
     "version": "1.0.0",
@@ -11,7 +11,8 @@
     "id": "stpd-s1-decision-adapter",
     "version": "1.0.0",
     "protocol": "sts2.policy-runtime/decision-only-ndjson-1",
-    "code_sha256": "f451e5bad4002c3806cdeade624c114b6d80a04b8806e0e89a661703845fe262"
+    "code_digest_scope": "runtime-import-closure-v1",
+    "code_sha256": "6472f5b7bcfa004dbba607adf6e2f74689740293c940de5e799d39e6cbf9c54b"
   },
   "artifact": {
     "id": "checkpoint-step-1659",
@@ -33,7 +34,9 @@
       "connector_module_version_id": "6f4e58b7-f55e-46d2-8d4f-d1d37f29fd99",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "5a21659597de401d2ce34bc3205be3d535f92aba74538548a6e6145376af8149",
-      "loaded_mod_ids": ["STS2_PLATFORM"]
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ]
     },
     "reads": [],
     "whole_decision_admission": true,
@@ -43,10 +46,19 @@
     "successor_required": true
   },
   "support": {
-    "game_versions": ["v0.111.0"],
-    "game_commits": ["41cef1ea"],
-    "interaction_kinds": ["combat_turn"],
-    "action_verbs": ["play", "end_turn"]
+    "game_versions": [
+      "v0.111.0"
+    ],
+    "game_commits": [
+      "41cef1ea"
+    ],
+    "interaction_kinds": [
+      "combat_turn"
+    ],
+    "action_verbs": [
+      "play",
+      "end_turn"
+    ]
   },
   "adapter_config": {
     "s1": {
@@ -68,7 +80,10 @@
         "character_definition_id": "DEFECT",
         "ascension": 0,
         "context_kind": "combat",
-        "research_action_kinds": ["play_card", "end_turn"]
+        "research_action_kinds": [
+          "play_card",
+          "end_turn"
+        ]
       }
     }
   },

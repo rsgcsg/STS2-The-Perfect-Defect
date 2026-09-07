@@ -168,6 +168,7 @@ candidate artifact identity, and exact loaded Host identity remain independent e
 - [Architecture](docs/ARCHITECTURE.md)
 - [Interfaces](docs/INTERFACES.md)
 - [Data and provenance](docs/DATA_AND_PROVENANCE.md)
+- [End-to-end data lifecycle and training-host handoff](docs/DATA_LIFECYCLE.md)
 - [Human corpus lane](docs/HUMAN_CORPUS.md)
 - [Qwen integration](docs/QWEN_INTEGRATION.md)
 - [Qwen L2 operations and owner handoff](docs/QWEN_L2_OPERATIONS.md)

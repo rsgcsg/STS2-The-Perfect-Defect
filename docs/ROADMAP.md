@@ -64,6 +64,12 @@ pretrained measurement took 0.145 seconds with about 1.30 GB process peak alloca
 on the recorded RTX 4070 Laptop GPU. Current natural `turn_action` samples pass the token
 gate; `card_selection` and `card_choice` remain `not_exercised`.
 
+The first end-to-end data-lifecycle slice is implemented: verified canonical-layout
+profiling, immutable pooled-joint feature compilation and manifest-first incremental
+training-host staging. Current 106-row measurements reject immediate object normalization
+and dictionary migration. Real-Qwen compile/load throughput, the physically absent 1,962-row
+corpus and remote-host transfer remain explicit owner-host gates, not inferred results.
+
 ## v0 Step 1.5 — Owner optimizer-plumbing admission
 
 Status: **completed as engineering admission**.

@@ -39,7 +39,9 @@ def _refresh_checksums(bundle: Path) -> None:
         for path in sorted(bundle.rglob("*"))
         if path.is_file() and path.name != "checksums.sha256"
     ]
-    (bundle / "checksums.sha256").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (bundle / "checksums.sha256").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
@@ -49,12 +51,14 @@ def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
         (bundle / relative).mkdir(parents=True)
     (raw / "blobs" / "sha256").mkdir(parents=True)
     record = copy.deepcopy(_record())
-    record.update({
-        "schema_version": 2,
-        "schema": "sts2.human-annotator/decision-record-2",
-        "timeline_id": "timeline-v2-test",
-        "capture_profile_id": "human-combat-read-rich-v2",
-    })
+    record.update(
+        {
+            "schema_version": 2,
+            "schema": "sts2.human-annotator/decision-record-2",
+            "timeline_id": "timeline-v2-test",
+            "capture_profile_id": "human-combat-read-rich-v2",
+        }
+    )
     profile = {
         "schema_version": 2,
         "schema": "sts2.ai-platform/human-capture-profile-2",
@@ -74,16 +78,21 @@ def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
     profile_sha = _sha_bytes(_canonical(profile).encode())
     blobs: dict[str, tuple[str, str]] = {}
     for kind in ("run_deck", "combat_piles"):
-        payload = _canonical({
-            "kind": kind,
-            "cards": [{"name": "Strike"}],
-            "zones": [{"name": "draw", "cards": [{"name": "Defend"}]}],
-        }) + "\n"
+        payload = (
+            _canonical(
+                {
+                    "kind": kind,
+                    "cards": [{"name": "Strike"}],
+                    "zones": [{"name": "draw", "cards": [{"name": "Defend"}]}],
+                }
+            )
+            + "\n"
+        )
         digest = _sha_bytes(payload.encode())
         relative = f"blobs/sha256/{digest[:2]}/{digest}.json"
         path = raw / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(payload, encoding="utf-8")
+        path.write_text(payload, encoding="utf-8", newline="\n")
         blobs[kind] = (relative, digest)
 
     def reads(phase: str, snapshot_id: str) -> list[dict[str, Any]]:
@@ -110,9 +119,7 @@ def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
         ]
 
     record["pre"]["reads"] = reads("pre", record["pre"]["snapshot_id"])
-    record["successor"]["reads"] = reads(
-        "successor", record["successor"]["snapshot_id"]
-    )
+    record["successor"]["reads"] = reads("successor", record["successor"]["snapshot_id"])
     if selector:
         snapshot = record["pre"]["snapshot"]
         snapshot["interaction"]["kind"] = "native_generated_card_choice"
@@ -125,23 +132,27 @@ def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
             "arguments": [],
             "label": "Select Strike",
         }
-        snapshot["bound_actions"].update({
-            "actions": [action],
-            "materialized_count": 1,
-            "total_count": 1,
-        })
-        record["pre"].update({
-            "interaction_kind": "native_generated_card_choice",
-            "catalog_count": 1,
-            "catalog_digest": hashlib.sha256(
-                json.dumps(
-                    snapshot["bound_actions"],
-                    ensure_ascii=False,
-                    allow_nan=False,
-                    separators=(",", ":"),
-                ).encode()
-            ).hexdigest(),
-        })
+        snapshot["bound_actions"].update(
+            {
+                "actions": [action],
+                "materialized_count": 1,
+                "total_count": 1,
+            }
+        )
+        record["pre"].update(
+            {
+                "interaction_kind": "native_generated_card_choice",
+                "catalog_count": 1,
+                "catalog_digest": hashlib.sha256(
+                    json.dumps(
+                        snapshot["bound_actions"],
+                        ensure_ascii=False,
+                        allow_nan=False,
+                        separators=(",", ":"),
+                    ).encode()
+                ).hexdigest(),
+            }
+        )
         record["action"] = {
             "bound_action_id": "bound-select",
             "verb": "select",
@@ -149,17 +160,19 @@ def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
             "arguments": {},
             "label": "Select Strike",
         }
-        record["native_witness"].update({
-            "origin": "native_generated_card_choice_ui",
-            "native_action_type": "NChooseACardSelectionScreen.SelectHolder",
-        })
+        record["native_witness"].update(
+            {
+                "origin": "native_generated_card_choice_ui",
+                "native_action_type": "NChooseACardSelectionScreen.SelectHolder",
+            }
+        )
         record["decision_family"] = "native_generated_card_choice"
 
     # CatalogDigest binds the producer's ordered BoundAction JSON, so preserve
     # the recorder field order rather than canonicalizing the evidence record.
     line = json.dumps(record, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n"
-    (raw / "run-0001.jsonl").write_text(line, encoding="utf-8")
-    (bundle / "export" / "decisions.jsonl").write_text(line, encoding="utf-8")
+    (raw / "run-0001.jsonl").write_text(line, encoding="utf-8", newline="\n")
+    (bundle / "export" / "decisions.jsonl").write_text(line, encoding="utf-8", newline="\n")
     recording = {
         "schema_version": 2,
         "schema": "sts2.human-annotator/recording-manifest-2",
@@ -168,27 +181,45 @@ def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
         "capture_profile_id": profile["profile_id"],
         "capture_profile_sha256": profile_sha,
     }
-    (raw / "recording-manifest.json").write_text(_canonical(recording) + "\n", encoding="utf-8")
-    (raw / "capture-profile.json").write_text(_canonical(profile) + "\n", encoding="utf-8")
-    (bundle / "profile" / "capture-profile.json").write_text(
-        _canonical(profile) + "\n", encoding="utf-8"
+    (raw / "recording-manifest.json").write_text(
+        _canonical(recording) + "\n", encoding="utf-8", newline="\n"
     )
-    (raw / "coverage.json").write_text(_canonical({
-        "schema_version": 2,
-        "schema": "sts2.human-annotator/coverage-2",
-        "session_id": record["session_id"],
-        "admitted_records": 1,
-    }) + "\n", encoding="utf-8")
-    (raw / "invalidations.jsonl").write_text("", encoding="utf-8")
-    (raw / "run-journal.jsonl").write_text(_canonical({
-        "schema_version": 2,
-        "schema": "sts2.human-annotator/run-journal-event-2",
-        "event_id": "journal-1",
-        "session_id": record["session_id"],
-        "run_id": record["run_id"],
-        "timeline_id": record["timeline_id"],
-        "sequence": 1,
-    }) + "\n", encoding="utf-8")
+    (raw / "capture-profile.json").write_text(
+        _canonical(profile) + "\n", encoding="utf-8", newline="\n"
+    )
+    (bundle / "profile" / "capture-profile.json").write_text(
+        _canonical(profile) + "\n", encoding="utf-8", newline="\n"
+    )
+    (raw / "coverage.json").write_text(
+        _canonical(
+            {
+                "schema_version": 2,
+                "schema": "sts2.human-annotator/coverage-2",
+                "session_id": record["session_id"],
+                "admitted_records": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    (raw / "invalidations.jsonl").write_text("", encoding="utf-8", newline="\n")
+    (raw / "run-journal.jsonl").write_text(
+        _canonical(
+            {
+                "schema_version": 2,
+                "schema": "sts2.human-annotator/run-journal-event-2",
+                "event_id": "journal-1",
+                "session_id": record["session_id"],
+                "run_id": record["run_id"],
+                "timeline_id": record["timeline_id"],
+                "sequence": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     audit = {
         "schema": "sts2.human-annotator/session-bundle-audit-2",
         "status": "pass",
@@ -196,7 +227,9 @@ def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
         "invalid_records": 0,
         "invalidations": 0,
     }
-    (bundle / "audit" / "audit-report.json").write_text(_canonical(audit) + "\n", encoding="utf-8")
+    (bundle / "audit" / "audit-report.json").write_text(
+        _canonical(audit) + "\n", encoding="utf-8", newline="\n"
+    )
     export_sha = _sha_file(bundle / "export" / "decisions.jsonl")
     attestation = {
         "attested": True,
@@ -247,7 +280,7 @@ def _v2_bundle(tmp_path: Path, *, selector: bool = False) -> Path:
         "content_identity": identity,
     }
     (bundle / "session-bundle-manifest.json").write_text(
-        _canonical(manifest) + "\n", encoding="utf-8"
+        _canonical(manifest) + "\n", encoding="utf-8", newline="\n"
     )
     _refresh_checksums(bundle)
     return bundle

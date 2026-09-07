@@ -1,124 +1,52 @@
 # Project System
 
-This document defines how humans and agents keep STPD understandable as code, data, models,
-and evidence grow.
+STPD is an independently governed research consumer of model-neutral STS2 AI Platform.
+See [Development Workflow](DEVELOPMENT_WORKFLOW.md) for branch/release policy and
+[Engineering Governance](ENGINEERING_GOVERNANCE.md) for authority and evidence classes.
 
-## Project hierarchy
+## Entry and work loop
 
-STS2 AI Platform is the upper-level, model-neutral foundation. STPD is an
-independently versioned research project under that platform, consuming its
-public environment, evidence and policy-delivery contracts. This Git separation
-supports independent research and release lifecycles; it does not create peer
-platforms, shared branches or a submodule relationship. See
-[Development Workflow](DEVELOPMENT_WORKFLOW.md).
+README -> [New Engineer Guide](NEW_ENGINEER_GUIDE.md) -> AGENTS -> project context ->
+[Document Map](DOCUMENT_MAP.md) -> owning contract, exact source and tests.
 
-## Work lifecycle
-
-```text
-question
--> decision proposal or ADR
--> versioned interface/config
--> implementation + tests
--> experiment manifest
--> local run and raw evidence
--> reviewed report/checksums/non-claims
--> STATUS/ROADMAP update
--> memory handoff
+```bash
+uv sync --locked --all-extras
+npm ci
+uv run --locked python tools/project.py context
+uv run --locked python tools/project.py check
+uv run --locked python tools/project.py closeout
 ```
 
-A benchmark result without a manifest is exploratory. A document without matching code or
-runtime evidence is not implementation evidence.
+Context is read-only routing. Check runs structural governance validation, package doctor,
+Ruff, Mypy, SDK check, Pytest, compileall, package build and patch hygiene. Closeout runs the
+same gate and reports exact local source plus dirty status. Neither command declares runtime,
+scientific, cross-platform CI or pre-Full-Run readiness. See [Testing](TESTING.md).
 
-## Document management
+Both CI operating systems execute the same root command. The required locked-python job
+aggregates both and rejects failure/cancellation/skipping. Workflow JSON is a YAML-compatible
+subset that permits structural validation using only the Python standard library. Tests
+mutate the workflow to prove that common weakening attempts are rejected.
 
-- Every canonical document is linked from `DOCUMENT_MAP.md`.
-- `STATUS.md` contains current facts, not future aspiration.
-- `ROADMAP.md` contains ordered work and definitions of done.
-- Interface changes update docs, schemas, tests, and dependent manifests together.
-- Historical evidence is not rewritten; a new exact tuple gets a new report.
-- Large research notes become dated plans or ADRs rather than expanding README indefinitely.
+## Documents and memory
 
-## Memory system
+Canonical docs are linked from DOCUMENT_MAP; STATUS contains supported current facts,
+ROADMAP ordered goals, ADRs accepted architecture. A proposal does not prove implementation.
+Current context is at most 3 KiB: phase, active lanes, blockers, next gates, non-goals, pointers.
+Detailed evidence belongs in immutable manifests/reports or dated archives, not CURRENT.
+Append decisions instead of rewriting history. Update HANDOFF at meaningful checkpoints.
 
-Humans and agents use the same files:
+Question -> owning fact -> contract/design -> implementation/test -> review/repair -> exact
+commit/PR -> evidence/docs -> next task. Use one branch/worktree per writer. Persist useful
+work remotely rather than leaving it in ephemeral execution storage.
 
-1. Read `memory/CURRENT.md`, `DECISIONS.md`, and `OPEN_QUESTIONS.md` before work.
-2. During work, keep local scratch notes outside the repository.
-3. At a coherent checkpoint, update `CURRENT.md` and `HANDOFF.md`.
-4. Append accepted durable decisions to `DECISIONS.md`; create an ADR for architectural
-   consequences.
-5. Close or rewrite answered questions in `OPEN_QUESTIONS.md` with links to evidence.
+## Research identity and release
 
-Memory is concise and operational. It does not duplicate canonical architecture or status.
+Runs bind source/worktree state, protocol/config, data/Qwen/tokenizer/serializer identities,
+seeds, dtype/device and output hashes. Benchmark results without manifests are exploratory.
+Keep raw data/weights/caches outside Git. Failure evidence remains retained. Sealed Gold-test
+and final live suites are not used before the relevant protocol freeze.
 
-## Experiment identity
-
-Use stable IDs such as:
-
-```text
-stpd-v0-s1-p-l-seed-0001
-stpd-v0-s2-d-p-z-seed-0002
-```
-
-Each run records:
-
-- STPD source revision and worktree state;
-- plan/schema versions;
-- data manifest digests;
-- game/Host/Connector identities;
-- Qwen model/tokenizer revisions, dtype, device, and cache mode;
-- architecture/config ID and random seeds;
-- output files and checksums;
-- benchmark versions, metrics, and non-claims.
-
-## Data and artifact storage
-
-- Raw/external data and generated features stay in ignored local/object storage.
-- Track dataset manifests, schema versions, licenses/usage constraints, and checksums.
-- Model weights and Qwen hidden caches stay outside Git; track artifact manifests and hashes.
-- Reports committed to the repository contain reviewed aggregate results, not private traces.
-
-## Change and review rules
-
-- One coherent responsibility per change.
-- Public contract changes require migration notes.
-- New model complexity requires a simpler baseline and a measurement plan.
-- Evaluation code is reviewed independently from the model it evaluates when practical.
-- Final Gold-test and fixed live suite remain sealed until architecture/input/hyperparameters
-  are frozen.
-- A failed hypothesis is retained as a result; do not tune the gate until it passes.
-- Pull requests use `.github/pull_request_template.md` and the pure-Python CI must pass.
-- Runtime/GPU experiments remain separate from CI and require exact local evidence.
-- Normal work starts from `develop`, uses one short-lived topic branch/worktree
-  per writer and enters through a PR. Cross-repository changes use separate
-  Platform and STPD PRs with exact identity pinning.
-
-## Continuous integration
-
-GitHub Actions runs the pure suite on the single supported interpreter, Python 3.11:
-
-```text
-uv sync --frozen
--> ruff
--> mypy
--> pytest
--> package build
-```
-
-CI intentionally does not download STS2, Headless/Connector artifacts, Qwen weights, external
-data, or GPU dependencies. A green CI run proves only the public source/test contract.
-
-## Release states
-
-Repository branch semantics are separate from research maturity. The
-pre-governance `main` at `4c4bbca5e5bf16656bd7c0ba175ff5c069c81818` is a
-historical integration baseline, not a stable release. `develop` is the current
-integration line; after the first governed `release/* -> main` transition,
-`main` becomes the stable release landing line.
-
-- **pre-alpha**: interfaces and research system are changing; current state.
-- **v0 candidate**: Step 0 contracts/data pipeline and core architecture implementation exist.
-- **v0 frozen**: architecture/input/hyperparameters frozen before final held-out evaluation.
-- **v0 complete**: B0-B7 report and next-phase decision published.
-
-Version numbers do not imply policy quality or Host qualification.
+The pre-governance main at 4c4bbca5e5bf16656bd7c0ba175ff5c069c81818 is historical, not a stable
+research release. develop is the integration line; governed release branches land on main.
+Version/release labels never imply policy quality. Historical v0 maturity and new Full-Run
+engineering readiness are distinct, independently evidenced concepts.

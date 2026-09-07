@@ -22,6 +22,10 @@ validates the frozen transition schemas and B0 invariants, assigns whole seed ro
 deterministic split, then writes canonical-JSON Arrow columns to compressed Parquet. Nested
 JSON is the contract; Arrow is storage, not a second semantic authority.
 
+The physical format and training-host transfer rules are measured and versioned separately
+in [End-to-End Data Lifecycle](DATA_LIFECYCLE.md). Canonical data never becomes a Qwen cache,
+and a cache or staging receipt never becomes research or training authority.
+
 ## Data zones
 
 - `data/raw/`: immutable source capture; ignored.
