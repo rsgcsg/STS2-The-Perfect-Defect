@@ -47,3 +47,11 @@ runtime-qualification verdict.
 The workbench is intended for local fixture and operator use. The canonical
 artifact, evaluation, training, and scientific evidence contracts remain the
 source of truth.
+
+Analysis now validates every Dataset/ModelView/Evaluation using canonical readers. Dataset
+counts are separate from repeated model/baseline evaluation rows. Per-evaluation ablation
+rows bind exact Dataset, TrainingInput, model, head, Qwen, serializer and config. DuckDB
+computes counts, grouped metrics, token proxies, performance and failure-stage aggregation.
+Default discovery omits sealed-test evaluation metrics from tuning projections. Missing
+measurements are explicit. The API has one typed order: analyze(registry, store) and
+project(registry, store).

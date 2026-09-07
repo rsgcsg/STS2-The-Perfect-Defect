@@ -1,18 +1,21 @@
 # Current Context
 
-The Pre-Full-Run convergence is in progress on one task PR targeting develop. Re-resolve
-remote refs and CI before relying on any status. See README, DOCUMENT_MAP, FULLRUN_RESEARCH,
-FULLRUN_TRAINING, PREFULLRUN_OPERATIONS, FULLRUN_GOLD and LOCAL_WORKBENCH for ownership.
+The Pre-Full-Run Local-First system converges through PR #7 onto develop. Read
+PREFULLRUN_AI_CLOSEOUT and PREFULLRUN_HUMAN_HANDOFF. Exact final source/develop SHAs, PR
+classification, portable jobs, clean CPU E2E and readiness receipt are bound to the final
+commit by the pushed refs/notes/stpd-prefullrun Git note. Re-resolve remote refs and verify
+that receipt; a missing or stale note is not a pass.
 
-Implemented source includes immutable ArtifactStore, rebuildable Registry, separately
-versioned Full-Run contracts, frozen features/input, shared scorer, disposable worker,
-checkpoint/resume, offline evaluation, Gold/harness and local projections. Review and final
-latest-head qualification remain active; this routing file never proves readiness.
+Architecture: separately versioned ResearchTransitionV1; thin synthetic adapter until final
+Platform bytes; whole-run/component admission and splits; provisional ModelView; frozen
+FeatureSet/TrainingInput; shared Linear/MLP scorer; disposable worker/checkpoint/resume;
+immutable ArtifactStore/RunReporter; rebuildable Registry; DuckDB/static local dashboard;
+Gold collection/sealed isolation and E0-E7 engineering configuration.
 
-Platform owns S/A_sem/Commit/causal successor and Human correlation. Preserve H != S and
-A_public != A_sem(S). No guessed final adapter or Standard freeze before final qualified
-Platform bundle and real-corpus profiling. No synthetic-to-Human or engineering-to-science
-promotion. Historical combat-v0/H1/S1 and immutable evidence retain their original scope.
+Platform owns S/A_sem/Commit/causal successor/Human correlation. Preserve H != S and
+A_public != A_sem(S). Remaining external gates: final Platform bundle/schema, real object-store
+and GPU accounts, Human Gold and real STS2/scientific execution. No scientific promotion from
+engineering evidence; historical combat-v0/H1/S1 retain their original scope.
 
-Run the common tools/project.py check/closeout; it includes CPU E2E. Linux and Windows use
-the same gate. Use tools/qualify_prefullrun.py with the exact hosted run for readiness receipts.
+Use tools/project.py check/closeout and tools/qualify_prefullrun.py --ci-run <exact-run>.
+No permanent server or provider-specific training code is required.

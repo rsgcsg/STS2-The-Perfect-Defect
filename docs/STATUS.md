@@ -1,5 +1,14 @@
 # Current Status
 
+## Pre-Full-Run engineering closeout
+
+The coherent Local-First implementation is delivered through convergence PR #7. Its exact
+latest-source qualification and integrated develop SHA are attached to that commit in
+`refs/notes/stpd-prefullrun`, with hosted Linux/Windows/locked-python and clean CPU E2E
+receipts. See [AI closeout](PREFULLRUN_AI_CLOSEOUT.md) for retrieval and evidence boundaries,
+and [Human handoff](PREFULLRUN_HUMAN_HANDOFF.md) for external gates. A missing/stale receipt
+never establishes readiness. All historical statements below retain their original scope.
+
 ## Repository governance
 
 Public `main` commit `4c4bbca5e5bf16656bd7c0ba175ff5c069c81818`

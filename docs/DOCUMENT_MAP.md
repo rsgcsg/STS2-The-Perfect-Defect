@@ -63,3 +63,6 @@ not copied source trees, shared branches or submodules.
 - [Local operations and exact Worker launch](PREFULLRUN_OPERATIONS.md)
 - [Local DuckDB and dashboard](LOCAL_WORKBENCH.md)
 - [Gold and E0-E7 engineering tooling](FULLRUN_GOLD.md)
+
+- [Pre-Full-Run AI closeout](PREFULLRUN_AI_CLOSEOUT.md)
+- [Human and external-input handoff](PREFULLRUN_HUMAN_HANDOFF.md)
