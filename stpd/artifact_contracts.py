@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import parse_qsl, urlsplit
 
 from .canonical import semantic_hash
 from .json_boundary import (
@@ -42,6 +43,56 @@ KINDS = frozenset(
     }
 )
 
+# Manifest parameters are durable and are copied between stores.  Reject only
+# unambiguous credential-bearing field names and URL userinfo; this is a
+# contract boundary, not a generic content scanner.
+_SECRET_FIELD_NAMES = frozenset(
+    {
+        "access_key",
+        "access_token",
+        "api_key",
+        "apikey",
+        "authorization",
+        "bearer",
+        "client_secret",
+        "credential",
+        "credentials",
+        "password",
+        "passwd",
+        "private_key",
+        "secret",
+        "secret_key",
+        "token",
+    }
+)
+
+
+def _validate_durable_metadata(value: object, path: str = "manifest.parameters") -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise BoundaryError("manifest", "invalid_metadata_key")
+            normalized = key.casefold().replace("-", "_")
+            if normalized in _SECRET_FIELD_NAMES:
+                raise BoundaryError("manifest", "secret_metadata")
+            _validate_durable_metadata(item, f"{path}.{key}")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_durable_metadata(item, f"{path}[{index}]")
+        return
+    if isinstance(value, str):
+        parsed = urlsplit(value)
+        if parsed.scheme in {"http", "https"} and (
+            parsed.username is not None
+            or parsed.password is not None
+            or any(
+                key.casefold().replace("-", "_") in _SECRET_FIELD_NAMES
+                for key, _ in (*parse_qsl(parsed.query), *parse_qsl(parsed.fragment))
+            )
+        ):
+            raise BoundaryError("manifest", "credentialed_url")
+
 
 @dataclass(frozen=True)
 class Producer:
@@ -53,6 +104,7 @@ class Producer:
         text(self.repository, "producer.repository")
         digest(self.source_revision, "producer.source_revision", length=40)
         digest(self.uv_lock_sha256, "producer.uv_lock_sha256")
+        _validate_durable_metadata(self.repository, "producer.repository")
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -127,10 +179,13 @@ class Manifest:
             raise BoundaryError("manifest", "mutable_or_untyped_collections")
         if len(set(self.parents)) != len(self.parents):
             raise BoundaryError("manifest", "duplicate_parent")
+        if len({p.role for p in self.parents}) != len(self.parents):
+            raise BoundaryError("manifest", "duplicate_parent_role")
         if len({p.role for p in self.payloads}) != len(self.payloads):
             raise BoundaryError("manifest", "duplicate_payload_role")
         if not isinstance(self.producer, Producer) or not isinstance(self.parameters, FrozenObject):
             raise BoundaryError("manifest", "untyped_boundary")
+        _validate_durable_metadata(self.parameters.value())
 
     def body(self) -> dict[str, Any]:
         return {

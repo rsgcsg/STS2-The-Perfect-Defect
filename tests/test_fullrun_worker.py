@@ -8,7 +8,8 @@ import torch
 from test_artifact_store_v1 import PRODUCER
 from test_fullrun_features import prepared
 
-from stpd.artifact_contracts import Manifest, Producer
+from stpd.artifact_contracts import Manifest, Parent, Producer
+from stpd.fullrun.evaluation import evaluate_samples, publish_evaluation
 from stpd.fullrun.features import compile_features, load_features
 from stpd.json_boundary import BoundaryError, FrozenObject
 from stpd.qwen.fake_backend import DeterministicFakeQwenBackend
@@ -145,3 +146,45 @@ def test_checkpoint_model_and_permutation_contract(tmp_path: Path) -> None:
     restored.restore(raw)
     assert restored.step == canonical.step
     assert restored.model_bytes() == canonical.model_bytes()
+
+
+def test_evaluation_publication_binds_rows_to_model_view(tmp_path: Path) -> None:
+    store, reporter, envelope, config = training(tmp_path)
+    _, run = prepare_run(store, envelope.artifact_id, PRODUCER)
+    completed = execute(store, reporter, run.artifact_id, PRODUCER)
+    result = store.get_manifest(completed.result_id)
+    model = store.get_manifest(result.parent("model"))
+    features = load_features(store, envelope.parent("feature_set"))
+    rows, summary = evaluate_samples(
+        features.samples,
+        lambda index: (0.0,) * len(features.samples[index].action_texts),
+    )
+    rows[0]["run_id"] = "foreign-run"
+    with pytest.raises(BoundaryError, match="row_input_mismatch"):
+        publish_evaluation(
+            store,
+            model,
+            features.view.artifact_id,
+            rows,
+            summary,
+            PRODUCER,
+            partition="dev",
+            baseline="uniform_legal",
+        )
+
+
+def test_forged_completion_marker_cannot_short_circuit_worker(tmp_path: Path) -> None:
+    store, reporter, envelope, _ = training(tmp_path)
+    _, run = prepare_run(store, envelope.artifact_id, PRODUCER)
+    forged = Manifest(
+        "run_result",
+        PRODUCER,
+        (Parent("run", run.artifact_id), Parent("training_input", envelope.artifact_id)),
+        parameters=FrozenObject.of(
+            {"schema": "stpd/run-result-v1", "state": "completed"}
+        ),
+    )
+    store.publish(forged)
+    reporter.complete(forged)
+    with pytest.raises(BoundaryError, match="completed_result_inventory"):
+        execute(store, reporter, run.artifact_id, PRODUCER)

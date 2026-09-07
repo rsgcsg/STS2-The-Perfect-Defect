@@ -88,6 +88,25 @@ def test_parquet_dataset_and_lineage_roundtrip(tmp_path: Path) -> None:
     assert manifest.parent("evidence") == source.artifact_id
 
 
+def test_multi_source_dataset_uses_unique_evidence_parent_roles(tmp_path: Path) -> None:
+    from test_artifact_store_v1 import PRODUCER, store
+
+    target = store(tmp_path)
+    adapter = SyntheticSourceAdapter()
+    source_a, projection_a = publish_source(
+        target, synthetic_bundle(runs=3, seed=0), adapter, PRODUCER
+    )
+    source_b, projection_b = publish_source(
+        target, synthetic_bundle(runs=3, seed=1), adapter, PRODUCER
+    )
+    dataset = admit((projection_a, projection_b), seed=19)
+    manifest = publish_dataset(target, dataset, (source_a, source_b), PRODUCER)
+    assert len({parent.role for parent in manifest.parents}) == 2
+    assert all(parent.role.startswith("evidence") for parent in manifest.parents)
+    _, restored = load_dataset(target, manifest.artifact_id)
+    assert restored.logical_id == dataset.logical_id
+
+
 def test_new_dataset_identity_cannot_relabel_an_unchanged_source(tmp_path: Path) -> None:
     from test_artifact_store_v1 import PRODUCER, store
 

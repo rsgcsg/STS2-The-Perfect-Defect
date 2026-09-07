@@ -67,8 +67,30 @@ def execute(
         if (
             previous.producer != runtime
             or previous.parent("training_input") != training.artifact_id
+            or previous.parameters.value().get("schema") != "stpd/run-result-v1"
+            or previous.parameters.value().get("state") != "completed"
+            or sorted(p.role for p in previous.parents)
+            != [
+                "baseline_action_only",
+                "baseline_uniform_legal",
+                "model",
+                "offline_evaluation",
+                "run",
+                "training_input",
+            ]
         ):
-            raise BoundaryError("worker", "completed_input_mismatch")
+            raise BoundaryError("worker", "completed_result_inventory_mismatch")
+        expected_kinds = {
+            "run": "run",
+            "training_input": "training_input",
+            "model": "model",
+            "offline_evaluation": "offline_evaluation",
+            "baseline_action_only": "offline_evaluation",
+            "baseline_uniform_legal": "offline_evaluation",
+        }
+        for role, kind in expected_kinds.items():
+            if store.get_manifest(previous.parent(role)).kind != kind:
+                raise BoundaryError("worker", "completed_result_lineage_mismatch")
         return WorkerResult("completed", run_id, result_id=previous.artifact_id)
     attempt = uuid.uuid4().hex
     engine = RankingEngine(features, config)
@@ -185,6 +207,7 @@ def execute(
             (
                 Parent("run", run_id),
                 Parent("training_input", training.artifact_id),
+                Parent("model_view", features.view.artifact_id),
                 Parent("checkpoint", checkpoint_id),
             ),
             (weights,),
@@ -236,7 +259,12 @@ def execute(
                 Parent("training_input", training.artifact_id),
                 Parent("model", model.artifact_id),
                 Parent("offline_evaluation", evaluation.artifact_id),
-                *(Parent("baseline", b.artifact_id) for b in baselines),
+                *(
+                    Parent(f"baseline_{name}", baseline.artifact_id)
+                    for name, baseline in zip(
+                        ("uniform_legal", "action_only"), baselines, strict=True
+                    )
+                ),
             ),
             parameters=FrozenObject.of(
                 {

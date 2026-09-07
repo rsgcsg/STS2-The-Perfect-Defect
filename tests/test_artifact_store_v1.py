@@ -58,6 +58,29 @@ def test_manifest_rejects_missing_future_schema_noncanonical_and_bad_types() -> 
         Manifest("future_kind", PRODUCER)
 
 
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        {"api_key": "must-not-persist"},
+        {"nested": [{"authorization": "Bearer secret"}]},
+        {"endpoint": "https://user:password@example.invalid/store"},
+        {"endpoint": "https://example.invalid/store?access_token=secret"},
+    ],
+)
+def test_manifest_rejects_credential_bearing_metadata(parameters: dict[str, object]) -> None:
+    with pytest.raises(BoundaryError, match="secret_metadata|credentialed_url"):
+        Manifest("dataset", PRODUCER, parameters=FrozenObject.of(parameters))
+
+
+def test_manifest_rejects_duplicate_parent_roles() -> None:
+    with pytest.raises(BoundaryError, match="duplicate_parent_role"):
+        Manifest(
+            "model",
+            PRODUCER,
+            parents=(Parent("dataset", "a" * 64), Parent("dataset", "b" * 64)),
+        )
+
+
 @pytest.mark.parametrize("key", ["../escape", "/absolute", "a\\b", "a/../b", "a//b", "con.json"])
 def test_backend_rejects_unsafe_keys(tmp_path: Path, key: str) -> None:
     backend = LocalBlobStore(tmp_path)
