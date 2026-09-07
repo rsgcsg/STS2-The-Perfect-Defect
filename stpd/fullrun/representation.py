@@ -15,6 +15,20 @@ SERIALIZER_VERSION = "stpd-fullrun-provisional-v1"
 PROFILE_LEVEL = {"lite": 0, "standard": 1, "full": 2}
 _FORBIDDEN = frozenset(
     {
+        "outcome",
+        "reward",
+        "return",
+        "label",
+        "teacherconfidence",
+        "sessionid",
+        "runtimeid",
+        "environmentidentity",
+        "hostsourcerevision",
+        "gameartifactsha256",
+        "actionkey",
+        "teachermetadata",
+        "teacherlabel",
+        "futurestate",
         "boundactionid",
         "snapshotid",
         "mutationrequestid",
@@ -43,7 +57,6 @@ _FORBIDDEN = frozenset(
         "selectedindex",
         "successor",
         "runoutcome",
-        "teachermetadata",
         "provenance",
         "commitref",
         "evidenceref",

@@ -104,121 +104,27 @@ class GoldCampaign:
         ):
             raise BoundaryError("campaign", "invalid_partition_count")
         serializer = serializer or FullRunSerializer()
-        # Sampling from the same source with different split salts prevents the deterministic
-        # presentation order from being the mechanism that creates a partition overlap.
+        if source_split is not None:
+            raise BoundaryError("campaign", "gold_uses_existing_dev_and_test")
         dev = sample_gold_tasks(
             dataset,
             gold_split="gold_dev",
             count=dev_count,
             surface_quotas=surface_quotas_dev,
-            source_split=source_split,
             seed=seed,
             serializer=serializer,
-            source_dataset_id=dataset.logical_id,
         )
         test = sample_gold_tasks(
             dataset,
             gold_split="gold_test",
             count=test_count,
             surface_quotas=surface_quotas_test,
-            source_split=source_split,
-            seed=seed + 1,
+            seed=seed,
             serializer=serializer,
-            source_dataset_id=dataset.logical_id,
         )
-        # A single admitted dataset may not have independent whole runs for both partitions.
-        # Re-plan from deterministic disjoint run pools when the initial sample overlaps.
-        if {task.run_id for task in dev} & {task.run_id for task in test}:
-            return _disjoint_campaign(
-                dataset,
-                dev_count=dev_count,
-                test_count=test_count,
-                seed=seed,
-                source_split=source_split,
-                serializer=serializer,
-                surface_quotas_dev=surface_quotas_dev,
-                surface_quotas_test=surface_quotas_test,
-            )
-        campaign = cls(
-            dev,
-            test,
-            seed,
-            FrozenObject.of(serializer.identity),
-            dataset.logical_id,
-        )
+        campaign = cls(dev, test, seed, FrozenObject.of(serializer.identity), dataset.logical_id)
         campaign.validate()
         return campaign
-
-
-def _disjoint_campaign(
-    dataset: AdmittedDataset,
-    *,
-    dev_count: int,
-    test_count: int,
-    seed: int,
-    source_split: str | None,
-    serializer: FullRunSerializer,
-    surface_quotas_dev: Mapping[str, int] | None,
-    surface_quotas_test: Mapping[str, int] | None,
-) -> GoldCampaign:
-    """Select by run pools so Gold-dev and Gold-test cannot share a run."""
-
-    split_map = dataset.splits.value()
-    records = [
-        record
-        for record in dataset.records
-        if source_split is None or split_map.get(record.run_id) == source_split
-    ]
-    runs = sorted({record.run_id for record in records}, key=lambda run: semantic_hash([seed, run]))
-    if len(runs) < 2:
-        raise BoundaryError("campaign", "insufficient_independent_gold_run_pools")
-    mid = max(1, len(runs) // 2)
-    dev_runs, test_runs = set(runs[:mid]), set(runs[mid:])
-    if not dev_runs or not test_runs:
-        raise BoundaryError("campaign", "insufficient_independent_gold_run_pools")
-    dev_records = tuple(record for record in records if record.run_id in dev_runs)
-    test_records = tuple(record for record in records if record.run_id in test_runs)
-    # AdmittedDataset is immutable; a small proxy with the same split map keeps the sampler
-    # on its canonical validation path without re-admitting or manufacturing records.
-    dev_dataset = AdmittedDataset(
-        dev_records,
-        FrozenObject.of({run: "train" for run in dev_runs}),
-        dataset.seed,
-        dataset.scope,
-    )
-    test_dataset = AdmittedDataset(
-        test_records,
-        FrozenObject.of({run: "train" for run in test_runs}),
-        dataset.seed,
-        dataset.scope,
-    )
-    dev = sample_gold_tasks(
-        dev_dataset,
-        gold_split="gold_dev",
-        count=dev_count,
-        surface_quotas=surface_quotas_dev,
-        seed=seed,
-        serializer=serializer,
-        source_dataset_id=dataset.logical_id,
-    )
-    test = sample_gold_tasks(
-        test_dataset,
-        gold_split="gold_test",
-        count=test_count,
-        surface_quotas=surface_quotas_test,
-        seed=seed + 1,
-        serializer=serializer,
-        source_dataset_id=dataset.logical_id,
-    )
-    campaign = GoldCampaign(
-        dev,
-        test,
-        seed,
-        FrozenObject.of(serializer.identity),
-        dataset.logical_id,
-    )
-    campaign.validate()
-    return campaign
 
 
 @dataclass(frozen=True)
@@ -235,6 +141,8 @@ class FullRunHarnessConfig:
     heads: tuple[str, ...] = ("linear", "mlp")
     baselines: tuple[str, ...] = ("uniform_legal", "action_only")
     leakage_checks: bool = True
+    candidate_permutation: bool = True
+    label_permutation: bool = True
     shared_fullrun_model_view: bool = True
     serializer_profiles: tuple[str, ...] = ("lite", "standard", "full")
     dynamics: str = "deferred"
@@ -258,6 +166,8 @@ class FullRunHarnessConfig:
             raise BoundaryError("harness", "unsupported_head_matrix")
         if self.baselines != ("uniform_legal", "action_only") or not self.leakage_checks:
             raise BoundaryError("harness", "baseline_or_leakage_controls_missing")
+        if not self.candidate_permutation or not self.label_permutation:
+            raise BoundaryError("harness", "permutation_controls_missing")
         if not self.shared_fullrun_model_view:
             raise BoundaryError("harness", "shared_fullrun_path_required")
         if self.serializer_profiles != ("lite", "standard", "full"):
@@ -285,7 +195,12 @@ class FullRunHarnessConfig:
                 "frozen": self.frozen_backbone,
             },
             "E2": {"heads": list(self.heads)},
-            "E3": {"baselines": list(self.baselines), "leakage_checks": self.leakage_checks},
+            "E3": {
+                "baselines": list(self.baselines),
+                "leakage_checks": self.leakage_checks,
+                "candidate_permutation": self.candidate_permutation,
+                "label_permutation": self.label_permutation,
+            },
             "E4": {"shared_fullrun_model_view": self.shared_fullrun_model_view},
             "E5": {"serializer_profiles": list(self.serializer_profiles)},
             "E6": {"dynamics": self.dynamics},

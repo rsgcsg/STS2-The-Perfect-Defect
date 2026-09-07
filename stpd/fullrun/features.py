@@ -226,7 +226,10 @@ def compile_features(
             or not bool(torch.isfinite(encoded).all())
         ):
             raise BoundaryError("features", "invalid_frozen_backend_output")
-        arrays.append(encoded.detach().to(device="cpu", dtype=torch.float32).numpy())
+        canonical = encoded.detach().to(device="cpu", dtype=torch.float32)
+        if not bool(torch.isfinite(canonical).all()):
+            raise BoundaryError("features", "float32_output_overflow")
+        arrays.append(canonical.numpy())
     matrix = np.concatenate(arrays, axis=0).astype("<f4", copy=False)
     with tempfile.TemporaryFile("w+b") as handle:
         np.save(handle, matrix, allow_pickle=False)
@@ -293,14 +296,34 @@ def load_features(store: ArtifactStore, feature_id: str) -> LoadedFeatures:
     expected_index = {"keys": list(keys), "sample_rows": [list(row) for row in expected_rows]}
     if decode_json(index_raw) != expected_index or index_raw != json_bytes(expected_index):
         raise BoundaryError("features", "candidate_alignment_mismatch")
+    hidden_size = unsigned(parameters.get("hidden_size"), "features.hidden_size")
+    if not 0 < hidden_size <= 65536:
+        raise BoundaryError("features", "hidden_size_limit")
+    expected_size = len(keys) * hidden_size * 4
+    if expected_size > 2 * 1024**3:
+        raise BoundaryError("features", "matrix_size_limit")
+    payload = manifest.payload("features")
+    if not expected_size < payload.size <= expected_size + 16384:
+        raise BoundaryError("features", "npy_payload_size_mismatch")
     with tempfile.TemporaryFile("w+b") as handle:
-        for chunk in store.read_payload(manifest.payload("features")):
+        for chunk in store.read_payload(payload):
             handle.write(chunk)
         handle.seek(0)
-        matrix = np.load(handle, allow_pickle=False)
-        if handle.read(1):
-            raise BoundaryError("features", "trailing_array_content")
-    hidden_size = unsigned(parameters.get("hidden_size"), "features.hidden_size")
+        try:
+            version = np.lib.format.read_magic(handle)
+            if version != (1, 0):
+                raise BoundaryError("features", "unsupported_npy_version")
+            shape, fortran, dtype = np.lib.format.read_array_header_1_0(handle)
+            if shape != (len(keys), hidden_size) or fortran or dtype != np.dtype("<f4"):
+                raise BoundaryError("features", "npy_header_mismatch")
+            if handle.tell() + expected_size != payload.size:
+                raise BoundaryError("features", "npy_payload_size_mismatch")
+            handle.seek(0)
+            matrix = np.load(handle, allow_pickle=False)
+        except (ValueError, EOFError, OSError) as error:
+            if isinstance(error, BoundaryError):
+                raise
+            raise BoundaryError("features", "malformed_npy") from None
     if (
         not isinstance(matrix, np.ndarray)
         or matrix.dtype != np.dtype("<f4")

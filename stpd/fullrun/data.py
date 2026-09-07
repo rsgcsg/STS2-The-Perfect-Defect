@@ -84,6 +84,10 @@ def admit(projections: tuple[SourceProjection, ...], *, seed: int = 0) -> Admitt
     scopes = {projection.scope for projection in projections}
     if len(scopes) != 1:
         raise BoundaryError("admission", "mixed_engineering_and_qualified_sources")
+    # Until the final owning Platform verifier/adapter is installed, no caller-created
+    # dataclass or scope flag may admit a qualified population, even only in memory.
+    if any(projection.scope != "engineering" for projection in projections):
+        raise BoundaryError("admission", "final_platform_adapter_not_installed")
     unique: dict[str, ResearchTransitionV1] = {}
     positions: dict[tuple[str, int], str] = {}
     duplicates = 0

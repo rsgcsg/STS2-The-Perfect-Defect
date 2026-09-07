@@ -170,6 +170,8 @@ def test_evaluation_publication_binds_rows_to_model_view(tmp_path: Path) -> None
             PRODUCER,
             partition="dev",
             baseline="uniform_legal",
+            seed=0,
+            bootstrap=200,
         )
 
 
@@ -180,11 +182,65 @@ def test_forged_completion_marker_cannot_short_circuit_worker(tmp_path: Path) ->
         "run_result",
         PRODUCER,
         (Parent("run", run.artifact_id), Parent("training_input", envelope.artifact_id)),
-        parameters=FrozenObject.of(
-            {"schema": "stpd/run-result-v1", "state": "completed"}
-        ),
+        parameters=FrozenObject.of({"schema": "stpd/run-result-v1", "state": "completed"}),
     )
     store.publish(forged)
     reporter.complete(forged)
     with pytest.raises(BoundaryError, match="completed_result_inventory"):
+        execute(store, reporter, run.artifact_id, PRODUCER)
+
+
+def test_completed_return_rejects_missing_weights_and_evaluation_tamper(tmp_path: Path) -> None:
+    from stpd.fullrun.evaluation import load_evaluation
+
+    store, reporter, envelope, config = training(tmp_path)
+    _, run = prepare_run(store, envelope.artifact_id, PRODUCER)
+    finished = execute(store, reporter, run.artifact_id, PRODUCER)
+    result = store.get_manifest(finished.result_id)
+    evaluation = load_evaluation(store, result.parent("offline_evaluation"))
+    with pytest.raises(BoundaryError, match="row_inventory"):
+        publish_evaluation(
+            store,
+            evaluation.model,
+            evaluation.view.artifact_id,
+            list(evaluation.rows)[:-1],
+            evaluation.summary,
+            PRODUCER,
+            partition="dev",
+            seed=config.seed,
+            bootstrap=200,
+        )
+    with pytest.raises(BoundaryError, match="summary_mismatch"):
+        publish_evaluation(
+            store,
+            evaluation.model,
+            evaluation.view.artifact_id,
+            list(evaluation.rows),
+            {},
+            PRODUCER,
+            partition="dev",
+            seed=config.seed,
+            bootstrap=200,
+        )
+    with pytest.raises(BoundaryError, match="sealed_test_protocol"):
+        publish_evaluation(
+            store,
+            evaluation.model,
+            evaluation.view.artifact_id,
+            list(evaluation.rows),
+            evaluation.summary,
+            PRODUCER,
+            partition="test",
+            seed=config.seed,
+            bootstrap=200,
+        )
+    model = store.get_manifest(result.parent("model"))
+    # Delete actual indexed bytes to prove idempotent completion rechecks them.
+    from stpd.json_boundary import decode_json
+
+    index = decode_json(
+        store.blobs.get(f"payload-indexes/v1/{model.payload('weights').sha256}.json")
+    )
+    (store.blobs.root / "objects" / "sha256" / index["chunks"][0]["sha256"]).unlink()
+    with pytest.raises(BoundaryError, match="object_not_found"):
         execute(store, reporter, run.artifact_id, PRODUCER)

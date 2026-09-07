@@ -13,11 +13,20 @@ import math
 import random
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from itertools import combinations
 from typing import Any, Literal
 
 from ..canonical import semantic_hash
-from ..json_boundary import BoundaryError, FrozenObject, digest, text, unsigned
+from ..json_boundary import (
+    BoundaryError,
+    FrozenObject,
+    array,
+    digest,
+    object_fields,
+    text,
+    unsigned,
+)
 from .contracts import ResearchTransitionV1
 from .data import AdmittedDataset
 from .representation import FullRunSerializer
@@ -25,6 +34,9 @@ from .representation import FullRunSerializer
 GOLD_SCHEMA = "stpd/fullrun-gold-v1"
 GOLD_TASK_SCHEMA = "stpd/fullrun-gold-task-v1"
 GOLD_ANNOTATION_SCHEMA = "stpd/fullrun-gold-annotation-v1"
+GOLD_TASK_MANIFEST_SCHEMA = "stpd/fullrun-gold-tasks-manifest-v1"
+GOLD_LABEL_MANIFEST_SCHEMA = "stpd/fullrun-gold-labels-manifest-v1"
+GOLD_AUDIT_SCHEMA = "stpd/fullrun-gold-audit-v1"
 GoldSplit = Literal["gold_dev", "gold_test"]
 GoldDisposition = Literal["accepted", "invalid", "insufficient_information"]
 GoldOrigin = Literal["human", "synthetic_fixture"]
@@ -35,6 +47,32 @@ def _finite_confidence(value: float | None) -> None:
         raise BoundaryError("gold.annotation", "invalid_confidence")
     if value is not None and not 0 <= value <= 1:
         raise BoundaryError("gold.annotation", "invalid_confidence")
+
+
+def _serialized_text(value: object, stage: str) -> str:
+    if not isinstance(value, str) or not value or len(value) > 4 * 1024 * 1024:
+        raise BoundaryError(stage, "invalid_serialized_text")
+    return value
+
+
+def _task_identity(task: GoldTask) -> str:
+    return semantic_hash(
+        {
+            "schema": GOLD_TASK_SCHEMA,
+            "transition_id": task.transition_id,
+            "run_id": task.run_id,
+            "surface": task.surface,
+            "family": task.family,
+            "state_text": task.state_text,
+            "action_keys": list(task.action_keys),
+            "action_texts": list(task.action_texts),
+            "candidate_display_order": list(task.candidate_display_order),
+            "gold_split": task.gold_split,
+            "source_scope": task.source_scope,
+            "serializer": task.serializer.value(),
+            "source_dataset_id": task.source_dataset_id,
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -53,7 +91,7 @@ class GoldTask:
     gold_split: GoldSplit
     source_scope: str
     serializer: FrozenObject
-    source_dataset_id: str | None = None
+    source_dataset_id: str
 
     def validate(self) -> None:
         digest(self.task_id, "gold.task_id")
@@ -79,10 +117,15 @@ class GoldTask:
             raise BoundaryError("gold.task", "candidate_text_alignment_mismatch")
         if any(not isinstance(value, str) or not value for value in self.action_texts):
             raise BoundaryError("gold.task", "invalid_action_text")
-        if set(self.candidate_display_order) != set(self.action_keys):
+        if (
+            len(self.candidate_display_order) != len(self.action_keys)
+            or len(set(self.candidate_display_order)) != len(self.candidate_display_order)
+            or set(self.candidate_display_order) != set(self.action_keys)
+        ):
             raise BoundaryError("gold.task", "display_order_not_catalog_permutation")
-        if self.source_dataset_id is not None:
-            digest(self.source_dataset_id, "gold.source_dataset_id")
+        digest(self.source_dataset_id, "gold.source_dataset_id")
+        if self.task_id != _task_identity(self):
+            raise BoundaryError("gold.task", "task_identity_mismatch")
 
     @property
     def state_hash(self) -> str:
@@ -109,17 +152,8 @@ class GoldTask:
         random.Random(f"stpd-gold-display-v1:{display_seed}:{transition.transition_id}").shuffle(
             order
         )
-        task_id = semantic_hash(
-            {
-                "schema": GOLD_TASK_SCHEMA,
-                "transition_id": transition.transition_id,
-                "gold_split": gold_split,
-                "display_seed": display_seed,
-                "serializer": serializer.identity,
-            }
-        )
         task = cls(
-            task_id,
+            "0" * 64,
             transition.transition_id,
             transition.run_id,
             transition.surface,
@@ -131,8 +165,9 @@ class GoldTask:
             gold_split,
             transition.provenance.scope,
             FrozenObject.of(serializer.identity),
-            source_dataset_id,
+            source_dataset_id or transition.provenance.bundle_sha256,
         )
+        task = replace(task, task_id=_task_identity(task))
         task.validate()
         return task
 
@@ -154,6 +189,57 @@ class GoldTask:
             "serializer": self.serializer.value(),
             "source_dataset_id": self.source_dataset_id,
         }
+
+    @classmethod
+    def decode(cls, value: object) -> GoldTask:
+        obj = object_fields(
+            value,
+            {
+                "schema",
+                "task_id",
+                "transition_id",
+                "run_id",
+                "surface",
+                "family",
+                "state_text",
+                "action_keys",
+                "action_texts",
+                "candidate_display_order",
+                "gold_split",
+                "source_scope",
+                "serializer",
+                "source_dataset_id",
+            },
+            "gold.task",
+        )
+        if obj["schema"] != GOLD_TASK_SCHEMA:
+            raise BoundaryError("gold.task", "unsupported_schema")
+        task = cls(
+            obj["task_id"],
+            obj["transition_id"],
+            obj["run_id"],
+            obj["surface"],
+            obj["family"],
+            obj["state_text"],
+            tuple(
+                text(item, "gold.action_key")
+                for item in array(obj["action_keys"], "gold.action_keys")
+            ),
+            tuple(
+                _serialized_text(item, "gold.action_text")
+                for item in array(obj["action_texts"], "gold.action_texts")
+            ),
+            tuple(
+                text(item, "gold.display_key")
+                for item in array(obj["candidate_display_order"], "gold.display_order")
+            ),
+            obj["gold_split"],
+            obj["source_scope"],
+            FrozenObject.of(obj["serializer"]),
+            obj["source_dataset_id"],
+        )
+        task.validate()
+        return task
 
 
 @dataclass(frozen=True)
@@ -191,10 +277,12 @@ class GoldAnnotation:
             raise BoundaryError("gold.annotation", "unknown_origin")
         if self.origin == "synthetic_fixture" and not allow_synthetic:
             raise BoundaryError("gold.annotation", "synthetic_gold_requires_explicit_override")
-        text(self.annotation_version, "gold.annotation_version")
+        if self.annotation_version != GOLD_ANNOTATION_SCHEMA:
+            raise BoundaryError("gold.annotation", "unsupported_schema")
         if (
             not self.candidate_action_keys
             or len(self.candidate_action_keys) != len(set(self.candidate_action_keys))
+            or len(self.candidate_display_order) != len(self.candidate_action_keys)
             or set(self.candidate_display_order) != set(self.candidate_action_keys)
         ):
             raise BoundaryError("gold.annotation", "invalid_candidate_catalog")
@@ -221,10 +309,10 @@ class GoldAnnotation:
     def accepted(self) -> bool:
         return self.disposition == "accepted"
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self, *, allow_synthetic: bool = False) -> dict[str, Any]:
         # Serialization is a production boundary.  Synthetic labels are only accepted by
         # an explicit audit/test call and are never silently materialized as Gold data.
-        self.validate()
+        self.validate(allow_synthetic=allow_synthetic)
         return {
             "schema": self.annotation_version,
             "annotation_id": self.annotation_id,
@@ -318,7 +406,10 @@ def sample_gold_tasks(
     if count is not None and (type(count) is not int or count <= 0):
         raise BoundaryError("gold.sampling", "invalid_sample_count")
     serializer = serializer or FullRunSerializer()
-    records = _ordered_records(dataset, source_split)
+    expected_split = "dev" if gold_split == "gold_dev" else "test"
+    if source_split is not None and source_split != expected_split:
+        raise BoundaryError("gold.sampling", "gold_partition_must_match_dataset")
+    records = _ordered_records(dataset, expected_split)
     by_surface: dict[str, list[ResearchTransitionV1]] = defaultdict(list)
     for record in records:
         by_surface[record.surface].append(record)
@@ -402,6 +493,7 @@ def audit_gold(
     if len(by_id) != len(tasks):
         raise BoundaryError("gold.audit", "duplicate_task_id")
     seen_annotations: set[str] = set()
+    annotator_tasks: set[tuple[str, str]] = set()
     by_task: dict[str, list[GoldAnnotation]] = defaultdict(list)
     for annotation in annotations:
         annotation.validate(allow_synthetic=allow_synthetic)
@@ -417,6 +509,16 @@ def audit_gold(
             raise BoundaryError("gold.audit", "annotation_catalog_mismatch")
         if set(annotation.candidate_display_order) != set(matched_task.action_keys):
             raise BoundaryError("gold.audit", "annotation_display_order_mismatch")
+        pair = (annotation.task_id, annotation.annotator_id)
+        if pair in annotator_tasks:
+            raise BoundaryError("gold.audit", "duplicate_annotator_task")
+        annotator_tasks.add(pair)
+        if annotation.state_hash != matched_task.state_hash:
+            raise BoundaryError("gold.audit", "annotation_state_mismatch")
+        if annotation.candidate_display_order != matched_task.candidate_display_order:
+            raise BoundaryError("gold.audit", "annotation_display_order_mismatch")
+        if matched_task.source_scope == "engineering" and annotation.origin != "synthetic_fixture":
+            raise BoundaryError("gold.audit", "synthetic_task_cannot_be_human_gold")
         by_task[annotation.task_id].append(annotation)
     accepted_tasks = {
         task_id for task_id, values in by_task.items() if any(value.accepted for value in values)
@@ -441,7 +543,11 @@ def audit_gold(
         counts["insufficient_information"] += sum(
             value.disposition == "insufficient_information" for value in values
         )
-    pairs = [values[:2] for values in by_task.values() if len(values) >= 2]
+    pairs = [
+        pair
+        for task_id in sorted(by_task)
+        for pair in combinations(sorted(by_task[task_id], key=lambda v: v.annotator_id), 2)
+    ]
     best_pairs = [pair for pair in pairs if pair[0].accepted and pair[1].accepted]
     best_comparable = [
         pair
@@ -474,7 +580,7 @@ def audit_gold(
         len(accepted_tasks) / len(tasks),
         dict(sorted(disposition_counts.items())),
         dict(sorted(surface_counts.items())),
-        len(pairs),
+        sum(len(values) >= 2 for values in by_task.values()),
         best_agreement,
         overlap,
         len(best_pairs),
@@ -501,9 +607,3 @@ def assert_gold_access(
 def assert_training_isolated(partitions: Iterable[str]) -> None:
     if any(partition in {"gold_dev", "gold_test"} for partition in partitions):
         raise BoundaryError("gold.access", "gold_isolation_training_forbidden")
-
-
-# Names used by the bounded campaign runner and by callers that prefer explicit wording.
-sample_surface_aware_tasks = sample_gold_tasks
-FullRunGoldTask = GoldTask
-FullRunGoldAnnotation = GoldAnnotation

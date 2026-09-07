@@ -57,3 +57,33 @@ def test_immutable_completion_and_manifest_event_recovery(tmp_path: Path) -> Non
     with pytest.raises(StoreError, match="collision"):
         reporter.complete(conflicting)
     assert reporter.completed(run.artifact_id) == result
+
+
+def test_completion_publication_race_selects_one_immutable_result(tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    store = ManifestArtifactStore(LocalBlobStore(tmp_path))
+    reporter = ObjectStoreRunReporter(store, store.blobs)
+    run = Manifest("run", PRODUCER)
+    store.publish(run)
+    results = [
+        Manifest(
+            "run_result",
+            PRODUCER,
+            (Parent("run", run.artifact_id),),
+            parameters=FrozenObject.of({"schema": "stpd/run-result-v1", "attempt": i}),
+        )
+        for i in range(8)
+    ]
+
+    def publish(result):
+        try:
+            return reporter.complete(result)
+        except StoreError as error:
+            assert error.code == "immutable_key_collision"
+            return None
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        winners = [value for value in pool.map(publish, results) if value is not None]
+    assert len(winners) == 1
+    assert reporter.completed(run.artifact_id).artifact_id == winners[0]

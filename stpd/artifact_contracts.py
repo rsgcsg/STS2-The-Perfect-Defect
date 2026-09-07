@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
@@ -48,46 +49,57 @@ KINDS = frozenset(
 # contract boundary, not a generic content scanner.
 _SECRET_FIELD_NAMES = frozenset(
     {
-        "access_key",
-        "access_token",
-        "api_key",
+        "accesskey",
+        "accesskeyid",
+        "accesstoken",
         "apikey",
         "authorization",
         "bearer",
-        "client_secret",
+        "awsaccesskeyid",
+        "awssecretaccesskey",
+        "clientsecret",
         "credential",
         "credentials",
         "password",
         "passwd",
-        "private_key",
+        "privatekey",
         "secret",
-        "secret_key",
+        "secretkey",
+        "sessiontoken",
         "token",
+        "xamzcredential",
+        "xamzsignature",
     }
 )
 
 
-def _validate_durable_metadata(value: object, path: str = "manifest.parameters") -> None:
+def _metadata_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.casefold())
+
+
+def _validate_durable_metadata(value: object) -> None:
     if isinstance(value, dict):
         for key, item in value.items():
             if not isinstance(key, str):
                 raise BoundaryError("manifest", "invalid_metadata_key")
-            normalized = key.casefold().replace("-", "_")
-            if normalized in _SECRET_FIELD_NAMES:
+            if _metadata_key(key) in _SECRET_FIELD_NAMES:
                 raise BoundaryError("manifest", "secret_metadata")
-            _validate_durable_metadata(item, f"{path}.{key}")
+            _validate_durable_metadata(item)
         return
     if isinstance(value, list):
-        for index, item in enumerate(value):
-            _validate_durable_metadata(item, f"{path}[{index}]")
+        for item in value:
+            _validate_durable_metadata(item)
         return
     if isinstance(value, str):
-        parsed = urlsplit(value)
+        try:
+            parsed = urlsplit(value)
+        except ValueError as error:
+            raise BoundaryError("manifest", "invalid_url_metadata") from error
         if parsed.scheme in {"http", "https"} and (
             parsed.username is not None
             or parsed.password is not None
             or any(
-                key.casefold().replace("-", "_") in _SECRET_FIELD_NAMES
+                _metadata_key(key) in _SECRET_FIELD_NAMES
                 for key, _ in (*parse_qsl(parsed.query), *parse_qsl(parsed.fragment))
             )
         ):
@@ -104,7 +116,7 @@ class Producer:
         text(self.repository, "producer.repository")
         digest(self.source_revision, "producer.source_revision", length=40)
         digest(self.uv_lock_sha256, "producer.uv_lock_sha256")
-        _validate_durable_metadata(self.repository, "producer.repository")
+        _validate_durable_metadata(self.repository)
 
     def to_dict(self) -> dict[str, str]:
         return {

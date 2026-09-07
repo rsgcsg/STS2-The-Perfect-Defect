@@ -25,18 +25,18 @@ def test_sampling_is_label_free_surface_aware_and_reproducible() -> None:
     first = sample_gold_tasks(
         dataset(),
         count=12,
-        surface_quotas={"combat": 2, "reward": 2},
+        surface_quotas={"combat": 1, "reward": 1},
         seed=9,
     )
     second = sample_gold_tasks(
         dataset(),
         count=12,
-        surface_quotas={"combat": 2, "reward": 2},
+        surface_quotas={"combat": 1, "reward": 1},
         seed=9,
     )
     assert [task.to_dict() for task in first] == [task.to_dict() for task in second]
-    assert sum(task.surface == "combat" for task in first) >= 2
-    assert sum(task.surface == "reward" for task in first) >= 2
+    assert sum(task.surface == "combat" for task in first) >= 1
+    assert sum(task.surface == "reward" for task in first) >= 1
     assert all("chosen_key" not in task.state_text for task in first)
     assert all(task.gold_split == "gold_dev" for task in first)
 
@@ -63,11 +63,13 @@ def test_annotations_allow_multiple_acceptable_candidates_and_nonlabels() -> Non
         "human-a",
         "gold_dev",
         task.action_keys,
-        tuple(reversed(task.candidate_display_order)),
+        task.candidate_display_order,
         "accepted",
         task.action_keys,
         None,
         0.8,
+        "synthetic_fixture",
+        state_hash=task.state_hash,
     )
     second = replace(
         accepted,
@@ -84,7 +86,7 @@ def test_annotations_allow_multiple_acceptable_candidates_and_nonlabels() -> Non
         best_action=None,
         confidence=None,
     )
-    report = audit_gold([task], [accepted, second, insufficient])
+    report = audit_gold([task], [accepted, second, insufficient], allow_synthetic=True)
     assert report.coverage == 1.0
     assert report.disposition_counts == {"accepted": 2, "insufficient_information": 1}
     assert report.acceptable_overlap == 1.0
@@ -105,6 +107,7 @@ def test_synthetic_labels_require_an_explicit_engineering_override() -> None:
         task.action_keys[0],
         1.0,
         "synthetic_fixture",
+        state_hash=task.state_hash,
     )
     with pytest.raises(BoundaryError, match="synthetic_gold_requires_explicit_override"):
         audit_gold([task], [label])
@@ -136,3 +139,58 @@ def test_harness_is_exact_engineering_matrix_and_rejects_promotion() -> None:
     with pytest.raises(BoundaryError, match="frozen_pretrained_random_controls_required"):
         replace(config, frozen_backbone=False).validate()
     assert isinstance(config, FullRunHarnessConfig)
+
+
+def test_gold_store_reverifies_source_and_keeps_sealed_labels_out_of_tuning(tmp_path) -> None:
+    from test_artifact_store_v1 import PRODUCER
+    from test_fullrun_features import prepared
+
+    from stpd.fullrun.gold import GoldTask
+    from stpd.fullrun.gold_store import gold_report, load_tasks, publish_labels, publish_tasks
+
+    store, data, _ = prepared(tmp_path)
+    manifest = publish_tasks(store, data.artifact_id, PRODUCER, gold_split="gold_test", count=2)
+    _, tasks = load_tasks(store, manifest.artifact_id)
+    task = tasks[0]
+    assert GoldTask.decode(task.to_dict()) == task
+    with pytest.raises(BoundaryError, match="identity"):
+        replace(task, state_text="changed").validate()
+    label = GoldAnnotation(
+        "fixture",
+        task.task_id,
+        "synthetic-annotator",
+        task.gold_split,
+        task.action_keys,
+        task.candidate_display_order,
+        "accepted",
+        task.action_keys,
+        task.action_keys[0],
+        1.0,
+        "synthetic_fixture",
+        state_hash=task.state_hash,
+    )
+    labels = publish_labels(store, manifest.artifact_id, (label,), PRODUCER, allow_synthetic=True)
+    report = gold_report(store, labels.artifact_id)
+    assert report["coverage"] == 0.5 and "acceptable_overlap" not in report
+    with pytest.raises(BoundaryError, match="sealed_test_protocol"):
+        gold_report(store, labels.artifact_id, mode="tuning")
+    with pytest.raises(BoundaryError, match="duplicate_annotator_task"):
+        publish_labels(
+            store,
+            manifest.artifact_id,
+            (label, replace(label, annotation_id="another")),
+            PRODUCER,
+            allow_synthetic=True,
+        )
+    with pytest.raises(BoundaryError, match="synthetic_task"):
+        publish_labels(store, manifest.artifact_id, (replace(label, origin="human"),), PRODUCER)
+
+
+def test_gold_sampling_never_repartitions_training_or_semantic_components() -> None:
+    data = dataset()
+    campaign = GoldCampaign.from_dataset(data, dev_count=4, test_count=4)
+    splits = data.splits.value()
+    assert all(splits[t.run_id] == "dev" for t in campaign.gold_dev)
+    assert all(splits[t.run_id] == "test" for t in campaign.gold_test)
+    with pytest.raises(BoundaryError, match="partition_must_match"):
+        sample_gold_tasks(data, source_split="train")

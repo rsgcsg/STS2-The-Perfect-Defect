@@ -60,6 +60,17 @@ def test_provenance_and_future_successor_never_enter_input() -> None:
         "candidate_position",
         "run_outcome",
         "successor",
+        "outcome",
+        "reward",
+        "return",
+        "label",
+        "teacher_confidence",
+        "session_id",
+        "runtime_id",
+        "environment_identity",
+        "host_source_revision",
+        "game_artifact_sha256",
+        "action_key",
     ],
 )
 def test_leakage_is_rejected(field: str) -> None:

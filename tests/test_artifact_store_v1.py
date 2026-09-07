@@ -170,3 +170,19 @@ def test_short_reads_cannot_change_the_chunk_index(tmp_path: Path) -> None:
 def test_mutable_manifest_collections_are_rejected() -> None:
     with pytest.raises(BoundaryError, match="mutable_or_untyped"):
         Manifest("dataset", PRODUCER, parents=[])
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "AWS_SECRET_ACCESS_KEY",
+        "aws_access_key_id",
+        "session_token",
+        "apiKey",
+        "X-Amz-Credential",
+        "X-Amz-Signature",
+    ],
+)
+def test_durable_credential_aliases_are_rejected(field: str) -> None:
+    with pytest.raises(BoundaryError, match="secret_metadata"):
+        Manifest("analysis", PRODUCER, parameters=FrozenObject.of({field: "fixture-secret"}))

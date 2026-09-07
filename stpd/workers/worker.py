@@ -7,10 +7,16 @@ import uuid
 from dataclasses import dataclass
 
 from ..artifact_contracts import Manifest, Parent, Producer
-from ..fullrun.evaluation import action_only_prior, evaluate_samples, publish_evaluation
+from ..fullrun.evaluation import (
+    action_only_prior,
+    evaluate_samples,
+    load_evaluation,
+    publish_evaluation,
+)
+from ..fullrun.features import LoadedFeatures
 from ..json_boundary import BoundaryError, FrozenObject, json_bytes, unsigned
 from ..storage.store import ArtifactStore
-from .contracts import RUN_SCHEMA, load_training_input
+from .contracts import RUN_SCHEMA, TrainingConfig, load_training_input
 from .ranking import RankingEngine
 from .reporting import RunReporter
 
@@ -30,6 +36,101 @@ class WorkerExecutionError(BoundaryError):
     def __init__(self, cause_code: str, *, failure_durable: bool) -> None:
         self.failure_durable = failure_durable
         super().__init__("worker", cause_code, "inspect exact run evidence and explicitly resume")
+
+
+def _validate_completed_result(
+    store: ArtifactStore,
+    result: Manifest,
+    run_id: str,
+    training: Manifest,
+    config: TrainingConfig,
+    features: LoadedFeatures,
+    runtime: Producer,
+) -> None:
+    if (
+        result.producer != runtime
+        or result.kind != "run_result"
+        or result.parameters.value().get("schema") != "stpd/run-result-v1"
+        or result.parameters.value().get("state") != "completed"
+        or result.parent("run") != run_id
+        or result.parent("training_input") != training.artifact_id
+        or sorted(p.role for p in result.parents)
+        != [
+            "baseline_action_only",
+            "baseline_uniform_legal",
+            "model",
+            "offline_evaluation",
+            "run",
+            "training_input",
+        ]
+    ):
+        raise BoundaryError("worker", "completed_result_inventory_mismatch")
+
+    model = store.get_manifest(result.parent("model"))
+    model_info = model.parameters.value()
+    if (
+        model.producer != runtime
+        or model.kind != "model"
+        or model_info.get("schema") != MODEL_SCHEMA
+        or sorted(p.role for p in model.parents)
+        != ["checkpoint", "model_view", "run", "training_input"]
+        or model.parent("run") != run_id
+        or model.parent("training_input") != training.artifact_id
+        or model.parent("model_view") != features.view.artifact_id
+        or model_info.get("head") != config.head
+        or model_info.get("hidden_size") != int(features.matrix.shape[1])
+        or model_info.get("dtype") != config.dtype
+        or model_info.get("qwen") != training.parameters.value().get("qwen")
+        or model_info.get("serializer") != training.parameters.value().get("serializer")
+        or model_info.get("scope") != training.parameters.value().get("scope")
+        or {p.role for p in model.payloads} != {"weights"}
+    ):
+        raise BoundaryError("worker", "completed_model_lineage_mismatch")
+
+    checkpoint = store.get_manifest(model.parent("checkpoint"))
+    checkpoint_info = checkpoint.parameters.value()
+    if (
+        checkpoint.producer != runtime
+        or checkpoint.kind != "checkpoint"
+        or checkpoint_info.get("schema") != CHECKPOINT_SCHEMA
+        or sorted(p.role for p in checkpoint.parents) != ["run", "training_input"]
+        or checkpoint.parent("run") != run_id
+        or checkpoint.parent("training_input") != training.artifact_id
+        or checkpoint_info.get("data_identity") is None
+        or {p.role for p in checkpoint.payloads} != {"checkpoint"}
+    ):
+        raise BoundaryError("worker", "completed_checkpoint_lineage_mismatch")
+    engine = RankingEngine(features, config)
+    if checkpoint.payload("checkpoint").size > 512 * 1024 * 1024:
+        raise BoundaryError("worker", "checkpoint_size_limit")
+    raw_checkpoint = b"".join(store.read_payload(checkpoint.payload("checkpoint")))
+    engine.restore(raw_checkpoint)
+    if (
+        checkpoint_info.get("data_identity") != engine.data_identity
+        or checkpoint_info.get("step") != engine.step
+        or checkpoint_info.get("total_steps") != engine.total_steps
+        or engine.step != engine.total_steps
+        or model_info.get("steps") != engine.step
+        or result.parameters.value().get("steps") != engine.step
+        or b"".join(store.read_payload(model.payload("weights"))) != engine.model_bytes()
+    ):
+        raise BoundaryError("worker", "completed_model_checkpoint_mismatch")
+
+    expected_evaluations = {
+        "offline_evaluation": "model",
+        "baseline_uniform_legal": "uniform_legal",
+        "baseline_action_only": "action_only",
+    }
+    for role, baseline in expected_evaluations.items():
+        evaluation = load_evaluation(store, result.parent(role))
+        if (
+            evaluation.manifest.producer != runtime
+            or evaluation.manifest.parent("model") != model.artifact_id
+            or evaluation.manifest.parent("model_view") != features.view.artifact_id
+            or evaluation.manifest.parameters.value().get("partition") != "dev"
+            or evaluation.manifest.parameters.value().get("baseline") != baseline
+        ):
+            raise BoundaryError("worker", "completed_evaluation_lineage_mismatch")
 
 
 def execute(
@@ -64,33 +165,7 @@ def execute(
             raise BoundaryError("worker", "zero_pause_budget")
     previous = reporter.completed(run_id)
     if previous is not None:
-        if (
-            previous.producer != runtime
-            or previous.parent("training_input") != training.artifact_id
-            or previous.parameters.value().get("schema") != "stpd/run-result-v1"
-            or previous.parameters.value().get("state") != "completed"
-            or sorted(p.role for p in previous.parents)
-            != [
-                "baseline_action_only",
-                "baseline_uniform_legal",
-                "model",
-                "offline_evaluation",
-                "run",
-                "training_input",
-            ]
-        ):
-            raise BoundaryError("worker", "completed_result_inventory_mismatch")
-        expected_kinds = {
-            "run": "run",
-            "training_input": "training_input",
-            "model": "model",
-            "offline_evaluation": "offline_evaluation",
-            "baseline_action_only": "offline_evaluation",
-            "baseline_uniform_legal": "offline_evaluation",
-        }
-        for role, kind in expected_kinds.items():
-            if store.get_manifest(previous.parent(role)).kind != kind:
-                raise BoundaryError("worker", "completed_result_lineage_mismatch")
+        _validate_completed_result(store, previous, run_id, training, config, features, runtime)
         return WorkerResult("completed", run_id, result_id=previous.artifact_id)
     attempt = uuid.uuid4().hex
     engine = RankingEngine(features, config)
@@ -228,7 +303,15 @@ def execute(
         store.publish(model)
         rows, summary = evaluate_samples(features.samples, engine.scores, seed=config.seed)
         evaluation = publish_evaluation(
-            store, model, features.view.artifact_id, rows, summary, runtime, partition="dev"
+            store,
+            model,
+            features.view.artifact_id,
+            rows,
+            summary,
+            runtime,
+            partition="dev",
+            seed=config.seed,
+            bootstrap=200,
         )
         baselines = []
         prior = action_only_prior(features.samples)
@@ -249,6 +332,8 @@ def execute(
                     runtime,
                     partition="dev",
                     baseline=name,
+                    seed=config.seed,
+                    bootstrap=200,
                 )
             )
         result = Manifest(
@@ -283,7 +368,13 @@ def execute(
         code = error.code if isinstance(error, BoundaryError) else type(error).__name__
         durable = False
         try:
-            event("attempt_failed", details={"code": code})
+            event(
+                "attempt_failed",
+                details={
+                    "code": code,
+                    "stage": error.stage if isinstance(error, BoundaryError) else "worker",
+                },
+            )
             durable = True
         except Exception:
             pass

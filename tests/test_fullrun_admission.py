@@ -118,3 +118,19 @@ def test_new_dataset_identity_cannot_relabel_an_unchanged_source(tmp_path: Path)
     forged = admit((replace(projected, transitions=(changed, *projected.transitions[1:])),))
     with pytest.raises(BoundaryError, match="source_transition_projection_mismatch"):
         publish_dataset(target, forged, (source,), PRODUCER)
+
+
+def test_caller_scope_cannot_invent_platform_qualification() -> None:
+    from dataclasses import replace
+
+    projection = SyntheticSourceAdapter().project(synthetic_bundle(runs=3))
+    forged = replace(
+        projection,
+        scope="platform_qualified",
+        transitions=tuple(
+            replace(record, provenance=replace(record.provenance, scope="platform_qualified"))
+            for record in projection.transitions
+        ),
+    )
+    with pytest.raises(BoundaryError, match="final_platform_adapter_not_installed"):
+        admit((forged,))

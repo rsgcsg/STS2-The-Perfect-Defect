@@ -37,18 +37,14 @@ def _safe_value(value: Any, *, key: str = "") -> Any:
         return "[redacted]"
     if isinstance(value, Mapping):
         return {
-            str(name): _safe_value(child, key=str(name))
-            for name, child in sorted(value.items())
+            str(name): _safe_value(child, key=str(name)) for name, child in sorted(value.items())
         }
     if isinstance(value, (list, tuple)):
         return [_safe_value(child, key=key) for child in value]
     if isinstance(value, (str, int, float, bool)) or value is None:
-        if (
-            isinstance(value, str)
-            and (
-                value.startswith(("/", "~", "file://"))
-                or re.match(r"^[A-Za-z]:[\\/]", value) is not None
-            )
+        if isinstance(value, str) and (
+            value.startswith(("/", "~", "file://"))
+            or re.match(r"^[A-Za-z]:[\\/]", value) is not None
         ):
             return "[redacted]"
         return value
@@ -112,19 +108,12 @@ class DashboardProjection:
 
 
 def project(
-    registry: Registry | ArtifactStore,
-    store: ArtifactStore | Registry,
+    registry: Registry,
+    store: ArtifactStore,
     *,
     analysis: AnalysisReport | None = None,
 ) -> DashboardProjection:
     """Build a deterministic dashboard projection from Registry/ArtifactStore interfaces."""
-    if hasattr(registry, "manifests") and hasattr(store, "read_payload"):
-        registry = cast(Registry, registry)
-        store = cast(ArtifactStore, store)
-    elif hasattr(store, "manifests") and hasattr(registry, "read_payload"):
-        registry, store = cast(Registry, store), cast(ArtifactStore, registry)
-    else:
-        raise TypeError("project requires a Registry and an ArtifactStore")
     manifests = registry.manifests()
     by_kind = Counter(manifest.kind for manifest in manifests)
     analysis_report = analysis or analyze(registry, store)
@@ -147,7 +136,14 @@ def project(
         "Experiments": _section_rows(manifests, "experiment"),
         "Runs": _section_rows(manifests, "run"),
         "Models": _section_rows(manifests, "model"),
-        "Evaluations": _section_rows(manifests, "offline_evaluation")
+        "Evaluations": _section_rows(
+            tuple(
+                m
+                for m in manifests
+                if m.artifact_id not in analysis_report.payload["sealed_evaluations_omitted"]
+            ),
+            "offline_evaluation",
+        )
         + _section_rows(manifests, "live_evaluation"),
         "Analysis": analysis_report.to_dict(),
         "Lineage": lineage,

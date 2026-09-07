@@ -9,14 +9,42 @@ import statistics
 import tempfile
 from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from ..artifact_contracts import Manifest, Parent, Producer
-from ..json_boundary import BoundaryError, FrozenObject, json_bytes, unsigned
+from ..json_boundary import BoundaryError, FrozenObject, decode_json, json_bytes, unsigned
 from ..storage.store import ArtifactStore
 from .features import ModelSample, load_model_view
 
 EVALUATION_SCHEMA = "stpd/offline-ranking-evaluation-v1"
+MODEL_SCHEMA = "stpd/scheme1-model-v1"
+PROTOCOL_SCHEMA = "stpd/fullrun-protocol-v1"
+BASELINES = frozenset({"model", "uniform_legal", "action_only"})
+EVALUATION_COLUMNS = frozenset(
+    {
+        "transition_id",
+        "run_id",
+        "surface",
+        "family",
+        "split",
+        "candidate_count",
+        "top1",
+        "mrr",
+        "nll",
+        "confidence",
+        "margin",
+    }
+)
+
+
+@dataclass(frozen=True)
+class LoadedEvaluation:
+    manifest: Manifest
+    model: Manifest
+    view: Manifest
+    rows: tuple[dict[str, Any], ...]
+    summary: dict[str, Any]
 
 
 def candidate_metrics(scores: Sequence[float], acceptable: Sequence[int]) -> dict[str, float]:
@@ -55,13 +83,17 @@ def candidate_metrics(scores: Sequence[float], acceptable: Sequence[int]) -> dic
     )
     nll = top + math.log(denominator) - accepted_logsum
     ordered = sorted(values, reverse=True)
-    return {
+    result = {
         "top1": top1,
         "mrr": reciprocal,
         "nll": max(0.0, nll),
         "confidence": 1.0 / denominator,
         "margin": ordered[0] - ordered[1] if len(ordered) > 1 else 0.0,
     }
+
+    if any(not math.isfinite(value) for value in result.values()):
+        raise BoundaryError("evaluation", "metric_overflow")
+    return result
 
 
 def action_only_prior(
@@ -178,6 +210,111 @@ def evaluate_samples(
     return rows, summarize_rows(rows, seed=seed, bootstrap=bootstrap)
 
 
+def _validate_protocol(
+    store: ArtifactStore,
+    protocol_id: str,
+    view_id: str,
+    training_input: Manifest,
+) -> None:
+    protocol = store.get_manifest(protocol_id)
+    info = protocol.parameters.value()
+    if (
+        protocol.kind != "protocol"
+        or info.get("schema") != PROTOCOL_SCHEMA
+        or info.get("status") != "frozen"
+        or not isinstance(info.get("allowed_model_views"), list)
+        or view_id not in info["allowed_model_views"]
+        or info.get("dataset_id") != training_input.parent("dataset")
+        or training_input.parent("protocol") != protocol_id
+    ):
+        raise BoundaryError("evaluation", "sealed_test_protocol_mismatch")
+
+
+def _validate_model_view_lineage(
+    store: ArtifactStore, model: Manifest, view_id: str, view: Manifest
+) -> Manifest:
+    if model.kind != "model" or model.parameters.value().get("schema") != MODEL_SCHEMA:
+        raise BoundaryError("evaluation", "model_contract_mismatch")
+    if model.parent("model_view") != view_id:
+        raise BoundaryError("evaluation", "model_view_identity_mismatch")
+    from ..workers.contracts import load_training_input
+
+    training_input, config, features = load_training_input(
+        store, model.parent("training_input"), model.producer
+    )
+    run = store.get_manifest(model.parent("run"))
+    checkpoint = store.get_manifest(model.parent("checkpoint"))
+    if (
+        run.kind != "run"
+        or run.producer != model.producer
+        or run.parent("training_input") != training_input.artifact_id
+        or checkpoint.kind != "checkpoint"
+        or checkpoint.producer != model.producer
+        or checkpoint.parent("run") != run.artifact_id
+        or checkpoint.parent("training_input") != training_input.artifact_id
+        or model.parameters.value().get("head") != config.head
+        or model.parameters.value().get("hidden_size") != features.matrix.shape[1]
+    ):
+        raise BoundaryError("evaluation", "model_checkpoint_lineage_mismatch")
+    model_parameters = model.parameters.value()
+    view_parameters = view.parameters.value()
+    if (
+        training_input.kind != "training_input"
+        or training_input.parent("model_view") != view_id
+        or training_input.parameters.value().get("qwen") != model_parameters.get("qwen")
+        or model_parameters.get("scope") != view_parameters.get("scope")
+        or model_parameters.get("serializer") != view_parameters.get("serializer")
+        or {payload.role for payload in model.payloads} != {"weights"}
+    ):
+        raise BoundaryError("evaluation", "model_view_identity_mismatch")
+    for _ in store.read_payload(model.payload("weights")):
+        pass
+    return training_input
+
+
+def _validate_rows(
+    expected_samples: tuple[ModelSample, ...],
+    rows: list[dict[str, Any]],
+    partition: str,
+) -> None:
+    expected = {
+        sample.transition_id: sample for sample in expected_samples if sample.split == partition
+    }
+    if any(not isinstance(row, dict) for row in rows):
+        raise BoundaryError("evaluation", "row_schema_mismatch")
+    transition_ids = [row.get("transition_id") for row in rows]
+    if (
+        any(not isinstance(value, str) for value in transition_ids)
+        or len(set(transition_ids)) != len(rows)
+        or set(transition_ids) != set(expected)
+    ):
+        raise BoundaryError("evaluation", "row_inventory_mismatch")
+    for row in rows:
+        if set(row) != EVALUATION_COLUMNS:
+            raise BoundaryError("evaluation", "row_schema_mismatch")
+        sample = expected.get(row["transition_id"])
+        if sample is None or any(
+            row[field] != getattr(sample, field)
+            for field in ("run_id", "surface", "family", "split")
+        ):
+            raise BoundaryError("evaluation", "row_input_mismatch")
+        if type(row["candidate_count"]) is not int or row["candidate_count"] < 1:
+            raise BoundaryError("evaluation", "invalid_candidate_count")
+        if row["candidate_count"] != len(sample.action_texts):
+            raise BoundaryError("evaluation", "candidate_alignment_mismatch")
+        metrics = tuple(row[name] for name in ("top1", "mrr", "nll", "confidence", "margin"))
+        if any(type(value) not in {int, float} or not math.isfinite(value) for value in metrics):
+            raise BoundaryError("evaluation", "invalid_metric")
+        if (
+            not 0 <= row["top1"] <= 1
+            or not 0 <= row["mrr"] <= 1
+            or not 0 <= row["confidence"] <= 1
+            or row["nll"] < 0
+            or row["margin"] < 0
+        ):
+            raise BoundaryError("evaluation", "metric_out_of_range")
+
+
 def publish_evaluation(
     store: ArtifactStore,
     model: Manifest,
@@ -188,70 +325,31 @@ def publish_evaluation(
     *,
     partition: str,
     baseline: str = "model",
+    seed: int,
+    bootstrap: int,
+    protocol_id: str | None = None,
 ) -> Manifest:
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    if model.kind != "model" or model.parameters.value().get("schema") != "stpd/scheme1-model-v1":
-        raise BoundaryError("evaluation", "model_contract_mismatch")
+    if baseline not in BASELINES:
+        raise BoundaryError("evaluation", "unknown_baseline")
     if model.producer != producer:
         raise BoundaryError("evaluation", "model_producer_mismatch")
     if partition not in {"dev", "test"}:
         raise BoundaryError("evaluation", "invalid_evaluation_partition")
+    if partition == "test" and protocol_id is None:
+        raise BoundaryError("evaluation", "sealed_test_protocol_required")
     view, expected_samples = load_model_view(store, view_id)
-    model_parameters = model.parameters.value()
-    view_parameters = view.parameters.value()
-    training_input = store.get_manifest(model.parent("training_input"))
-    if (
-        model.parent("model_view") != view_id
-        or training_input.kind != "training_input"
-        or training_input.parent("model_view") != view_id
-        or training_input.parameters.value().get("qwen") != model_parameters.get("qwen")
-        or model_parameters.get("scope") != view_parameters.get("scope")
-        or model_parameters.get("serializer") != view_parameters.get("serializer")
-    ):
-        raise BoundaryError("evaluation", "model_view_identity_mismatch")
-    expected = {
-        sample.transition_id: sample
-        for sample in expected_samples
-        if sample.split == partition
-    }
-    transition_ids = [row.get("transition_id") for row in rows]
-    if any(not isinstance(value, str) for value in transition_ids) or len(
-        set(transition_ids)
-    ) != len(rows):
-        raise BoundaryError("evaluation", "row_inventory_mismatch")
-    required = {
-        "transition_id",
-        "run_id",
-        "surface",
-        "family",
-        "split",
-        "candidate_count",
-        "top1",
-        "mrr",
-        "nll",
-        "confidence",
-        "margin",
-    }
-    for row in rows:
-        if set(row) != required:
-            raise BoundaryError("evaluation", "row_schema_mismatch")
-        sample = expected.get(row["transition_id"])
-        if sample is None or any(
-            row[field] != getattr(sample, field)
-            for field in ("run_id", "surface", "family", "split")
-        ):
-            raise BoundaryError("evaluation", "row_input_mismatch")
-        if row["candidate_count"] != len(sample.action_texts):
-            raise BoundaryError("evaluation", "candidate_alignment_mismatch")
-        if type(row["candidate_count"]) is not int or row["candidate_count"] < 1:
-            raise BoundaryError("evaluation", "invalid_candidate_count")
-        metrics = tuple(row[name] for name in ("top1", "mrr", "nll", "confidence", "margin"))
-        if any(type(value) not in {int, float} or not math.isfinite(value) for value in metrics):
-            raise BoundaryError("evaluation", "invalid_metric")
-        if not 0 <= row["top1"] <= 1 or not 0 <= row["mrr"] <= 1 or not 0 <= row["confidence"] <= 1:
-            raise BoundaryError("evaluation", "metric_out_of_range")
+    training_input = _validate_model_view_lineage(store, model, view_id, view)
+    if partition == "test":
+        assert protocol_id is not None
+        _validate_protocol(store, protocol_id, view_id, training_input)
+    elif protocol_id is not None:
+        raise BoundaryError("evaluation", "protocol_only_for_sealed_test")
+    _validate_rows(expected_samples, rows, partition)
+    if summary != summarize_rows(rows, seed=seed, bootstrap=bootstrap):
+        raise BoundaryError("evaluation", "summary_mismatch")
 
     with tempfile.TemporaryFile("w+b") as handle:
         pq.write_table(pa.Table.from_pylist(rows), handle, compression="zstd", version="2.6")
@@ -260,10 +358,13 @@ def publish_evaluation(
     summary_payload = store.put_payload(
         "summary", io.BytesIO(json_bytes(summary)), "application/json"
     )
+    parents = [Parent("model", model.artifact_id), Parent("model_view", view_id)]
+    if protocol_id is not None:
+        parents.append(Parent("protocol", protocol_id))
     manifest = Manifest(
         "offline_evaluation",
         producer,
-        (Parent("model", model.artifact_id), Parent("model_view", view_id)),
+        tuple(parents),
         (row_payload, summary_payload),
         FrozenObject.of(
             {
@@ -273,9 +374,76 @@ def publish_evaluation(
                 "tie_policy": "uniform_within_equal_score_blocks",
                 "rows": len(rows),
                 "scope": model.parameters.value()["scope"],
+                "seed": seed,
+                "bootstrap": bootstrap,
+                "protocol": protocol_id,
                 "scientific_verdict": "not_claimed",
             }
         ),
     )
     store.publish(manifest)
     return manifest
+
+
+def load_evaluation(
+    store: ArtifactStore, evaluation_id: str, *, permit_test: bool = False
+) -> LoadedEvaluation:
+    """Load and verify an immutable evaluation and its complete input lineage."""
+    import pyarrow.parquet as pq
+
+    manifest = store.get_manifest(evaluation_id)
+    parameters = manifest.parameters.value()
+    if manifest.kind != "offline_evaluation" or parameters.get("schema") != EVALUATION_SCHEMA:
+        raise BoundaryError("evaluation", "unsupported_contract")
+    partition = parameters.get("partition")
+    baseline = parameters.get("baseline")
+    if partition not in {"dev", "test"} or baseline not in BASELINES:
+        raise BoundaryError("evaluation", "invalid_contract_parameters")
+    expected_roles = {"model", "model_view"}
+    protocol_id = parameters.get("protocol")
+    if partition == "test":
+        if not permit_test or not isinstance(protocol_id, str):
+            raise BoundaryError("evaluation", "sealed_test_requires_explicit_protocol_admission")
+        expected_roles.add("protocol")
+    elif protocol_id is not None:
+        raise BoundaryError("evaluation", "protocol_only_for_sealed_test")
+    if {parent.role for parent in manifest.parents} != expected_roles:
+        raise BoundaryError("evaluation", "parent_inventory_mismatch")
+    if {payload.role for payload in manifest.payloads} != {"metrics", "summary"}:
+        raise BoundaryError("evaluation", "payload_inventory_mismatch")
+    model = store.get_manifest(manifest.parent("model"))
+    view, samples = load_model_view(store, manifest.parent("model_view"))
+    training_input = _validate_model_view_lineage(store, model, view.artifact_id, view)
+    if partition == "test":
+        assert isinstance(protocol_id, str)
+        _validate_protocol(store, protocol_id, view.artifact_id, training_input)
+    if manifest.producer != model.producer or parameters.get("scientific_verdict") != "not_claimed":
+        raise BoundaryError("evaluation", "producer_or_verdict_mismatch")
+    if partition == "test" and manifest.parent("protocol") != protocol_id:
+        raise BoundaryError("evaluation", "protocol_parent_mismatch")
+    if manifest.payload("summary").size > 16 * 1024 * 1024:
+        raise BoundaryError("evaluation", "summary_size_limit")
+    summary_raw = b"".join(store.read_payload(manifest.payload("summary")))
+    summary = decode_json(summary_raw)
+    if not isinstance(summary, dict) or summary_raw != json_bytes(summary):
+        raise BoundaryError("evaluation", "summary_integrity_mismatch")
+    seed = unsigned(parameters.get("seed"), "evaluation.seed")
+    bootstrap = unsigned(parameters.get("bootstrap"), "evaluation.bootstrap")
+    rows: list[dict[str, Any]] = []
+    with tempfile.TemporaryFile("w+b") as handle:
+        for chunk in store.read_payload(manifest.payload("metrics")):
+            handle.write(chunk)
+        handle.seek(0)
+        parquet = pq.ParquetFile(handle)
+        if set(parquet.schema_arrow.names) != EVALUATION_COLUMNS:
+            raise BoundaryError("evaluation", "metrics_columns_mismatch")
+        for batch in parquet.iter_batches(batch_size=1024):
+            rows.extend(batch.to_pylist())
+    _validate_rows(tuple(samples), rows, partition)
+    if summary != summarize_rows(rows, seed=seed, bootstrap=bootstrap):
+        raise BoundaryError("evaluation", "summary_mismatch")
+    if parameters.get("rows") != len(rows) or parameters.get(
+        "scope"
+    ) != view.parameters.value().get("scope"):
+        raise BoundaryError("evaluation", "evaluation_identity_mismatch")
+    return LoadedEvaluation(manifest, model, view, tuple(rows), summary)

@@ -114,6 +114,43 @@ def run_e2e(root: Path) -> dict[str, Any]:
         load_dataset(peer, dataset.artifact_id)
         integrity = doctor(peer)
         projections = qualify_projections(peer, rebuilt)
+        from ..fullrun.campaign import default_harness_config
+        from ..fullrun.gold import GoldAnnotation
+        from ..fullrun.gold_store import gold_report, load_tasks, publish_labels, publish_tasks
+
+        task_manifest = publish_tasks(
+            peer, dataset.artifact_id, runtime, gold_split="gold_test", count=2
+        )
+        _, tasks = load_tasks(peer, task_manifest.artifact_id)
+        task = tasks[0]
+        annotation = GoldAnnotation(
+            "e2e-fixture",
+            task.task_id,
+            "synthetic-annotator",
+            task.gold_split,
+            task.action_keys,
+            task.candidate_display_order,
+            "accepted",
+            task.action_keys,
+            task.action_keys[0],
+            1.0,
+            "synthetic_fixture",
+            state_hash=task.state_hash,
+        )
+        labels = publish_labels(
+            peer, task_manifest.artifact_id, (annotation,), runtime, allow_synthetic=True
+        )
+        gold = gold_report(peer, labels.artifact_id)
+        if gold["coverage"] != 0.5 or "acceptable_overlap" in gold:
+            raise BoundaryError("e2e", "sealed_gold_coverage_boundary")
+        try:
+            gold_report(peer, labels.artifact_id, mode="tuning")
+        except BoundaryError as error:
+            if error.code != "sealed_test_protocol_required":
+                raise
+        else:
+            raise BoundaryError("e2e", "sealed_gold_tuning_leak")
+        default_harness_config().validate()
         return {
             "schema": "stpd/cpu-e2e-v1",
             "producer": runtime.to_dict(),
@@ -130,6 +167,8 @@ def run_e2e(root: Path) -> dict[str, Any]:
             "registry_deleted_and_rebuilt": "PASS",
             "sync": integrity,
             "projections": projections,
+            "gold_tooling": "SYNTHETIC_FIXTURE_PASS",
+            "e0_e7_config": "PASS",
             "non_claims": [
                 "Platform qualified data",
                 "Human Gold",

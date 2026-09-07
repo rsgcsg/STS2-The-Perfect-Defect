@@ -109,3 +109,38 @@ def test_feature_index_cannot_relabel_or_rebind_candidates(tmp_path: Path) -> No
     target.publish(forged)
     with pytest.raises(BoundaryError, match="alignment"):
         load_features(target, forged.artifact_id)
+
+
+def test_feature_publication_rejects_post_cast_overflow(tmp_path: Path) -> None:
+    import torch
+
+    from stpd.qwen.fake_backend import DeterministicFakeQwenBackend
+
+    class Overflow(DeterministicFakeQwenBackend):
+        def encode_joint(self, states, actions):
+            return torch.full((len(states), 8), 1e100, dtype=torch.float64)
+
+    target, _, view = prepared(tmp_path)
+    with pytest.raises(BoundaryError, match="float32_output_overflow"):
+        compile_features(target, view.artifact_id, Overflow(8), PRODUCER)
+    assert all(target.get_manifest(i).kind != "feature_set" for i in target.manifest_ids())
+
+
+def test_feature_loader_rejects_malformed_shape_before_numpy_allocation(tmp_path: Path) -> None:
+    import numpy as np
+
+    from stpd.qwen.fake_backend import DeterministicFakeQwenBackend
+
+    target, _, view = prepared(tmp_path)
+    feature = compile_features(target, view.artifact_id, DeterministicFakeQwenBackend(8), PRODUCER)
+    raw = target.bytes(feature.payload("features"))
+    forged_bytes = io.BytesIO()
+    np.lib.format.write_array_header_1_0(
+        forged_bytes, {"descr": "<f4", "fortran_order": False, "shape": (2**60, 8)}
+    )
+    malformed = forged_bytes.getvalue().ljust(len(raw), b"\0")
+    payload = target.put_bytes("features", malformed, "application/x-npy")
+    forged = replace(feature, payloads=(payload, feature.payload("index")))
+    target.publish(forged)
+    with pytest.raises(BoundaryError, match="npy_header"):
+        load_features(target, forged.artifact_id)
