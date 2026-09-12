@@ -20,7 +20,7 @@ class PosixPermissionFixture(unittest.TestCase):
         stack = ExitStack()
         self.addCleanup(stack.close)
         modes: dict[Path, int] = {}
-        native_chmod, native_stat = Path.chmod, Path.stat
+        native_chmod, native_stat, native_replace = Path.chmod, Path.stat, Path.replace
 
         def chmod(path: Path, mode: int, *, follow_symlinks: bool = True) -> None:
             native_chmod(path, mode, follow_symlinks=follow_symlinks)
@@ -34,5 +34,14 @@ class PosixPermissionFixture(unittest.TestCase):
             # Preserve the actual file kind; emulate only POSIX permission bits.
             return os.stat_result((stat.S_IFMT(result.st_mode) | mode, *result[1:]))
 
+        def replace(path: Path, target: str | Path) -> Path:
+            result = native_replace(path, target)
+            mode = modes.pop(path.absolute(), None)
+            modes.pop(Path(target).absolute(), None)
+            if mode is not None:
+                modes[Path(target).absolute()] = mode
+            return result
+
         stack.enter_context(patch.object(Path, "chmod", chmod))
         stack.enter_context(patch.object(Path, "stat", read_stat))
+        stack.enter_context(patch.object(Path, "replace", replace))
