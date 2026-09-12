@@ -44,7 +44,7 @@ def instance_lock(path: Path) -> Iterator[None]:
 
                 msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
             else:
-                import fcntl
+                fcntl = importlib.import_module("fcntl")
 
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
@@ -58,7 +58,7 @@ def instance_lock(path: Path) -> Iterator[None]:
                 handle.seek(0)
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             else:
-                import fcntl
+                fcntl = importlib.import_module("fcntl")
 
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 

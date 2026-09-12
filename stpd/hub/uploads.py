@@ -14,7 +14,7 @@ import uuid
 import zlib
 from importlib.metadata import version
 from pathlib import Path, PurePosixPath
-from typing import Any, BinaryIO, Protocol
+from typing import Any, BinaryIO, Protocol, cast
 
 from sts2_platform_evidence import DirectoryTransferManifest, verify_human_session_bundle
 
@@ -141,7 +141,8 @@ def unpack(archive: Path, directory: Path, transfer: DirectoryTransferManifest) 
                     raise BoundaryError("upload", "expanded_stream_size_limit")
                 expanded.write(chunk)
         expanded.seek(0)
-        _unpack_tar(expanded, directory, transfer)
+        # Windows wraps TemporaryFile while retaining the binary file interface.
+        _unpack_tar(cast(BinaryIO, expanded), directory, transfer)
 
 
 def _unpack_tar(source_tar: BinaryIO, directory: Path, transfer: DirectoryTransferManifest) -> None:
