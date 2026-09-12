@@ -15,6 +15,8 @@ from typing import Any, cast
 
 from ..json_boundary import BoundaryError
 
+CURRENT_SCHEMA = 2
+
 
 def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
@@ -27,6 +29,9 @@ class Operations:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
         with self.transaction() as db:
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            if version not in {0, 1, CURRENT_SCHEMA}:
+                raise BoundaryError("hub", "unsupported_operations_schema")
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
                 INSERT OR IGNORE INTO settings VALUES('paused','0');
@@ -38,6 +43,7 @@ class Operations:
                     manifest_sha TEXT NOT NULL, intent TEXT NOT NULL, status TEXT NOT NULL,
                     receipt TEXT, verify_attempts INTEGER NOT NULL DEFAULT 0,
                     retry_at REAL NOT NULL DEFAULT 0, last_error TEXT, UNIQUE(device,content_id));
+                CREATE INDEX IF NOT EXISTS upload_verification_queue ON uploads(status,retry_at);
                 CREATE TABLE IF NOT EXISTS jobs(
                     id TEXT PRIMARY KEY, request_key TEXT UNIQUE NOT NULL, kind TEXT NOT NULL,
                     input_id TEXT NOT NULL, max_seconds INTEGER NOT NULL,
@@ -45,18 +51,20 @@ class Operations:
                     fence INTEGER NOT NULL DEFAULT 0, attempt_id TEXT, lease_hash TEXT,
                     lease_until REAL, deadline REAL, provider_ref TEXT, result TEXT,
                     options TEXT NOT NULL DEFAULT '{}');
+                CREATE TABLE IF NOT EXISTS compute_attempts(
+                    job_id TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, fence INTEGER NOT NULL,
+                    request_id TEXT NOT NULL, request TEXT NOT NULL, target_id TEXT NOT NULL,
+                    phase TEXT NOT NULL, handle TEXT, cancel_state TEXT, last_error TEXT,
+                    receipt TEXT);
                 CREATE TABLE IF NOT EXISTS events(
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT, at REAL NOT NULL,
                     actor TEXT NOT NULL, operation TEXT NOT NULL, subject TEXT NOT NULL,
                     detail TEXT NOT NULL);
             """)
-            version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in {0, 1}:
-                raise BoundaryError("hub", "unsupported_operations_schema")
             columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
             if "options" not in columns:
                 db.execute("ALTER TABLE jobs ADD COLUMN options TEXT NOT NULL DEFAULT '{}'")
-            db.execute("PRAGMA user_version=1")
+            db.execute(f"PRAGMA user_version={CURRENT_SCHEMA}")
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
@@ -137,14 +145,80 @@ class Operations:
             row = db.execute("SELECT * FROM uploads WHERE id=?", (upload_id,)).fetchone()
             return dict(row)
 
-    def uploads(self, device: str | None = None) -> list[dict[str, Any]]:
+    def uploads(
+        self,
+        device: str | None = None,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        statuses: tuple[str, ...] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Bounded status projection; immutable transport intent is loaded only by ID."""
+        if (
+            type(limit) is not int
+            or not 1 <= limit <= 1000
+            or type(offset) is not int
+            or offset < 0
+        ):
+            raise BoundaryError("hub", "invalid_upload_pagination")
+        allowed = {
+            "awaiting_upload",
+            "verification_pending",
+            "verified",
+            "quarantined",
+            "transfer_failed",
+        }
+        if statuses is not None and (
+            not isinstance(statuses, tuple)
+            or any(not isinstance(value, str) or value not in allowed for value in statuses)
+        ):
+            raise BoundaryError("hub", "invalid_upload_status_filter")
+        conditions: list[str] = []
+        values: list[Any] = []
+        if device is not None:
+            conditions.append("device=?")
+            values.append(device)
+        if statuses is not None:
+            if not statuses:
+                return []
+            conditions.append("status IN (" + ",".join("?" for _ in statuses) + ")")
+            values.extend(statuses)
+        query = (
+            "SELECT id,device,content_id,status,receipt,retry_at,verify_attempts,last_error "
+            "FROM uploads"
+        )
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY rowid DESC LIMIT ? OFFSET ?"
+        values.extend((limit, offset))
         with self.transaction() as db:
-            query = "SELECT * FROM uploads"
-            rows = db.execute(
-                query if device is None else query + " WHERE device=?",
-                () if device is None else (device,),
-            ).fetchall()
+            rows = db.execute(query, values).fetchall()
             return [dict(row) for row in rows]
+
+    def pending_upload(self, now: float) -> dict[str, Any] | None:
+        """Return one due verification candidate without materializing historical intents."""
+        if not math.isfinite(now):
+            raise BoundaryError("hub", "invalid_verification_time")
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT id,device,content_id,status,receipt,retry_at,verify_attempts,last_error "
+                "FROM uploads WHERE status='verification_pending' AND retry_at<=? "
+                "ORDER BY retry_at,rowid LIMIT 1",
+                (now,),
+            ).fetchone()
+            return None if row is None else dict(row)
+
+    def upload_counts(self, device: str | None = None) -> dict[str, int]:
+        with self.transaction() as db:
+            query = "SELECT status,COUNT(*) FROM uploads"
+            values: tuple[str, ...] = ()
+            if device is not None:
+                query += " WHERE device=?"
+                values = (device,)
+            return {
+                str(row[0]): int(row[1])
+                for row in db.execute(query + " GROUP BY status", values).fetchall()
+            }
 
     def upload(self, upload_id: str, device: str | None = None) -> dict[str, Any]:
         with self.transaction() as db:
@@ -400,7 +474,7 @@ class Operations:
             if row is None:
                 raise BoundaryError("hub", "job_not_found")
             status = "cancelled" if row[0] == "queued" else "cancelling"
-            if row[0] in {"completed", "failed", "cancelled"}:
+            if row[0] in {"completed", "paused", "failed", "cancelled"}:
                 return
             db.execute("UPDATE jobs SET status=? WHERE id=?", (status, job))
             self._event(db, "admin", "cancel_requested", job, {})
@@ -447,3 +521,298 @@ class Operations:
             target.commit()
             if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                 raise BoundaryError("hub", "backup_integrity")
+
+    @staticmethod
+    def _compute_fenced(
+        db: sqlite3.Connection,
+        job: str,
+        token: str,
+        attempt: str,
+        fence: int,
+    ) -> sqlite3.Row:
+        row = db.execute("SELECT * FROM jobs WHERE id=?", (job,)).fetchone()
+        if (
+            row is None
+            or row["attempt_id"] != attempt
+            or row["fence"] != fence
+            or not secrets.compare_digest(row["lease_hash"] or "", token_hash(token))
+        ):
+            raise BoundaryError("hub", "stale_attempt")
+        return cast(sqlite3.Row, row)
+
+    def recover_compute(
+        self,
+        job: str,
+        attempt: str,
+        fence: int,
+        *,
+        now: float,
+    ) -> dict[str, Any]:
+        """Internal scheduler handoff under its OS singleton lock; never resubmit.
+
+        Rotate only the local scheduler secret, keeping the external request and fence.
+        Expiry stays uncertain; an unknown worker is not declared stopped by recovery.
+        """
+        if not math.isfinite(now):
+            raise BoundaryError("hub", "invalid_lease")
+        with self.transaction() as db:
+            row = db.execute("SELECT * FROM jobs WHERE id=?", (job,)).fetchone()
+            if (
+                row is None
+                or row["attempt_id"] != attempt
+                or row["fence"] != fence
+                or row["status"] not in {"running", "uncertain", "submission_unknown", "cancelling"}
+            ):
+                raise BoundaryError("hub", "stale_attempt")
+            token = secrets.token_urlsafe(32)
+            status = row["status"]
+            if status == "running" and row["lease_until"] <= now:
+                status = "uncertain"
+            db.execute(
+                "UPDATE jobs SET lease_hash=?,status=? WHERE id=?", (token_hash(token), status, job)
+            )
+            self._event(
+                db,
+                "scheduler",
+                "attempt_owner_recovered",
+                job,
+                {"attempt_id": attempt, "fence": fence},
+            )
+            updated = dict(db.execute("SELECT * FROM jobs WHERE id=?", (job,)).fetchone())
+            updated.pop("lease_hash")
+            return {**updated, "lease_token": token}
+
+    def compute_state(self, job: str) -> dict[str, Any] | None:
+        with self.transaction() as db:
+            row = db.execute("SELECT * FROM compute_attempts WHERE job_id=?", (job,)).fetchone()
+            if row is None:
+                return None
+            result = dict(row)
+            for name in ("request", "handle", "receipt"):
+                result[name] = json.loads(result[name]) if result[name] is not None else None
+            return result
+
+    def prepare_compute(
+        self,
+        job: str,
+        token: str,
+        request: dict[str, Any],
+        target_id: str,
+        *,
+        now: float,
+    ) -> bool:
+        """Persist the external invocation intent before calling the provider exactly once."""
+        from ..cloud_jobs.contracts import ComputeRequest
+        from ..json_boundary import digest
+
+        value = ComputeRequest.decode(request)
+        digest(target_id, "compute.target_id")
+        encoded = json.dumps(request, sort_keys=True)
+        with self.transaction() as db:
+            row = self._live(db, job, token, now)
+            if (
+                value.attempt_id != row["attempt_id"]
+                or value.input_id != row["input_id"]
+                or value.kind != {"feature": "features", "training": "training"}[row["kind"]]
+            ):
+                raise BoundaryError("hub", "compute_request_job_mismatch")
+            options = json.loads(row["options"])
+            if (value.resume, value.stop_after) != (
+                options.get("resume"),
+                options.get("stop_after"),
+            ):
+                raise BoundaryError("hub", "compute_request_options_mismatch")
+            prior = db.execute("SELECT * FROM compute_attempts WHERE job_id=?", (job,)).fetchone()
+            if prior is not None:
+                if (prior["request"], prior["target_id"], prior["fence"]) != (
+                    encoded,
+                    target_id,
+                    row["fence"],
+                ):
+                    raise BoundaryError("hub", "compute_request_conflict")
+                return False
+            db.execute(
+                "INSERT INTO compute_attempts(job_id,attempt_id,fence,request_id,request,"
+                "target_id,phase) VALUES(?,?,?,?,?,?,'submitting')",
+                (job, value.attempt_id, row["fence"], value.request_id, encoded, target_id),
+            )
+            self._event(
+                db,
+                "scheduler",
+                "compute_submission_intent",
+                job,
+                {"request_id": value.request_id, "target_id": target_id},
+            )
+            return True
+
+    def bind_compute_handle(
+        self,
+        job: str,
+        token: str,
+        attempt: str,
+        fence: int,
+        handle: dict[str, Any],
+    ) -> None:
+        from ..cloud_jobs.modal import ModalCall
+
+        value = ModalCall.decode(handle)
+        encoded = json.dumps(handle, sort_keys=True)
+        with self.transaction() as db:
+            row = self._compute_fenced(db, job, token, attempt, fence)
+            current = db.execute("SELECT * FROM compute_attempts WHERE job_id=?", (job,)).fetchone()
+            if (
+                row["status"] not in {"running", "uncertain", "submission_unknown", "cancelling"}
+                or current is None
+                or current["request_id"] != value.request.request_id
+                or current["target_id"] != value.target_id
+                or value.request.attempt_id != attempt
+            ):
+                raise BoundaryError("hub", "compute_handle_mismatch")
+            if current["handle"] is not None and current["handle"] != encoded:
+                raise BoundaryError("hub", "provider_reference_conflict")
+            db.execute(
+                "UPDATE compute_attempts SET handle=?,phase='submitted' WHERE job_id=?",
+                (encoded, job),
+            )
+            db.execute("UPDATE jobs SET provider_ref=? WHERE id=?", (value.call_id, job))
+            self._event(
+                db,
+                "scheduler",
+                "compute_handle_bound",
+                job,
+                {"request_id": value.request.request_id, "provider_ref": value.call_id},
+            )
+
+    def compute_uncertain(
+        self,
+        job: str,
+        token: str,
+        attempt: str,
+        fence: int,
+        code: str,
+    ) -> None:
+        from ..json_boundary import text
+
+        text(code, "compute.code", maximum=128)
+        with self.transaction() as db:
+            row = self._compute_fenced(db, job, token, attempt, fence)
+            if row["status"] not in {"running", "uncertain", "submission_unknown", "cancelling"}:
+                raise BoundaryError("hub", "stale_attempt")
+            current = db.execute("SELECT * FROM compute_attempts WHERE job_id=?", (job,)).fetchone()
+            no_handle = current is None or current["handle"] is None
+            status = "submission_unknown" if no_handle else "uncertain"
+            if row["status"] == "cancelling":
+                status = "cancelling"
+            if current is None and row["status"] == status:
+                return
+            if current is not None:
+                if current["last_error"] == code and row["status"] == status:
+                    return
+                db.execute("UPDATE compute_attempts SET last_error=? WHERE job_id=?", (code, job))
+            db.execute("UPDATE jobs SET status=? WHERE id=?", (status, job))
+            self._event(db, "scheduler", "compute_uncertain", job, {"code": code})
+
+    def fail_before_compute(self, job: str, token: str, code: str, *, now: float) -> None:
+        """Only the invocation owner may reject preflight before creating external intent."""
+        from ..json_boundary import text
+
+        text(code, "compute.code", maximum=128)
+        with self.transaction() as db:
+            row = self._live(db, job, token, now)
+            if (
+                row["provider_ref"] is not None
+                or db.execute("SELECT 1 FROM compute_attempts WHERE job_id=?", (job,)).fetchone()
+            ):
+                raise BoundaryError("hub", "submission_may_exist")
+            db.execute(
+                "UPDATE jobs SET status='failed',result=? WHERE id=?",
+                (json.dumps({"stage": "preflight", "code": code}), job),
+            )
+            self._event(db, "scheduler", "compute_preflight_failed", job, {"code": code})
+
+    def accept_compute(
+        self,
+        job: str,
+        token: str,
+        attempt: str,
+        fence: int,
+        receipt: dict[str, Any],
+        *,
+        cancelled: bool = False,
+    ) -> None:
+        """Fenced selection after owner validation, including exact late completion.
+
+        A cancelling job can only settle cancelled; its output is never selected.
+        A paused bounded invocation is terminal and requires a new budgeted resume job.
+        """
+        from ..cloud_jobs.contracts import ComputeReceipt, ComputeRequest
+
+        value = ComputeReceipt.decode(receipt)
+        encoded = json.dumps(receipt, sort_keys=True)
+        target = "cancelled" if cancelled else "paused" if value.state == "paused" else "completed"
+        with self.transaction() as db:
+            row = self._compute_fenced(db, job, token, attempt, fence)
+            current = db.execute("SELECT * FROM compute_attempts WHERE job_id=?", (job,)).fetchone()
+            if (
+                current is None
+                or current["handle"] is None
+                or current["attempt_id"] != attempt
+                or current["fence"] != fence
+            ):
+                raise BoundaryError("hub", "compute_handle_required")
+            value.bind(ComputeRequest.decode(json.loads(current["request"])))
+            if row["status"] == target and current["receipt"] == encoded:
+                return
+            permitted = (
+                {"cancelling"} if cancelled else {"running", "uncertain", "submission_unknown"}
+            )
+            if row["status"] not in permitted:
+                raise BoundaryError("hub", "stale_attempt")
+            selected = (
+                json.dumps(
+                    {
+                        "state": "cancelled",
+                        "request_id": value.request_id,
+                        "terminal_receipt_recorded": True,
+                    }
+                )
+                if cancelled
+                else encoded
+            )
+            db.execute("UPDATE jobs SET status=?,result=? WHERE id=?", (target, selected, job))
+            db.execute(
+                "UPDATE compute_attempts SET phase=?,receipt=? WHERE job_id=?",
+                (target, encoded, job),
+            )
+            self._event(db, "scheduler", "compute_" + target, job, receipt)
+
+    def begin_compute_cancel(self, job: str, token: str, attempt: str, fence: int) -> bool:
+        with self.transaction() as db:
+            row = self._compute_fenced(db, job, token, attempt, fence)
+            current = db.execute("SELECT * FROM compute_attempts WHERE job_id=?", (job,)).fetchone()
+            if row["status"] != "cancelling" or current is None or current["handle"] is None:
+                raise BoundaryError("hub", "cancel_handle_required")
+            if current["cancel_state"] is not None:
+                return False
+            db.execute(
+                "UPDATE compute_attempts SET cancel_state='requested' WHERE job_id=?", (job,)
+            )
+            self._event(db, "scheduler", "compute_cancel_requested", job, {})
+            return True
+
+    def record_compute_cancel(
+        self,
+        job: str,
+        token: str,
+        attempt: str,
+        fence: int,
+        *,
+        acknowledged: bool,
+    ) -> None:
+        with self.transaction() as db:
+            row = self._compute_fenced(db, job, token, attempt, fence)
+            if row["status"] != "cancelling":
+                raise BoundaryError("hub", "stale_attempt")
+            state = "acknowledged" if acknowledged else "unknown"
+            db.execute("UPDATE compute_attempts SET cancel_state=? WHERE job_id=?", (state, job))
+            self._event(db, "scheduler", "compute_cancel_" + state, job, {})
