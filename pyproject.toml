@@ -46,7 +46,7 @@ where = ["."]
 include = ["stpd*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "deploy/hub"]
 
 [tool.ruff]
 target-version = "py311"

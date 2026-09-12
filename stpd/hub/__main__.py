@@ -87,7 +87,12 @@ def main() -> int:
     parser.add_argument("--reserved-units", type=int, default=0)
     parser.add_argument("--resume")
     parser.add_argument("--stop-after", type=int)
-    parser.add_argument("--modal-target", type=Path, help="exact deployed ModalTarget JSON")
+    parser.add_argument(
+        "--modal-target",
+        type=Path,
+        default=os.environ.get("STPD_MODAL_TARGET") or None,
+        help="exact deployed ModalTarget JSON (or STPD_MODAL_TARGET)",
+    )
     parser.add_argument("--isolated", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--evidence", help="operator-reviewed provider stop evidence reference")
     parser.add_argument(

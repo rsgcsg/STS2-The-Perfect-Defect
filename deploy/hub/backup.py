@@ -197,7 +197,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         from stpd.hub.database import CURRENT_SCHEMA, Operations
-
         from stpd.workbench.control import source_identity
 
         producer = source_identity(args.root)

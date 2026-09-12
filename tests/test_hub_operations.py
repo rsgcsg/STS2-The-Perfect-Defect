@@ -82,7 +82,7 @@ def test_backup_restores_paused_and_retains_authorizations_and_uncertainty(tmp_p
     assert restored.claim("new", now=3) is None
 
 
-def test_http_device_isolation_no_admin_or_payload_access(tmp_path: Path) -> None:
+def test_http_device_scoped_uploads_and_shared_result_reads(tmp_path: Path) -> None:
     ops = Operations(tmp_path / "ops.sqlite")
     ops.register("one", "a" * 32)
     ops.register("two", "b" * 32)

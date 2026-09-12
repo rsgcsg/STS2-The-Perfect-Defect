@@ -54,3 +54,16 @@ configuration locations. This is not evidence that the owner has no accounts.
 
 Completion labels are separate: B_PIPELINE_ENGINEERING_READY,
 B_PIPELINE_CLOUD_VERIFIED, B_PIPELINE_END_TO_END_COMPLETE. No label is established by this plan.
+
+## Implemented review closures
+
+Independent review and integration closed mismatched pending protocol/repeated upload,
+installed-package import shadowing, checkpoint/real training-plan binding, deployment-wrapper
+source drift, concurrent staging collisions, noninteger budgets, unbounded gzip metadata,
+shared API/verifier resource exposure, full historical intent loading, atomic schema migration
+and SQLite backup WAL lifetime. Root gates include the deployed backup/preflight regressions.
+
+Historical session readback through a real local Hub process and separate verifier retained
+524 transitions and 1895 raw files/1900 bundle files unchanged. It correctly fails Dataset
+admission with only two independent complete runs. No historical run clipping was introduced.
+Actual cloud/OCI/GPU/owner Close qualification remains separate from source and local tests.
