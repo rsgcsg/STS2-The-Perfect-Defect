@@ -43,12 +43,20 @@ class Operations:
                     input_id TEXT NOT NULL, max_seconds INTEGER NOT NULL,
                     reserved_units INTEGER NOT NULL, status TEXT NOT NULL,
                     fence INTEGER NOT NULL DEFAULT 0, attempt_id TEXT, lease_hash TEXT,
-                    lease_until REAL, deadline REAL, provider_ref TEXT, result TEXT);
+                    lease_until REAL, deadline REAL, provider_ref TEXT, result TEXT,
+                    options TEXT NOT NULL DEFAULT '{}');
                 CREATE TABLE IF NOT EXISTS events(
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT, at REAL NOT NULL,
                     actor TEXT NOT NULL, operation TEXT NOT NULL, subject TEXT NOT NULL,
                     detail TEXT NOT NULL);
             """)
+            version = db.execute("PRAGMA user_version").fetchone()[0]
+            if version not in {0, 1}:
+                raise BoundaryError("hub", "unsupported_operations_schema")
+            columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
+            if "options" not in columns:
+                db.execute("ALTER TABLE jobs ADD COLUMN options TEXT NOT NULL DEFAULT '{}'")
+            db.execute("PRAGMA user_version=1")
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
@@ -156,8 +164,10 @@ class Operations:
     def verification_failure(self, upload_id: str, code: str, *, now: float) -> None:
         with self.transaction() as db:
             row = db.execute(
-                "SELECT verify_attempts FROM uploads WHERE id=?", (upload_id,)
+                "SELECT verify_attempts,status FROM uploads WHERE id=?", (upload_id,)
             ).fetchone()
+            if row is None or row["status"] != "verification_pending":
+                return
             attempts = int(row[0]) + 1
             status = "transfer_failed" if attempts >= 5 else "verification_pending"
             db.execute(
@@ -171,6 +181,19 @@ class Operations:
                 upload_id,
                 {"attempt": attempts, "code": code, "status": status},
             )
+
+    def retry_upload(self, upload_id: str) -> None:
+        """Explicit operational retry retains the exact immutable transport intent."""
+        with self.transaction() as db:
+            row = db.execute("SELECT status FROM uploads WHERE id=?", (upload_id,)).fetchone()
+            if row is None or row[0] != "transfer_failed":
+                raise BoundaryError("hub", "upload_retry_not_applicable")
+            db.execute(
+                "UPDATE uploads SET status='awaiting_upload',verify_attempts=0,"
+                "retry_at=0,last_error=NULL WHERE id=?",
+                (upload_id,),
+            )
+            self._event(db, "admin", "upload_retry_authorized", upload_id, {})
 
     def finish_upload(self, upload_id: str, receipt: dict[str, Any]) -> None:
         if receipt.get("status") not in {"verified", "quarantined"}:
@@ -200,7 +223,23 @@ class Operations:
         max_seconds: int,
         reserved_units: int,
         budget_limit: int,
+        options: dict[str, Any] | None = None,
     ) -> str:
+        options = {} if options is None else options
+        if not isinstance(options, dict) or set(options) - {"resume", "stop_after"}:
+            raise BoundaryError("hub", "invalid_job_options")
+        resume, stop_after = options.get("resume"), options.get("stop_after")
+        if resume is not None and (
+            not isinstance(resume, str)
+            or len(resume) != 64
+            or any(c not in "0123456789abcdef" for c in resume)
+        ):
+            raise BoundaryError("hub", "invalid_resume")
+        if stop_after is not None and (type(stop_after) is not int or stop_after <= 0):
+            raise BoundaryError("hub", "invalid_stop_after")
+        if kind == "feature" and (resume is not None or stop_after is not None):
+            raise BoundaryError("hub", "feature_resume_not_supported")
+        encoded_options = json.dumps(options, sort_keys=True, separators=(",", ":"))
         if (
             kind not in {"feature", "training"}
             or type(max_seconds) is not int
@@ -220,11 +259,18 @@ class Operations:
         with self.transaction() as db:
             old = db.execute("SELECT * FROM jobs WHERE request_key=?", (request_key,)).fetchone()
             if old is not None:
-                if (old["kind"], old["input_id"], old["max_seconds"], old["reserved_units"]) != (
+                if (
+                    old["kind"],
+                    old["input_id"],
+                    old["max_seconds"],
+                    old["reserved_units"],
+                    old["options"],
+                ) != (
                     kind,
                     input_id,
                     max_seconds,
                     reserved_units,
+                    encoded_options,
                 ):
                     raise BoundaryError("hub", "job_request_conflict")
                 return str(old["id"])
@@ -237,8 +283,8 @@ class Operations:
             job_id = secrets.token_hex(16)
             db.execute(
                 "INSERT INTO jobs(id,request_key,kind,input_id,max_seconds,reserved_units,"
-                "status) VALUES(?,?,?,?,?,?,'queued')",
-                (job_id, request_key, kind, input_id, max_seconds, reserved_units),
+                "status,options) VALUES(?,?,?,?,?,?,'queued',?)",
+                (job_id, request_key, kind, input_id, max_seconds, reserved_units, encoded_options),
             )
             self._event(db, "admin", "job_enqueued", job_id, {"input_id": input_id})
             return job_id
@@ -322,6 +368,8 @@ class Operations:
             self._event(db, "scheduler", "submission_unknown", job, {})
 
     def expire(self, *, now: float) -> int:
+        if not math.isfinite(now):
+            raise BoundaryError("hub", "invalid_lease")
         with self.transaction() as db:
             result = db.execute(
                 "UPDATE jobs SET status='uncertain' WHERE status='running' AND lease_until<=?",
@@ -330,11 +378,19 @@ class Operations:
             return result.rowcount
 
     def complete(self, job: str, token: str, result: dict[str, Any], *, now: float) -> None:
+        encoded = json.dumps(result, sort_keys=True)
         with self.transaction() as db:
+            row = db.execute("SELECT * FROM jobs WHERE id=?", (job,)).fetchone()
+            if row is not None and row["status"] == "completed":
+                if row["result"] == encoded and secrets.compare_digest(
+                    row["lease_hash"] or "", token_hash(token)
+                ):
+                    return
+                raise BoundaryError("hub", "completion_conflict")
             self._live(db, job, token, now)
             db.execute(
                 "UPDATE jobs SET status='completed',result=? WHERE id=?",
-                (json.dumps(result, sort_keys=True), job),
+                (encoded, job),
             )
             self._event(db, "scheduler", "job_completed", job, result)
 
@@ -364,6 +420,14 @@ class Operations:
 
     def pause(self, paused: bool) -> None:
         with self.transaction() as db:
+            if (
+                not paused
+                and db.execute(
+                    "SELECT 1 FROM jobs WHERE status IN "
+                    "('running','uncertain','submission_unknown','cancelling')"
+                ).fetchone()
+            ):
+                raise BoundaryError("hub", "reconcile_external_jobs_before_unpause")
             db.execute("UPDATE settings SET value=? WHERE key='paused'", ("1" if paused else "0",))
             self._event(db, "admin", "pause_changed", "hub", {"paused": paused})
 

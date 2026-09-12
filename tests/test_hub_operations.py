@@ -115,3 +115,36 @@ def test_http_device_isolation_no_admin_or_payload_access(tmp_path: Path) -> Non
     assert call("/v1/uploads/" + row["id"], "b" * 32)[0] == "409 Conflict"
     assert call("/v1/uploads", "b" * 32)[1] == {"items": []}
     assert len(call("/v1/uploads", "a" * 32)[1]["items"]) == 1
+
+
+def test_idempotent_completion_options_and_restore_unpause_guard(tmp_path: Path) -> None:
+    ops = Operations(tmp_path / "ops.sqlite")
+    kwargs = dict(max_seconds=30, reserved_units=1, budget_limit=2)
+    job = ops.enqueue("training", "a" * 64, "resume", options={"resume": "b" * 64}, **kwargs)
+    with pytest.raises(BoundaryError, match="job_request_conflict"):
+        ops.enqueue("training", "a" * 64, "resume", **kwargs)
+    attempt = ops.claim("worker", now=1)
+    assert attempt
+    ops.pause(True)
+    with pytest.raises(BoundaryError, match="reconcile_external_jobs_before_unpause"):
+        ops.pause(False)
+    ops.complete(job, attempt["lease_token"], {"result": "c" * 64}, now=2)
+    ops.complete(job, attempt["lease_token"], {"result": "c" * 64}, now=100)
+    with pytest.raises(BoundaryError, match="completion_conflict"):
+        ops.complete(job, attempt["lease_token"], {"result": "d" * 64}, now=3)
+    ops.pause(False)
+
+
+def test_failed_transfer_retry_is_explicit_and_preserves_identity(tmp_path: Path) -> None:
+    ops = Operations(tmp_path / "ops.sqlite")
+    upload = ops.create_upload("device", "a" * 64, "b" * 64, {"archive_sha256": "c" * 64})
+    ops.request_verification(upload["id"])
+    for attempt in range(5):
+        ops.verification_failure(upload["id"], "unavailable", now=float(attempt))
+    assert ops.upload(upload["id"])["status"] == "transfer_failed"
+    ops.retry_upload(upload["id"])
+    row = ops.upload(upload["id"])
+    assert row["status"] == "awaiting_upload" and row["verify_attempts"] == 0
+    assert row["intent"] == upload["intent"]
+    with pytest.raises(BoundaryError, match="upload_transport_changed"):
+        ops.create_upload("device", "a" * 64, "b" * 64, {"archive_sha256": "d" * 64})
