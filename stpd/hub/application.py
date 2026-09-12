@@ -77,7 +77,7 @@ class HubApplication:
     @staticmethod
     def body(environ: dict[str, Any]) -> Any:
         length = int(environ.get("CONTENT_LENGTH") or "0")
-        if not 0 < length <= 8 * 1024 * 1024:
+        if not 0 < length <= 32 * 1024 * 1024:
             raise BoundaryError("hub", "request_size_limit")
         raw = environ["wsgi.input"].read(length)
         if len(raw) != length:
@@ -142,7 +142,9 @@ class HubApplication:
         if method == "GET" and path in {"/v1/uploads", "/v1/incidents"}:
             items = [self.upload_status(row) for row in ops.uploads(device)]
             if path.endswith("incidents"):
-                items = [row for row in items if row["status"] == "quarantined"]
+                items = [
+                    row for row in items if row["status"] in {"quarantined", "transfer_failed"}
+                ]
             return self.response({"items": items})
         if method == "POST" and path == "/v1/uploads":
             if device is None:
@@ -180,6 +182,7 @@ class HubApplication:
                 max_seconds=body["max_seconds"],
                 reserved_units=body["reserved_units"],
                 budget_limit=self.budget_limit,
+                options=body.get("options"),
             )
             return self.response({"job_id": job_id}, "201 Created")
         if method == "POST" and path == "/v1/pause":
@@ -192,6 +195,10 @@ class HubApplication:
         if match and method == "POST":
             ops.cancel(match[1])
             return self.response({"cancel_requested": True})
+        match = re.fullmatch(r"/v1/uploads/([a-f0-9]{32})/retry", path)
+        if match and method == "POST":
+            ops.retry_upload(match[1])
+            return self.response({"retry_authorized": True})
         match = re.fullmatch(r"/v1/artifacts/([a-f0-9]{64})(?:/payloads/([a-z0-9_]+))?", path)
         if match and method == "GET":
             manifest = self.service.store.get_manifest(match[1])
