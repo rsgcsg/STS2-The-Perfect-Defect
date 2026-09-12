@@ -1,0 +1,137 @@
+{
+  "schema": "stpd/b-pipeline-engineering-closeout-v1",
+  "created_utc": "2026-09-12T07:03:06.305106+00:00",
+  "verdict": "B_PIPELINE_ENGINEERING_READY",
+  "stpd": {
+    "base": "67566db562b95f57468290b97659c9f2e3862fe1",
+    "head": "1f92e65fddc8ebb34455d51fc5f512aecd2d4b2d",
+    "pr": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/pull/8",
+    "disposition": "draft",
+    "uv_lock_sha256": "9c9f286cf40def94e2779169730bd56e5f28731690f304e03389055d3c73d752",
+    "local_tests": {
+      "passed": 434,
+      "skipped": 1
+    },
+    "ci": {
+      "url": "https://github.com/rsgcsg/STS2-The-Perfect-Defect/actions/runs/34679392448",
+      "head": "1f92e65fddc8ebb34455d51fc5f512aecd2d4b2d",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "linux-portable",
+          "conclusion": "success"
+        },
+        {
+          "name": "windows-portable",
+          "conclusion": "success"
+        },
+        {
+          "name": "locked-python",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "evidence_inventory": {
+      "source": "1f92e65fddc8ebb34455d51fc5f512aecd2d4b2d",
+      "files": {
+        ".local/b-pipeline/closeout-1f92e65.log": {
+          "sha256": "08694d075ded0859a0401d31e3e7e082e33c3c6485781fb282061e2af0309edd",
+          "bytes": 52253
+        },
+        ".local/b-pipeline/1f92e65fddc8ebb34455d51fc5f512aecd2d4b2d/receipt.json": {
+          "sha256": "3835fe4770fc9f18931610d6300fd890cd27d4b11072f47e39bb33ccf3de000f",
+          "bytes": 1499
+        },
+        ".local/b-pipeline/1f92e65fddc8ebb34455d51fc5f512aecd2d4b2d/cpu-e2e.json": {
+          "sha256": "d80576fda7e56e019a373d501466f4bded9c8c5986c8858e2f58ccc8a7cbe7ae",
+          "bytes": 1948
+        },
+        ".local/b-pipeline/1f92e65fddc8ebb34455d51fc5f512aecd2d4b2d/cloud-worker-cpu.json": {
+          "sha256": "df9acf39ae2ce6a289e8091280223aa9b8bd69c0d1631449556229e8d8f6b86d",
+          "bytes": 866
+        },
+        "dist/sts2_the_perfect_defect-0.1.0-py3-none-any.whl": {
+          "sha256": "3c57439c4e5065e3284b81a14c843765fb9dc840953227677a14f2799e16947c",
+          "bytes": 312055
+        },
+        "dist/sts2_the_perfect_defect-0.1.0.tar.gz": {
+          "sha256": "7b10b78811c805a6461e44d8ca186029c417afe9d0e7bbd327096e655c759385",
+          "bytes": 349509
+        }
+      }
+    }
+  },
+  "platform": {
+    "base": "a43e0cc8095107291e2b3ac2882faa7b7e9cc70e",
+    "head": "79fdb2b186bb9cc8a76ddc6a1b00c2493c6916fb",
+    "pr": "https://github.com/rsgcsg/STS2-AI-PLATFORM/pull/26",
+    "disposition": "draft",
+    "ci": {
+      "url": "https://github.com/rsgcsg/STS2-AI-PLATFORM/actions/runs/34677834154",
+      "conclusion": "success"
+    },
+    "tool_release_id": "002738a36a1ea6d4cd992cc9d7f691cfd16a333129681b5bff14dde1754316c4",
+    "evidence_wheel_sha256": "2e5cc3b8cdbd728251af41645f41b7cc2aa698f9bd4e56bf50c5abdf6c29e363",
+    "native_compiled_source_digest": "67933f8f0d0712347c9f80fb2c90751acf82b3b4819aae36518258e269610588",
+    "native_compiled_source_matches_base": true
+  },
+  "historical_ingress": {
+    "schema": "stpd/b-real-ingress-proof-v1",
+    "producer": {
+      "repository": "rsgcsg/STS2-The-Perfect-Defect",
+      "source_revision": "1f92e65fddc8ebb34455d51fc5f512aecd2d4b2d",
+      "uv_lock_sha256": "9c9f286cf40def94e2779169730bd56e5f28731690f304e03389055d3c73d752"
+    },
+    "platform_pin": "79fdb2b186bb9cc8a76ddc6a1b00c2493c6916fb",
+    "bundle_id": "e805b0ef894d8f336d1f038e2f24af45e9441eb33214ffad65fcdd7ae56b452e",
+    "source_id": "eb36171384b9f72893c64b8c5f68d6927f2d745678d1c1dada44c8cb6eca6fdc",
+    "receipt": {
+      "content_id": "e805b0ef894d8f336d1f038e2f24af45e9441eb33214ffad65fcdd7ae56b452e",
+      "evidence_id": "83f67b1f70bf8fb380bd0cee497830f063bdd8a211046c70047b5410072daa97",
+      "findings": [],
+      "manifest_sha256": "50da680265ff766aafcd42b9a67e6f2d5efcbf78bbf4e353b22a28406e31d69e",
+      "receipt_id": "0ca42a503f2247a20a0ddd6fd4cb3e8f",
+      "schema": "stpd/receive-receipt-v1",
+      "status": "verified",
+      "verifier": {
+        "entrypoint": "verify_human_session_bundle",
+        "package": "rsgcsg-sts2-platform-evidence",
+        "source_lock": "9c9f286cf40def94e2779169730bd56e5f28731690f304e03389055d3c73d752",
+        "version": "0.1.0rc3"
+      }
+    },
+    "transitions": 524,
+    "run_proofs": 2,
+    "raw_files_unchanged": 1895,
+    "bundle_files_unchanged": 1900,
+    "elapsed_seconds": 34.8419151250273,
+    "admission": "insufficient_independent_run_components",
+    "nonclaims": [
+      "historical input; no new Human Close",
+      "local HTTP; no cloud/GPU",
+      "no dataset admission"
+    ]
+  },
+  "review": {
+    "independent_contract_review": "PASS",
+    "independent_operations_review": "PASS",
+    "windows_root_causes_repaired": true,
+    "no_admission_gate_lowered": true
+  },
+  "external_gates": [
+    "owner-authorized CPU host/DNS/R2/Modal/registry access, data-upload authority and explicit spend ceiling",
+    "exact Linux OCI/TLS/object-store/backup/restore and bounded GPU qualification",
+    "new Human Close-to-cloud and sufficient independent complete run components"
+  ],
+  "non_claims": [
+    "B_PIPELINE_CLOUD_VERIFIED",
+    "B_PIPELINE_END_TO_END_COMPLETE",
+    "real GPU training",
+    "new Human collection",
+    "admitted real Full-Run Dataset",
+    "new Full-Run model loading/live evaluation",
+    "scientific model quality",
+    "production high availability",
+    "multitenant isolation"
+  ]
+}
