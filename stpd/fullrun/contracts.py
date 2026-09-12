@@ -17,6 +17,7 @@ from ..json_boundary import (
 )
 
 TRANSITION_SCHEMA = "stpd/research-transition-v1"
+TRANSITION_SCHEMA_V2 = "stpd/research-transition-v2"
 
 
 def _object(value: object, stage: str) -> FrozenObject:
@@ -161,7 +162,7 @@ class EvidenceLink:
         digest(self.qualification_ref, "source.qualification")
         text(self.record_id, "source.record")
         text(self.native_root_ref, "source.root")
-        if self.scope not in {"engineering", "platform_qualified"}:
+        if self.scope not in {"engineering", "platform_qualified", "platform_verified"}:
             raise BoundaryError("source", "unknown_evidence_scope")
         for value in (self.catalog_ref, self.commit_ref, self.successor_ref):
             if value is not None:
@@ -290,6 +291,8 @@ class ResearchTransitionV1:
 
     @classmethod
     def decode(cls, value: object) -> ResearchTransitionV1:
+        if isinstance(value, dict) and value.get("schema") == TRANSITION_SCHEMA_V2:
+            return ResearchTransitionV2.decode(value)
         fields = {
             "schema",
             "transition_id",
@@ -338,6 +341,88 @@ class ResearchTransitionV1:
 
 
 @dataclass(frozen=True)
+class ResearchTransitionV2(ResearchTransitionV1):
+    """Current verified occurrences; V1 remains byte/identity-stable for archived inputs."""
+
+    occurrence: FrozenObject
+    source_evidence: FrozenObject
+    action_space_authority: str
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if not isinstance(self.occurrence, FrozenObject) or not isinstance(
+            self.source_evidence, FrozenObject
+        ):
+            raise BoundaryError("transition", "mutable_occurrence_evidence")
+        occurrence = self.occurrence.value()
+        for key in ("decision_id", "causal_root_id", "decision_kind"):
+            text(occurrence.get(key), "occurrence." + key)
+        kind = occurrence["decision_kind"]
+        parent = occurrence.get("parent_decision_id")
+        if kind not in {"root", "nested_selector", "native_selector"}:
+            raise BoundaryError("occurrence", "unsupported_decision_kind")
+        if (kind == "nested_selector") != (parent is not None):
+            raise BoundaryError("occurrence", "invalid_parent")
+        if parent == occurrence["decision_id"]:
+            raise BoundaryError("occurrence", "self_parent")
+        if occurrence["causal_root_id"] != self.provenance.native_root_ref:
+            raise BoundaryError("occurrence", "root_drift")
+        if self.action_space_authority not in {"native_semantic_execution", "public_bound_actions"}:
+            raise BoundaryError("transition", "unsupported_catalog_authority")
+        for key in ("bundle_content_id", "pre_frame_sha256", "successor_frame_sha256"):
+            digest(self.source_evidence.value().get(key), "source_evidence." + key)
+
+    @property
+    def transition_id(self) -> str:
+        return semantic_hash(
+            {
+                "schema": TRANSITION_SCHEMA_V2,
+                "bundle": self.provenance.bundle_sha256,
+                "record": self.provenance.record_id,
+            }
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        result = super().to_dict()
+        result.update(
+            schema=TRANSITION_SCHEMA_V2,
+            occurrence=self.occurrence.value(),
+            source_evidence=self.source_evidence.value(),
+            catalog_source=self.action_space_authority,
+        )
+        return result
+
+    @classmethod
+    def decode(cls, value: object) -> ResearchTransitionV2:
+        if not isinstance(value, dict) or value.get("schema") != TRANSITION_SCHEMA_V2:
+            raise BoundaryError("transition", "unsupported_schema")
+        legacy = dict(value)
+        occurrence = _object(legacy.pop("occurrence", None), "occurrence")
+        evidence = _object(legacy.pop("source_evidence", None), "source_evidence")
+        authority = text(legacy.get("catalog_source"), "transition.catalog_source")
+        legacy["schema"] = TRANSITION_SCHEMA
+        legacy["catalog_source"] = "platform_semantic_catalog"
+        provenance = legacy.get("provenance", {})
+        legacy["transition_id"] = semantic_hash(
+            {
+                "schema": TRANSITION_SCHEMA,
+                "bundle": provenance.get("bundle_sha256"),
+                "record": provenance.get("record_id"),
+            }
+        )
+        base = ResearchTransitionV1.decode(legacy)
+        result = cls(
+            **vars(base),
+            occurrence=occurrence,
+            source_evidence=evidence,
+            action_space_authority=authority,
+        )
+        if result.transition_id != value.get("transition_id"):
+            raise BoundaryError("transition", "identity_mismatch")
+        return result
+
+
+@dataclass(frozen=True)
 class SourceProjection:
     """Output of a trusted source adapter, not an externally trusted qualification flag."""
 
@@ -346,11 +431,13 @@ class SourceProjection:
     scope: str
     run_proofs: FrozenObject
     transitions: tuple[ResearchTransitionV1, ...]
+    source_bytes: bytes | None = None
+    accounting: FrozenObject = FrozenObject()
 
     def __post_init__(self) -> None:
         text(self.adapter_id, "projection.adapter")
         digest(self.source_sha256, "projection.source")
-        if self.scope not in {"engineering", "platform_qualified"}:
+        if self.scope not in {"engineering", "platform_qualified", "platform_verified"}:
             raise BoundaryError("projection", "unknown_scope")
         if not isinstance(self.run_proofs, FrozenObject) or not isinstance(self.transitions, tuple):
             raise BoundaryError("projection", "mutable_content")

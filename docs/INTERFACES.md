@@ -178,3 +178,21 @@ shape and file checksums. It contains no legality, reward or training authority.
 research objects from model views and feature caches, binds the exact STPD commit, `uv.lock`
 and consumer entry point, and supports missing-object-only staging. Verification returns
 `integrity_ready_authorization_required`; it never authorizes optimizer creation.
+
+
+## Current Full-Run source interface
+
+The independent `stpd/fullrun/contracts.py` codec retains ResearchTransitionV1 and adds
+`stpd/research-transition-v2` for verified Platform bundle3 decisions. V2 records exact
+occurrence/parent/root/native-origin lineage and the actual catalog authority; opaque
+source identity is provenance, not a feature. `SourceProjection.accounting` retains the full
+accepted/disposition/invalidation/journal population, while training rows contain canonical
+committed decisions. See [Full-Run Research](FULLRUN_RESEARCH.md).
+
+`PlatformBundle3SourceAdapter.project(bytes)` accepts only a bounded tar.gz of exact bundle
+root-relative regular files and calls the version-pinned Platform verifier. Source archives
+are not new Platform schemas. `archive_bundle(Path)` is a deterministic developer transport
+helper; it neither modifies source bytes nor attests Human origin. `publish_source`,
+`admit`, `publish_dataset` and `load_dataset` preserve and reverify the source projection.
+Verified evidence is not automatic research admission; independent whole-run components,
+no real lost decisions and source-bound records remain required.

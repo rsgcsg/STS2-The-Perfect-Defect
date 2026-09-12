@@ -12,10 +12,13 @@ verified projections. H is not S; public BoundActions are not the research legal
 Family/surface labels are stratification metadata, not a second native census or model switch.
 
 `SourceAdapter` is the narrow integration port. `SourceProjection` binds source bytes, adapter,
-evidence scope, run continuity proofs and transitions. Only the explicitly synthetic adapter
-is installed at this stage. It cannot accept a guessed final Platform schema or emit qualified
-Platform evidence. A future adapter must verify the final owning Platform format before
-producing a qualified projection; a caller-controlled flag is not qualification.
+evidence scope, run continuity proofs and transitions. The retained synthetic adapter emits engineering-only inputs. The current
+`PlatformBundle3SourceAdapter` consumes a bounded tar.gz transport containing exact bundle3
+members, through the exact Git-pinned Platform Evidence verifier. It emits `platform_verified`,
+which means verified source integrity and contracts, not machine-proved Human origin or
+scientific qualification. Synthetic and verified inputs cannot be mixed in one Dataset.
+A caller-created projection or scope flag is insufficient: admission and publication/load
+reproject the stored source bytes through the installed adapter and compare every record.
 
 ## ResearchTransitionV1
 
@@ -27,6 +30,38 @@ unknown schema, duplicate candidates and invalid chosen/Commit/successor combina
 
 Leaving Combat is normal run continuity. Native root/continuation relationships remain
 Platform-owned; STPD does not manufacture a new gameplay root for a child selector.
+
+## ResearchTransitionV2 and bundle3 accounting
+
+`stpd/research-transition-v2` extends the typed research boundary without rewriting V1
+identities. The installed codec retains the exact decision occurrence (including parent,
+causal root and native selector origin), execution catalog authority, frame hashes, canonical
+and proof references, run/session identity, capture profile and recording identity.
+
+Native semantic execution catalogs remain distinct from Platform-proved complete public
+catalogs at direct-input execution seams. Only the exact canonical `action_space_authority`
+selects the projection. STPD never reconstructs a missing catalog, creates a GameAction root
+for selectors, or replaces execution state with Human observation. A Commit reference can
+name a direct-input/continuation proof and is not misrepresented as a completed GameAction.
+The successor references the exact owner-proved frame, not the following row's state.
+
+The source manifest retains all accepted occurrences and terminal dispositions, all explicit
+invalidations, journal and owner attestation. Expected cancellations/aborts and diagnostics
+remain evidence without becoming fake committed rows. Unknown successors, missing canonical
+publication and capture/persistence failures reject Full-Run Dataset admission. Projection
+and source preservation remain available for failed/partial sessions; they are not admission.
+Every admitted nested child must have its earlier canonical parent in the same run/root.
+
+Native fresh-start and terminal journal witnesses, no recorded lifecycle gap, actual start
+before accepted input, and a final game-over successor are required for complete run proofs.
+Two verified native runs remain insufficient for the unchanged three-component split gate.
+
+The provisional semantic projection resolves runtime referents from the captured frame,
+Reads and execution state; runtime identifiers stay only in provenance. Normal player UI
+labels become `visible_label`, never teacher labels. Declared unordered card collections are
+sorted as multisets without inventing draw order. Visible persistent player/run facts,
+selector pile provenance and materialized Reads remain available. This is not a final
+Standard token/compute freeze or a new live-policy compatibility claim.
 
 ## Data admission and splits
 
