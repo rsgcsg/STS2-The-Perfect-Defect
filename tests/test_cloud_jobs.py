@@ -146,3 +146,62 @@ def test_candidate_reporter_rejects_foreign_run_and_tampered_receipt(tmp_path: P
     store.publish(bad)
     with pytest.raises(BoundaryError, match="completion_step_mismatch"):
         validate_receipt(store, training, replace(receipt, output_id=bad.artifact_id))
+
+
+def test_receipt_rejects_rehashed_model_weights_and_paused_checkpoint_content(tmp_path: Path):
+    import torch
+    from safetensors.torch import load, save
+
+    store, backend, _, job, feature_request = job_fixture(tmp_path)
+    feature = dispatch(store, feature_request, PRODUCER, backend=backend)
+    pipeline = prepare_feature_run(store, job.artifact_id, feature.output_id, PRODUCER)
+    request = ComputeRequest("training", pipeline.run_id, PRODUCER, "full")
+    receipt = dispatch(store, request, PRODUCER)
+    result = store.get_manifest(receipt.output_id)
+    model = store.get_manifest(result.parent("model"))
+    tensors = load(store.bytes(model.payload("weights")))
+    altered = {key: value + torch.ones_like(value) for key, value in tensors.items()}
+    weights = store.put_bytes("weights", save(altered), "application/x-safetensors")
+    forged_model = replace(model, payloads=(weights,))
+    store.publish(forged_model)
+    forged_result = replace(result, parents=tuple(
+        replace(parent, artifact_id=forged_model.artifact_id) if parent.role == "model" else parent
+        for parent in result.parents
+    ))
+    store.publish(forged_result)
+    with pytest.raises(BoundaryError, match="model_checkpoint_weights_mismatch"):
+        validate_receipt(store, request, replace(receipt, output_id=forged_result.artifact_id))
+
+    paused_request = replace(request, attempt_id="pause", stop_after=1)
+    paused = dispatch(store, paused_request, PRODUCER)
+    checkpoint = store.get_manifest(paused.checkpoint_id)
+    info = checkpoint.parameters.value()
+    info["step"] = 2  # Actual durable checkpoint still contains step 1.
+    forged_checkpoint = replace(checkpoint, parameters=FrozenObject.of(info))
+    store.publish(forged_checkpoint)
+    with pytest.raises(BoundaryError, match="checkpoint_content_mismatch"):
+        validate_receipt(
+            store, paused_request, replace(paused, checkpoint_id=forged_checkpoint.artifact_id)
+        )
+
+
+def test_paused_checkpoint_cannot_forge_a_self_consistent_different_training_plan(tmp_path: Path):
+    from stpd.workers.checkpoint_codec import decode_checkpoint, encode_checkpoint
+
+    store, backend, _, job, features_request = job_fixture(tmp_path)
+    feature = dispatch(store, features_request, PRODUCER, backend=backend)
+    pipeline = prepare_feature_run(store, job.artifact_id, feature.output_id, PRODUCER)
+    request = ComputeRequest("training", pipeline.run_id, PRODUCER, "pause", stop_after=1)
+    paused = dispatch(store, request, PRODUCER)
+    checkpoint = store.get_manifest(paused.checkpoint_id)
+    state = decode_checkpoint(store.bytes(checkpoint.payload("checkpoint")))
+    info = checkpoint.parameters.value()
+    state["data_identity"] = info["data_identity"] = "f" * 64
+    state["total_steps"] = info["total_steps"] = 999
+    forged_payload = store.put_bytes(
+        "checkpoint", encode_checkpoint(state), "application/vnd.stpd.tensor-tree"
+    )
+    forged = replace(checkpoint, payloads=(forged_payload,), parameters=FrozenObject.of(info))
+    store.publish(forged)
+    with pytest.raises(BoundaryError, match="checkpoint_content_mismatch"):
+        validate_receipt(store, request, replace(paused, checkpoint_id=forged.artifact_id))

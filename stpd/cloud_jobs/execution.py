@@ -9,9 +9,17 @@ from ..artifact_contracts import Manifest, Producer
 from ..contracts import QwenBackend
 from ..fullrun.evaluation import load_evaluation
 from ..fullrun.features import compile_features, load_features
-from ..json_boundary import BoundaryError, FrozenObject
+from ..json_boundary import BoundaryError, FrozenObject, unsigned
 from ..storage.store import ArtifactStore
-from ..workers.contracts import load_training_input, prepare_run, prepare_training_input
+from ..workers.checkpoint_codec import MAX_BYTES, decode_checkpoint
+from ..workers.contracts import (
+    RUN_SCHEMA,
+    TrainingConfig,
+    load_training_input,
+    prepare_run,
+    prepare_training_input,
+)
+from ..workers.ranking import TrainingPlan, make_training_plan
 from ..workers.worker import CHECKPOINT_SCHEMA, MODEL_SCHEMA, execute
 from .contracts import ComputeReceipt, ComputeRequest, load_feature_job
 
@@ -161,7 +169,8 @@ def dispatch(
 
 
 def _checkpoint(
-    store: ArtifactStore, checkpoint_id: str, run_id: str, training_id: str, runtime: Producer
+    store: ArtifactStore, checkpoint_id: str, run_id: str, training_id: str, runtime: Producer,
+    config: TrainingConfig, plan: TrainingPlan,
 ) -> Manifest:
     checkpoint = store.get_manifest(checkpoint_id)
     if (
@@ -173,8 +182,22 @@ def _checkpoint(
         or {p.role for p in checkpoint.payloads} != {"checkpoint"}
     ):
         raise BoundaryError("compute_receipt", "checkpoint_binding_mismatch")
-    for _ in store.read_payload(checkpoint.payload("checkpoint")):
-        pass
+    if checkpoint.payload("checkpoint").size > MAX_BYTES:
+        raise BoundaryError("compute_receipt", "checkpoint_size_limit")
+    state = decode_checkpoint(b"".join(store.read_payload(checkpoint.payload("checkpoint"))))
+    info = checkpoint.parameters.value()
+    step = unsigned(info.get("step"), "compute_receipt.checkpoint_step")
+    total = unsigned(info.get("total_steps"), "compute_receipt.checkpoint_total")
+    if (
+        total != plan.total_steps or step > total
+        or info.get("data_identity") != plan.data_identity
+        or state.get("schema") != CHECKPOINT_SCHEMA
+        or state.get("config") != config.to_dict() or state.get("step") != step
+        or state.get("total_steps") != total
+        or state.get("data_identity") != info.get("data_identity")
+        or not isinstance(state.get("head"), dict)
+    ):
+        raise BoundaryError("compute_receipt", "checkpoint_content_mismatch")
     return checkpoint
 
 
@@ -194,13 +217,27 @@ def validate_receipt(
         validate_feature_output(store, request.input_id, receipt.output_id, runtime)
         return
     run = store.get_manifest(request.input_id)
-    if run.kind != "run" or run.producer != runtime:
+    if (
+        run.kind != "run" or run.producer != runtime
+        or run.parameters.value().get("schema") != RUN_SCHEMA
+        or sorted(p.role for p in run.parents) != ["experiment", "training_input"]
+    ):
         raise BoundaryError("compute_receipt", "run_identity_mismatch")
     training, config, features = load_training_input(
         store, run.parent("training_input"), runtime
     )
+    plan = make_training_plan(features, config)
+    experiment = store.get_manifest(run.parent("experiment"))
+    if (
+        experiment.kind != "experiment" or experiment.producer != runtime
+        or experiment.parent("training_input") != training.artifact_id
+    ):
+        raise BoundaryError("compute_receipt", "experiment_input_mismatch")
     if receipt.checkpoint_id is not None:
-        _checkpoint(store, receipt.checkpoint_id, run.artifact_id, training.artifact_id, runtime)
+        _checkpoint(
+            store, receipt.checkpoint_id, run.artifact_id, training.artifact_id,
+            runtime, config, plan,
+        )
     if receipt.state == "paused":
         return
     if receipt.output_id is None:
@@ -230,13 +267,15 @@ def validate_receipt(
         or model.parent("model_view") != features.view.artifact_id
         or info.get("qwen") != training.parameters.value()["qwen"]
         or info.get("serializer") != training.parameters.value()["serializer"]
+        or info.get("scope") != training.parameters.value()["scope"]
         or info.get("head") != config.head or info.get("dtype") != config.dtype
         or info.get("hidden_size") != features.matrix.shape[1]
         or {p.role for p in model.payloads} != {"weights"}
     ):
         raise BoundaryError("compute_receipt", "model_binding_mismatch")
     saved = _checkpoint(
-        store, model.parent("checkpoint"), run.artifact_id, training.artifact_id, runtime
+        store, model.parent("checkpoint"), run.artifact_id, training.artifact_id,
+        runtime, config, plan,
     )
     details = saved.parameters.value()
     if (
@@ -246,8 +285,26 @@ def validate_receipt(
         or (receipt.checkpoint_id is not None and receipt.checkpoint_id != saved.artifact_id)
     ):
         raise BoundaryError("compute_receipt", "completion_step_mismatch")
-    for _ in store.read_payload(model.payload("weights")):
-        pass
+    if model.payload("weights").size > MAX_BYTES:
+        raise BoundaryError("compute_receipt", "model_size_limit")
+    from ..workers.ranking import load_head
+
+    # Loading and exact tensor comparison on CPU does not replay GPU training or
+    # change the frozen training config stored in the checkpoint.
+    loaded = load_head(
+        b"".join(store.read_payload(model.payload("weights"))),
+        features.matrix.shape[1], replace(config, device="cpu"),
+    )
+    saved_state = decode_checkpoint(b"".join(store.read_payload(saved.payload("checkpoint"))))
+    import torch
+
+    model_state = loaded.state_dict()
+    if set(model_state) != set(saved_state["head"]) or any(
+        not isinstance(saved_state["head"][key], torch.Tensor)
+        or not torch.equal(value, saved_state["head"][key])
+        for key, value in model_state.items()
+    ):
+        raise BoundaryError("compute_receipt", "model_checkpoint_weights_mismatch")
     for role, baseline in (
         ("offline_evaluation", "model"), ("baseline_uniform_legal", "uniform_legal"),
         ("baseline_action_only", "action_only"),

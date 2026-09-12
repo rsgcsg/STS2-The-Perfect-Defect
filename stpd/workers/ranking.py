@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any, cast
 
 import numpy as np
@@ -26,39 +27,61 @@ def new_head(hidden_size: int, kind: str, seed: int, device: str = "cpu") -> nn.
     return head.to(device=device, dtype=torch.float32)
 
 
+@dataclass(frozen=True)
+class TrainingPlan:
+    train_indices: tuple[int, ...]
+    total_steps: int
+    plan: tuple[int, ...]
+    labels: tuple[tuple[int, int], ...]
+    data_identity: str
+
+
+def make_training_plan(features: LoadedFeatures, config: TrainingConfig) -> TrainingPlan:
+    """One deterministic plan owner, also usable for CPU-side checkpoint admission."""
+    train_indices = tuple(
+        index for index, sample in enumerate(features.samples) if sample.split == "train"
+    )
+    if not train_indices:
+        raise BoundaryError("training", "empty_training_split")
+    total_steps = config.max_steps or config.epochs * len(train_indices)
+    if total_steps > config.epochs * len(train_indices):
+        raise BoundaryError("training", "step_budget_exceeds_epoch_plan")
+    plan = []
+    for epoch in range(config.epochs):
+        indices = list(train_indices)
+        random.Random(f"stpd-train-v1:{config.seed}:{epoch}").shuffle(indices)
+        plan.extend(indices)
+    labels = {index: features.samples[index].chosen_index for index in train_indices}
+    if config.label_control == "permuted":
+        buckets: dict[int, list[int]] = defaultdict(list)
+        for index in train_indices:
+            buckets[len(features.rows[index])].append(index)
+        for count, indices in sorted(buckets.items()):
+            values = [labels[index] for index in indices]
+            random.Random(f"stpd-label-v1:{config.seed}:{count}").shuffle(values)
+            labels.update(zip(indices, values, strict=True))
+    data_identity = semantic_hash(
+        {
+            "feature_set": features.manifest.artifact_id,
+            "plan": plan[: total_steps],
+            "labels": [[index, label] for index, label in sorted(labels.items())],
+        }
+    )
+    return TrainingPlan(
+        train_indices, total_steps, tuple(plan), tuple(sorted(labels.items())), data_identity
+    )
+
+
 class RankingEngine:
     def __init__(self, features: LoadedFeatures, config: TrainingConfig) -> None:
         self.config = config
         self.features = features
-        self.train_indices = tuple(
-            index for index, sample in enumerate(features.samples) if sample.split == "train"
-        )
-        if not self.train_indices:
-            raise BoundaryError("training", "empty_training_split")
-        self.total_steps = config.max_steps or config.epochs * len(self.train_indices)
-        if self.total_steps > config.epochs * len(self.train_indices):
-            raise BoundaryError("training", "step_budget_exceeds_epoch_plan")
-        self.plan = []
-        for epoch in range(config.epochs):
-            indices = list(self.train_indices)
-            random.Random(f"stpd-train-v1:{config.seed}:{epoch}").shuffle(indices)
-            self.plan.extend(indices)
-        self.labels = {index: features.samples[index].chosen_index for index in self.train_indices}
-        if config.label_control == "permuted":
-            buckets: dict[int, list[int]] = defaultdict(list)
-            for index in self.train_indices:
-                buckets[len(features.rows[index])].append(index)
-            for count, indices in sorted(buckets.items()):
-                values = [self.labels[index] for index in indices]
-                random.Random(f"stpd-label-v1:{config.seed}:{count}").shuffle(values)
-                self.labels.update(zip(indices, values, strict=True))
-        self.data_identity = semantic_hash(
-            {
-                "feature_set": features.manifest.artifact_id,
-                "plan": self.plan[: self.total_steps],
-                "labels": [[index, label] for index, label in sorted(self.labels.items())],
-            }
-        )
+        prepared = make_training_plan(features, config)
+        self.train_indices = prepared.train_indices
+        self.total_steps = prepared.total_steps
+        self.plan = list(prepared.plan)
+        self.labels = dict(prepared.labels)
+        self.data_identity = prepared.data_identity
         self.matrix = torch.tensor(
             np.array(features.matrix, copy=True),
             dtype=torch.float32,
