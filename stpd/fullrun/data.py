@@ -184,7 +184,12 @@ def admit(projections: tuple[SourceProjection, ...], *, seed: int = 0) -> Admitt
 
 
 def publish_source(
-    store: ArtifactStore, raw: bytes, adapter: SourceAdapter, producer: Producer
+    store: ArtifactStore,
+    raw: bytes,
+    adapter: SourceAdapter,
+    producer: Producer,
+    *,
+    parents: tuple[Parent, ...] = (),
 ) -> tuple[Manifest, SourceProjection]:
     projection = adapter.project(raw)
     if hashlib.sha256(raw).hexdigest() != projection.source_sha256:
@@ -199,6 +204,7 @@ def publish_source(
     manifest = Manifest(
         "evidence",
         producer,
+        parents=parents,
         payloads=(payload,),
         parameters=FrozenObject.of(
             {
@@ -217,6 +223,35 @@ def publish_source(
     )
     store.publish(manifest)
     return manifest, projection
+
+
+def publish_received_source(
+    store: ArtifactStore, received_id: str, producer: Producer
+) -> tuple[Manifest, SourceProjection]:
+    """Promote received bytes to a verified research source, not Dataset admission.
+
+    Preserve the Hub receipt/transport lineage as a parent. Independently rerun the
+    pinned source verifier rather than trusting the Hub's disposition or metadata.
+    """
+    from .platform_bundle3 import MAX_BYTES, PlatformBundle3SourceAdapter
+
+    received = store.get_manifest(received_id)
+    if (
+        received.kind != "evidence"
+        or received.parameters.value().get("schema") != "stpd/received-bundle-v1"
+    ):
+        raise BoundaryError("received_source", "unsupported_received_bundle")
+    payload = received.payload("archive")
+    if payload.size > MAX_BYTES:
+        raise BoundaryError("received_source", "source_bundle_size_limit")
+    raw = b"".join(store.read_payload(payload))
+    return publish_source(
+        store,
+        raw,
+        PlatformBundle3SourceAdapter(),
+        producer,
+        parents=(Parent("received", received_id),),
+    )
 
 
 def _projections_from_manifests(

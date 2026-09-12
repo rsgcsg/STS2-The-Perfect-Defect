@@ -196,3 +196,10 @@ helper; it neither modifies source bytes nor attests Human origin. `publish_sour
 `admit`, `publish_dataset` and `load_dataset` preserve and reverify the source projection.
 Verified evidence is not automatic research admission; independent whole-run components,
 no real lost decisions and source-bound records remain required.
+
+
+`publish_received_source(store, received_evidence_id, producer)` consumes a Hub
+`stpd/received-bundle-v1` artifact's exact tar.gz `archive` payload. It reruns the pinned
+verifier independently, publishes a source projection with a `received` parent, and returns
+the source manifest/projection for `admit` and `publish_dataset`. The transport parent retains
+receipt lineage; it does not become research admission authority.

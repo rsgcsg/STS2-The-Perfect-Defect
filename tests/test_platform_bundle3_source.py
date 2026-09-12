@@ -274,3 +274,28 @@ def test_unordered_pile_cards_and_runtime_ids_do_not_enter_model_order() -> None
         "cards": [{"entity_id": "new-a", "name": "A"}, {"entity_id": "new-b", "name": "B"}],
     }
     assert _SemanticProjection([left]).clean(left) == _SemanticProjection([right]).clean(right)
+
+
+def test_received_bundle_keeps_transport_parent_and_reverifies_bytes(tmp_path: Path) -> None:
+    from test_artifact_store_v1 import PRODUCER, store
+
+    from stpd.artifact_contracts import Manifest
+    from stpd.fullrun.data import publish_received_source
+    from stpd.json_boundary import FrozenObject
+
+    target = store(tmp_path / "store")
+    content = archive_bundle(bundle3(tmp_path))
+    payload = target.put_payload("archive", io.BytesIO(content), "application/gzip")
+    received = Manifest(
+        "evidence",
+        PRODUCER,
+        payloads=(payload,),
+        parameters=FrozenObject.of({"schema": "stpd/received-bundle-v1"}),
+    )
+    target.publish(received)
+    source, projected = publish_received_source(target, received.artifact_id, PRODUCER)
+    assert source.parent("received") == received.artifact_id
+    assert source.payload("source").sha256 == payload.sha256
+    dataset = admit((projected,))
+    result = publish_dataset(target, dataset, (source,), PRODUCER)
+    assert load_dataset(target, result.artifact_id)[1] == dataset

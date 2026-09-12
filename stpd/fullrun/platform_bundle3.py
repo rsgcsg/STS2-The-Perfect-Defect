@@ -29,7 +29,7 @@ from .contracts import (
     SourceProjection,
 )
 
-PLATFORM_REVISION = "a43e0cc8095107291e2b3ac2882faa7b7e9cc70e"
+PLATFORM_REVISION = "6fb6afc9c7abb8a4d34d18d16de4f19f48bd608d"
 ADAPTER_ID = "stpd-platform-bundle3-adapter-v1@" + PLATFORM_REVISION
 MAX_BYTES = 256 * 1024 * 1024
 MAX_FILES = 20000
