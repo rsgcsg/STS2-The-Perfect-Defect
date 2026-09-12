@@ -207,15 +207,21 @@ class Application:
         self.delivery_log: Any = None
         self.hub = HubClient(config.hub_url, timeout=2) if config.hub_url else None
 
+    @staticmethod
+    def delivery_environment() -> dict[str, str]:
+        environment = dict(os.environ)
+        for name in ("STPD_HUB_ADMIN_TOKEN", "PYTHONPATH", "PYTHONHOME"):
+            environment.pop(name, None)
+        return environment
+
     def start_delivery(self) -> None:
         if self.config.delivery_config is None:
             return
         self.delivery_log = (self.config.state_dir / "logs" / "delivery.log").open("ab")
-        environment = dict(os.environ)
-        environment.pop("STPD_HUB_ADMIN_TOKEN", None)
         self.delivery = subprocess.Popen(
             [
                 sys.executable,
+                "-I",
                 "-m",
                 "sts2_platform_evidence.delivery_cli",
                 "run",
@@ -225,8 +231,8 @@ class Application:
             stdin=subprocess.DEVNULL,
             stdout=self.delivery_log,
             stderr=subprocess.STDOUT,
-            cwd=ROOT,
-            env=environment,
+            cwd=self.config.state_dir,
+            env=self.delivery_environment(),
         )
 
     def delivery_status(self) -> dict[str, Any]:
@@ -241,13 +247,15 @@ class Application:
             observed = subprocess.run(
                 [
                     sys.executable,
+                    "-I",
                     "-m",
                     "sts2_platform_evidence.delivery_cli",
                     "status",
                     "--config",
                     str(self.config.delivery_config),
                 ],
-                cwd=ROOT,
+                cwd=self.config.state_dir,
+                env=self.delivery_environment(),
                 capture_output=True,
                 timeout=3,
                 check=False,

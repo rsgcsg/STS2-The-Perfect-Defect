@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import importlib.machinery
 import importlib.metadata
 import importlib.util
 import json
@@ -214,6 +215,48 @@ def tool_identity() -> dict[str, Any]:
     return result
 
 
+def _evidence_imports(recorded: set[Path], package: Path) -> tuple[bool, bool]:
+    """Inspect origins without importing a possibly shadowed package initializer."""
+    name = "sts2_platform_evidence"
+    initializer = package / "__init__.py"
+
+    def matches(spec: importlib.machinery.ModuleSpec | None, path: Path) -> bool:
+        return bool(spec and spec.origin and Path(spec.origin).resolve() == path)
+
+    # Inspect both the current process and a fresh lookup: an already imported
+    # package must not conceal a later PYTHONPATH/cwd shadow from doctor.
+    fresh = importlib.machinery.PathFinder.find_spec(name)
+    current = importlib.util.find_spec(name)
+    if initializer not in recorded or any(
+        not matches(spec, initializer)
+        or spec is None
+        or spec.submodule_search_locations is None
+        or [Path(p).resolve() for p in spec.submodule_search_locations] != [package]
+        for spec in (fresh, current)
+    ):
+        return False, False
+    loaded = sys.modules.get(name)
+    if loaded is not None and (
+        Path(getattr(loaded, "__file__", "")).resolve() != initializer
+        or [Path(p).resolve() for p in getattr(loaded, "__path__", ())] != [package]
+    ):
+        return False, False
+
+    entry_name = name + ".delivery_cli"
+    entry = package / "delivery_cli.py"
+    spec = importlib.machinery.PathFinder.find_spec(entry_name, [str(package)])
+    loaded_entry = sys.modules.get(entry_name)
+    if loaded_entry is not None and (
+        not matches(getattr(loaded_entry, "__spec__", None), entry)
+        or Path(getattr(loaded_entry, "__file__", "")).resolve() != entry
+    ):
+        return False, False
+    if spec is None:
+        return True, False  # Historical public versions can omit the delivery tool.
+    verified_entry = entry in recorded and matches(spec, entry)
+    return verified_entry, verified_entry
+
+
 def evidence_identity(expected: str) -> dict[str, Any]:
     try:
         distribution = importlib.metadata.distribution("rsgcsg-sts2-platform-evidence")
@@ -226,6 +269,7 @@ def evidence_identity(expected: str) -> dict[str, Any]:
         )
         files = distribution.files
         content = hashlib.sha256()
+        recorded: set[Path] = set()
         verified = 0
         if matched and files:
             for entry in sorted(files, key=str):
@@ -240,14 +284,22 @@ def evidence_identity(expected: str) -> dict[str, Any]:
                 if encoded != entry.hash.value:
                     return {"status": "INSTALLED_BYTES_MISMATCH"}
                 content.update(str(entry).encode() + b"\0" + actual_hash)
+                recorded.add(path.resolve())
                 verified += 1
+        imports_match, delivery_verified = False, False
+        if matched and verified:
+            package = Path(str(distribution.locate_file("sts2_platform_evidence"))).resolve()
+            imports_match, delivery_verified = _evidence_imports(recorded, package)
         return {
-            "status": "PASS" if matched and verified else "PIN_MISMATCH",
+            "status": ("PASS" if imports_match else "IMPORT_ORIGIN_MISMATCH")
+            if matched and verified
+            else "PIN_MISMATCH",
             "source_revision": actual,
             "version": distribution.version,
             "installed_record_sha256": content.hexdigest() if verified else None,
+            "delivery_entrypoint_verified": delivery_verified,
         }
-    except (importlib.metadata.PackageNotFoundError, OSError, ValueError, TypeError):
+    except (importlib.metadata.PackageNotFoundError, ImportError, OSError, ValueError, TypeError):
         return {"status": "NOT_INSTALLED"}
 
 
@@ -292,11 +344,8 @@ def doctor(config: ProjectConfig) -> dict[str, Any]:
         checks["delivery_config"] = {
             "status": "PASS" if config.delivery_config.is_file() else "NOT_FOUND"
         }
-        try:
-            installed = importlib.util.find_spec("sts2_platform_evidence.delivery_cli") is not None
-        except (ImportError, ValueError):
-            installed = False
-        checks["delivery_tool"] = {"status": "PASS" if installed else "NOT_INSTALLED"}
+        verified = checks["evidence"].get("delivery_entrypoint_verified", False)
+        checks["delivery_tool"] = {"status": "PASS" if verified else "NOT_VERIFIED"}
         if config.delivery_config.is_file():
             value = decode_json(config.delivery_config.read_bytes())
             same_hub = isinstance(value, dict) and endpoint(value.get("hub_url")) == config.hub_url
