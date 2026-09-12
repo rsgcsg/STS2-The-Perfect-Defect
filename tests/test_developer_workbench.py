@@ -563,3 +563,21 @@ def test_projection_public_exports_remain_available():
     from stpd.workbench.dashboard import render_html as renderer
 
     assert analyze is analysis and project is projection and render_html is renderer
+
+
+def test_invalid_owner_config_does_not_invent_endpoint_mismatch(project, tmp_path, monkeypatch):
+    _, initial = project
+    delivery = tmp_path / "delivery.json"
+    delivery.write_text("{}")
+    config = ProjectConfig(initial.state_dir, "https://hub.example", "", delivery,
+                           initial.combination)
+    monkeypatch.setattr("stpd.workbench.developer.dependency_checks", lambda _: {
+        "evidence": {"status": "PASS", "delivery_entrypoint_verified": True}})
+    monkeypatch.setattr("stpd.workbench.developer.tool_identity", lambda: {})
+    result = {"schema": "sts2.evidence/delivery-doctor-1", "status": "BLOCKED",
+              "checks": {"configuration": {"status": "INVALID"}}}
+    monkeypatch.setattr("stpd.workbench.developer.subprocess.run", lambda *a, **k:
+                        subprocess.CompletedProcess([], 1, json.dumps(result).encode(), b""))
+    report = doctor(config)
+    assert report["status"] == "BLOCKED"
+    assert report["checks"]["delivery_hub"]["status"] == "NOT_CHECKED"

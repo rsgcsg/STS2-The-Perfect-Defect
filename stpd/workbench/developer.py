@@ -383,10 +383,10 @@ def doctor(config: ProjectConfig) -> dict[str, Any]:
                     "owner_checks": observed["checks"],
                     "discovered_sessions": observed.get("discovered_sessions"),
                 }
+                owner_hub = observed.get("hub_url")
                 checks["delivery_hub"] = {
-                    "status": "PASS"
-                    if observed.get("hub_url") == config.hub_url
-                    else "ENDPOINT_MISMATCH"
+                    "status": ("NOT_CHECKED" if owner_hub is None else
+                               "PASS" if owner_hub == config.hub_url else "ENDPOINT_MISMATCH")
                 }
             except (OSError, ValueError, BoundaryError, subprocess.SubprocessError):
                 checks["delivery_preflight"] = {"status": "UNAVAILABLE"}
