@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from stpd.artifact_contracts import Producer
+from stpd.artifact_contracts import Manifest, Producer
 from stpd.hub.application import HubApplication
 from stpd.hub.database import Operations
 from stpd.hub.uploads import LocalStaging, UploadService
@@ -109,8 +109,13 @@ def test_http_device_isolation_no_admin_or_payload_access(tmp_path: Path) -> Non
         )
         return statuses[0], json.loads(output)
 
-    assert call("/v1/jobs", "a" * 32)[0] == "401 Unauthorized"
-    assert call("/v1/artifacts/" + "d" * 64, "a" * 32)[0] == "401 Unauthorized"
+    assert call("/v1/jobs", "a" * 32) == ("200 OK", {"items": []})
+    private = Manifest("dataset", service.producer)
+    service.store.publish(private)
+    assert call("/v1/artifacts/" + private.artifact_id, "a" * 32)[0] == "401 Unauthorized"
+    shared = Manifest("model", service.producer)
+    service.store.publish(shared)
+    assert call("/v1/artifacts/" + shared.artifact_id, "a" * 32)[0] == "200 OK"
     row = ops.create_upload("one", "a" * 64, "b" * 64, {})
     assert call("/v1/uploads/" + row["id"], "b" * 32)[0] == "409 Conflict"
     assert call("/v1/uploads", "b" * 32)[1] == {"items": []}

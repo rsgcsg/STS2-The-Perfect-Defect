@@ -1,21 +1,20 @@
 # Current Context
 
-The Pre-Full-Run Local-First system converges through PR #7 onto develop. Read
-PREFULLRUN_AI_CLOSEOUT and PREFULLRUN_HUMAN_HANDOFF. Exact final source/develop SHAs, PR
-classification, portable jobs, clean CPU E2E and readiness receipt are bound to the final
-commit by the pushed refs/notes/stpd-prefullrun Git note. Re-resolve remote refs and verify
-that receipt; a missing or stale note is not a pass.
+B pipeline work adds a version-pinned Platform bundle3 adapter, developer entry, durable Hub
+and one disposable Modal provider to the merged Pre-Full-Run Local-First system. Read
+CLOUD_PIPELINE_B, CLOUD_PIPELINE_B_PLAN and ADR-0004; re-resolve exact remote refs and receipts.
+Never infer a live cloud service or real GPU PASS from implementation or portable tests.
 
-Architecture: separately versioned ResearchTransitionV1; thin synthetic adapter until final
-Platform bytes; whole-run/component admission and splits; provisional ModelView; frozen
-FeatureSet/TrainingInput; shared Linear/MLP scorer; disposable worker/checkpoint/resume;
-immutable ArtifactStore/RunReporter; rebuildable Registry; DuckDB/static local dashboard;
-Gold collection/sealed isolation and E0-E7 engineering configuration.
+Platform owns Close/native recording/immutable delivery verification; STPD owns admission,
+Dataset/model views/features/training/evaluation. Preserve H != S, execution A_sem(S), exact
+occurrence/parent/root lineage and separate Commit/successor. V1 research archives retain
+original identity; V2 is the new bundle3 projection, not a silent historical upgrade.
 
-Platform owns S/A_sem/Commit/causal successor/Human correlation. Preserve H != S and
-A_public != A_sem(S). Remaining external gates: final Platform bundle/schema, real object-store
-and GPU accounts, Human Gold and real STS2/scientific execution. No scientific promotion from
-engineering evidence; historical combat-v0/H1/S1 retain their original scope.
+ArtifactStore is immutable. Registry is rebuildable. Hub operations.sqlite owns credentials,
+uploads, attempts/fences, budget reservations and result selection; back it up consistently,
+restore paused and reconcile remote work. Unknown submit/expired lease never means stopped.
 
-Use tools/project.py check/closeout and tools/qualify_prefullrun.py --ci-run <exact-run>.
-No permanent server or provider-specific training code is required.
+Use tools/project.py check/closeout, including both clean-source CPU E2Es. Actual R2/OCI/Modal,
+sufficient independent real run components and model/runtime qualification remain distinct
+external gates. No new Full-Run model, Mac backend, cloud game, inference service or RL is
+implemented by this pipeline work. Historical combat-v0/H1/S1/Gold evidence keeps its scope.

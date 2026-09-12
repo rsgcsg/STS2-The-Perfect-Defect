@@ -104,3 +104,87 @@ def test_noninteger_budget_and_time_rejected(tmp_path: Path, bad: object) -> Non
     with pytest.raises(BoundaryError):
         ops.enqueue("training", "a" * 64, "job", max_seconds=bad, reserved_units=1, budget_limit=1)  # type: ignore[arg-type]
     assert ops.jobs() == []
+
+
+def test_expanded_headers_and_corrupt_gzip_are_quarantined(tmp_path: Path) -> None:
+    import gzip
+
+    service, intent, _ = fixture(tmp_path)
+    # gzip header is valid, tar long-header data exceeds the whole expanded budget.
+    data = gzip.compress(b"x" * 8192)
+    intent.update(archive_sha256=hashlib.sha256(data).hexdigest(), archive_bytes=len(data))
+    identity = service.intent("device", intent)["upload_id"]
+    assert isinstance(service.staging, LocalStaging)
+    service.staging.write(identity, io.BytesIO(data), len(data))
+    service.operations.request_verification(identity)
+    with patch("stpd.hub.uploads.MAX_EXPANDED", 4096):
+        service.verify_pending()
+    row = service.operations.upload(identity)
+    assert row["status"] == "quarantined"
+    assert "expanded_stream_size_limit" in row["receipt"]
+
+
+def test_verified_source_pipeline_and_true_platform_client_wait(tmp_path: Path) -> None:
+    import json
+    import threading
+    from wsgiref.simple_server import WSGIRequestHandler, make_server
+
+    from platform_bundle3_fixture import bundle3
+    from sts2_platform_evidence.delivery_http import HubTransport
+
+    from stpd.hub.application import HubApplication
+    from stpd.hub.pipeline import build_dataset
+
+    class Quiet(WSGIRequestHandler):
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    service, _, _ = fixture(tmp_path)
+    token = "collector" * 8
+    service.operations.register("device", token)
+    app = HubApplication(service, "admin" * 8)
+    server = make_server("127.0.0.1", 0, app, handler_class=Quiet)
+    url = f"http://127.0.0.1:{server.server_port}"
+    assert isinstance(service.staging, LocalStaging)
+    service.staging.public_url = url
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        bundle = bundle3(tmp_path / "bundle-fixture")
+        from sts2_platform_evidence import verify_human_session_bundle
+
+        identity = verify_human_session_bundle(bundle).require_value().bundle_content_id
+        transfer = DirectoryTransferManifest.from_directory(
+            bundle, content_id=identity, artifact_type="human-session-bundle"
+        )
+        client = HubTransport(
+            url,
+            token,
+            tmp_path / "archives",
+            allowed_upload_hosts=["127.0.0.1"],
+            allow_loopback_http=True,
+        )
+        with pytest.raises(TimeoutError):
+            client(bundle, transfer, {})
+        with pytest.raises(TimeoutError):
+            client(bundle, transfer, {})
+        assert len(service.operations.uploads()) == 1
+        assert len(list(service.staging.root.iterdir())) == 1
+        assert service.verify_pending() == 1
+        receipt = client(bundle, transfer, {})
+        assert receipt["status"] == "verified"
+        recovered = HubTransport(
+            url,
+            token,
+            tmp_path / "replacement-archives",
+            allowed_upload_hosts=["127.0.0.1"],
+            allow_loopback_http=True,
+        )
+        assert recovered(bundle, transfer, {}) == receipt
+        result = build_dataset(service.store, (receipt["evidence_id"],), service.producer)
+        assert result["records"] == 6 and len(result["splits"]) == 3
+        assert json.loads(service.operations.uploads()[0]["receipt"])["verifier"]["version"]
+    finally:
+        server.shutdown()
+        thread.join(5)
+        server.server_close()

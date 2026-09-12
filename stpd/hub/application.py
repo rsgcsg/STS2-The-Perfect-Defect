@@ -12,6 +12,7 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from ..json_boundary import BoundaryError, decode_json, json_bytes
+from ..workbench.hub_client import RESULT_KINDS
 from .database import token_hash
 from .uploads import LocalStaging, UploadService
 
@@ -163,16 +164,40 @@ class HubApplication:
             elif method != "GET" or upload[2] is not None:
                 return self.response({"error": "not_found"}, "404 Not Found")
             return self.response(self.upload_status(row))
-        if not admin:
-            raise BoundaryError("hub", "unauthorized")
+        artifact = re.fullmatch(r"/v1/artifacts/([a-f0-9]{64})(?:/payloads/([a-z0-9_]+))?", path)
+        if artifact and method == "GET":
+            manifest = self.service.store.get_manifest(artifact[1])
+            if not admin and manifest.kind not in RESULT_KINDS:
+                raise BoundaryError("hub", "unauthorized")
+            if artifact[2] is None:
+                return self.response(decode_json(manifest.to_bytes()))
+            return (
+                "200 OK",
+                "application/octet-stream",
+                self.service.store.read_payload(manifest.payload(artifact[2])),
+            )
         if method == "GET" and path == "/v1/jobs":
+            fields = {
+                "id",
+                "kind",
+                "input_id",
+                "status",
+                "max_seconds",
+                "reserved_units",
+                "attempt_id",
+                "provider_ref",
+                "result",
+            }
             return self.response(
                 {
                     "items": [
-                        {k: v for k, v in row.items() if k != "lease_hash"} for row in ops.jobs()
+                        {key: value for key, value in row.items() if key in fields}
+                        for row in ops.jobs()
                     ]
                 }
             )
+        if not admin:
+            raise BoundaryError("hub", "unauthorized")
         if method == "POST" and path == "/v1/jobs":
             body = self.body(env)
             job_id = ops.enqueue(
@@ -199,14 +224,4 @@ class HubApplication:
         if match and method == "POST":
             ops.retry_upload(match[1])
             return self.response({"retry_authorized": True})
-        match = re.fullmatch(r"/v1/artifacts/([a-f0-9]{64})(?:/payloads/([a-z0-9_]+))?", path)
-        if match and method == "GET":
-            manifest = self.service.store.get_manifest(match[1])
-            if match[2] is None:
-                return self.response(decode_json(manifest.to_bytes()))
-            return (
-                "200 OK",
-                "application/octet-stream",
-                self.service.store.read_payload(manifest.payload(match[2])),
-            )
         return self.response({"error": "not_found"}, "404 Not Found")

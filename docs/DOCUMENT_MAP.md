@@ -66,3 +66,9 @@ not copied source trees, shared branches or submodules.
 
 - [Pre-Full-Run AI closeout](PREFULLRUN_AI_CLOSEOUT.md)
 - [Human and external-input handoff](PREFULLRUN_HUMAN_HANDOFF.md)
+
+## Developer cloud B pipeline
+
+- [B operations and external gates](CLOUD_PIPELINE_B.md)
+- [Execution scope and acceptance plan](CLOUD_PIPELINE_B_PLAN.md)
+- [ADR-0004: durable Hub](adr/0004-developer-cloud-hub.md)

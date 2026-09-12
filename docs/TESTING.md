@@ -56,3 +56,8 @@ uv run --locked python -m stpd.workbench readiness --evidence .local/qualificati
 
 The capture tool reads current GitHub CI head/jobs, reruns the full local closeout gate and
 binds both to the same Producer. No manually asserted ancestor pass is sufficient.
+
+The B lane also runs `python -m stpd.cloud_jobs.smoke` in the common gate: independent worker
+processes compile fake features, pause/resume and compare learned weights/dev metrics. True
+Platform-client/Hub HTTP tests cover pending/restart/receipt and Dataset reprojection. This
+is portable engineering evidence; it does not substitute for real R2/GPU/Human qualification.

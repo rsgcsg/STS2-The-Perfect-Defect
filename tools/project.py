@@ -132,6 +132,7 @@ def portable_commands(python: str = sys.executable) -> tuple[tuple[str, ...], ..
         ("npm", "run", "check:connector-sdk"),
         (python, "-m", "pytest", "-q"),
         (python, "-m", "stpd.workbench", "e2e", "--output", ".local/cpu-e2e.json"),
+        (python, "-m", "stpd.cloud_jobs.smoke", "--output", ".local/cloud-worker-cpu.json"),
         (python, "-m", "compileall", "-q", "stpd", "tests", "tools"),
         ("uv", "build"),
         ("git", "diff", "--check"),

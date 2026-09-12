@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import io
 import json
@@ -10,6 +11,8 @@ import tarfile
 import tempfile
 import time
 import uuid
+import zlib
+from importlib.metadata import version
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO, Protocol
 
@@ -128,9 +131,23 @@ def transfer_from_json(value: object) -> DirectoryTransferManifest:
 
 
 def unpack(archive: Path, directory: Path, transfer: DirectoryTransferManifest) -> None:
+    # Bound the entire expanded stream before tarfile can allocate PAX/longname headers.
+    with tempfile.TemporaryFile("w+b") as expanded:
+        with gzip.open(archive, "rb") as source:
+            total = 0
+            while chunk := source.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_EXPANDED:
+                    raise BoundaryError("upload", "expanded_stream_size_limit")
+                expanded.write(chunk)
+        expanded.seek(0)
+        _unpack_tar(expanded, directory, transfer)
+
+
+def _unpack_tar(source_tar: BinaryIO, directory: Path, transfer: DirectoryTransferManifest) -> None:
     expected = {file.path: file for file in transfer.files}
     seen: set[str] = set()
-    with tarfile.open(archive, "r|gz") as stream:
+    with tarfile.open(fileobj=source_tar, mode="r|") as stream:
         for entry in stream:
             name = entry.name
             path = PurePosixPath(name)
@@ -199,9 +216,11 @@ class UploadService:
             "status": row["status"],
         }
 
-    def verify_pending(self) -> int:
+    def verify_pending(self, upload_id: str | None = None) -> int:
         count = 0
         for row in self.operations.uploads():
+            if upload_id is not None and row["id"] != upload_id:
+                continue
             if row["status"] != "verification_pending" or row["retry_at"] > time.time():
                 continue
             try:
@@ -240,7 +259,7 @@ class UploadService:
                         findings.append("platform_verification_failed")
                 elif verification.require_value().bundle_content_id != transfer.content_id:
                     raise BoundaryError("upload", "bundle_content_identity_mismatch")
-            except (ValueError, tarfile.TarError) as error:
+            except (ValueError, tarfile.TarError, gzip.BadGzipFile, EOFError, zlib.error) as error:
                 findings.append(
                     error.code
                     if isinstance(error, BoundaryError)
@@ -253,6 +272,12 @@ class UploadService:
                 "manifest_sha256": transfer.manifest_sha256,
                 "status": "quarantined" if findings else "verified",
                 "findings": findings,
+                "verifier": {
+                    "package": "rsgcsg-sts2-platform-evidence",
+                    "version": version("rsgcsg-sts2-platform-evidence"),
+                    "entrypoint": "verify_human_session_bundle",
+                    "source_lock": self.producer.uv_lock_sha256,
+                },
             }
             with archive.open("rb") as source:
                 raw_payload = self.store.put_payload("archive", source, "application/gzip")

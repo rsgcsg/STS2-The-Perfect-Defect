@@ -6,11 +6,13 @@ import argparse
 import json
 import os
 import threading
+import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from ..json_boundary import BoundaryError
+from ..json_boundary import BoundaryError, decode_json
 from ..workbench.control import open_store, source_identity
 from .application import HubApplication
 from .database import Operations
@@ -55,6 +57,11 @@ def main() -> int:
             "unpause",
             "backup",
             "reconcile",
+            "dataset",
+            "feature-job",
+            "prepare-run",
+            "enqueue",
+            "retry-upload",
         ],
     )
     parser.add_argument("--root", type=Path, default=Path.cwd())
@@ -67,6 +74,19 @@ def main() -> int:
     parser.add_argument("--device")
     parser.add_argument("--backup", type=Path)
     parser.add_argument("--job")
+    parser.add_argument("--upload")
+    parser.add_argument("--received", action="append", default=[])
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--input-id")
+    parser.add_argument("--feature-id")
+    parser.add_argument("--spec", type=Path)
+    parser.add_argument("--kind", choices=["feature", "training"])
+    parser.add_argument("--request-key")
+    parser.add_argument("--max-seconds", type=int, default=300)
+    parser.add_argument("--reserved-units", type=int, default=0)
+    parser.add_argument("--resume")
+    parser.add_argument("--stop-after", type=int)
+    parser.add_argument("--isolated", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--evidence", help="operator-reviewed provider stop evidence reference")
     parser.add_argument(
         "--budget-units",
@@ -76,6 +96,10 @@ def main() -> int:
     )
     args = parser.parse_args()
     try:
+        if args.isolated:
+            from .verification_worker import constrain_worker
+
+            constrain_worker()
         service = configured_service(args)
         ops = service.operations
         if args.command == "register":
@@ -107,7 +131,59 @@ def main() -> int:
             ops.reconcile_stopped(args.job, args.evidence)
             print(json.dumps({"reconciled": args.job}))
         elif args.command == "verify":
-            print(json.dumps({"processed": service.verify_pending()}))
+            print(json.dumps({"processed": service.verify_pending(args.upload)}))
+        elif args.command == "retry-upload":
+            if not args.upload:
+                raise BoundaryError("hub", "upload_required")
+            ops.retry_upload(args.upload)
+            print(json.dumps({"retry_authorized": args.upload}))
+        elif args.command == "dataset":
+            from .pipeline import build_dataset
+
+            print(
+                json.dumps(
+                    build_dataset(
+                        service.store, tuple(args.received), service.producer, seed=args.seed
+                    )
+                )
+            )
+        elif args.command == "feature-job":
+            from ..cloud_jobs.contracts import FeatureJobSpec
+            from .pipeline import prepare_features
+
+            if not args.input_id or not args.spec:
+                raise BoundaryError("hub", "dataset_and_spec_required")
+            spec = FeatureJobSpec.decode(decode_json(args.spec.read_bytes()))
+            print(
+                json.dumps(prepare_features(service.store, args.input_id, spec, service.producer))
+            )
+        elif args.command == "prepare-run":
+            from ..cloud_jobs.execution import prepare_feature_run
+
+            if not args.input_id or not args.feature_id:
+                raise BoundaryError("hub", "feature_job_and_output_required")
+            print(
+                json.dumps(
+                    asdict(
+                        prepare_feature_run(
+                            service.store, args.input_id, args.feature_id, service.producer
+                        )
+                    )
+                )
+            )
+        elif args.command == "enqueue":
+            if not args.kind or not args.input_id or not args.request_key:
+                raise BoundaryError("hub", "job_fields_required")
+            job = ops.enqueue(
+                args.kind,
+                args.input_id,
+                args.request_key,
+                max_seconds=args.max_seconds,
+                reserved_units=args.reserved_units,
+                budget_limit=args.budget_units,
+                options={"resume": args.resume, "stop_after": args.stop_after},
+            )
+            print(json.dumps({"job_id": job}))
         elif args.command == "status":
             print(
                 json.dumps(
@@ -115,7 +191,9 @@ def main() -> int:
                 )
             )
         else:
-            from waitress import serve
+            from waitress import serve  # type: ignore[import-untyped]
+
+            from .verification_worker import run_verifier
 
             secret = os.environ.get("STPD_HUB_ADMIN_TOKEN", "")
             app = HubApplication(service, secret, budget_limit=args.budget_units)
@@ -125,9 +203,36 @@ def main() -> int:
 
             def verifier() -> None:
                 while not shutdown.is_set():
-                    try:
-                        service.verify_pending()
-                    except Exception:
+                    pending = next(
+                        (
+                            row
+                            for row in ops.uploads()
+                            if row["status"] == "verification_pending"
+                            and row["retry_at"] <= time.time()
+                        ),
+                        None,
+                    )
+                    if pending is None:
+                        shutdown.wait(5)
+                        continue
+                    arguments = [
+                        "--root",
+                        str(args.root.resolve()),
+                        "--state",
+                        str(args.state.resolve()),
+                        "--store",
+                        args.store,
+                        "--staging",
+                        args.staging,
+                        "--public-url",
+                        args.public_url,
+                        "--upload",
+                        pending["id"],
+                    ]
+                    if not run_verifier(arguments):
+                        ops.verification_failure(
+                            pending["id"], "verifier_resource_or_process_limit", now=time.time()
+                        )
                         print(
                             json.dumps({"stage": "verification", "state": "retry_pending"}),
                             flush=True,

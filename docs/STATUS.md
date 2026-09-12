@@ -1,5 +1,13 @@
 # Current Status
 
+## Developer B pipeline
+
+The B workstream implements collection delivery, independent bundle3 ingestion/projection,
+a durable CPU Hub, frozen feature jobs, disposable Modal execution and one developer entry.
+[Operations](CLOUD_PIPELINE_B.md) describes exact commands and remaining gates. No real cloud
+service, GPU execution, sufficient real training corpus or new model quality is claimed by
+these source changes. Historical qualification below remains tied to its original refs.
+
 ## Pre-Full-Run engineering closeout
 
 The coherent Local-First implementation is delivered through convergence PR #7. Its exact

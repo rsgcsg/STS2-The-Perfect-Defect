@@ -4,6 +4,9 @@
 
 GitHub owns source. Local tools own control and analysis; generic S3-compatible or local
 ArtifactStore owns immutable artifacts. SQLite Registry is a rebuildable manifest projection.
+The B Hub operations SQLite separately owns mutable upload/attempt/budget state and must be
+backed up; it is never rebuilt from a Registry cache. See [ADR-0004](adr/0004-developer-cloud-hub.md)
+and [B operations](CLOUD_PIPELINE_B.md).
 DuckDB and local static HTML consume projections. Cloud GPU is disposable compute using the
 same Worker contract. Registry/RunReporter may later gain Hub adapters without changing IDs.
 No permanent service or provider-specific training branch is required.
