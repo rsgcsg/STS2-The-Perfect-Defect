@@ -68,6 +68,11 @@ credential, never the admin token. `open` supervises delivery while running. `pr
 background processing; closing a browser tab does not stop the detached processes. Sealed
 items reconcile on the next open.
 
+`project status` reads the current composed delivery/Hub snapshot with a 15-second socket
+timeout, allowing its bounded child queries to finish. The independent local health and stop
+requests retain 2-second timeouts. A failed status read remains an error; it does not retry,
+restart delivery or replace missing observations with cached success.
+
 All active developer identities can read shared result kinds (model, checkpoint, run result,
 offline/live evaluation, performance and analysis) and redacted job status. Uploads and their
 incidents remain device-scoped. Source/Dataset/raw payloads and mutations are admin-only.

@@ -65,13 +65,15 @@ def configuration_id(config: ProjectConfig) -> str:
     return hashlib.sha256(json.dumps(config.to_dict(), sort_keys=True).encode()).hexdigest()
 
 
-def _local_request(url: str, *, token: str | None = None) -> dict[str, Any]:
+def _local_request(
+    url: str, *, token: str | None = None, timeout: float = 2
+) -> dict[str, Any]:
     request = Request(
         url,
         data=b"" if token else None,
         headers={"Authorization": "Bearer " + token} if token else {},
     )
-    with build_opener(ProxyHandler({})).open(request, timeout=2) as response:
+    with build_opener(ProxyHandler({})).open(request, timeout=timeout) as response:
         value: Any = json.loads(response.read(1024 * 1024))
     if not isinstance(value, dict):
         raise BoundaryError("project", "invalid_local_response")
@@ -148,6 +150,15 @@ def stop_project(config: ProjectConfig) -> dict[str, Any]:
     return _local_request(
         f"http://127.0.0.1:{current['port']}/stop", token=current["control_token"]
     )
+
+
+def status_project(config: ProjectConfig) -> dict[str, Any]:
+    current = running(config)
+    if current is None:
+        return {"status": "not_running"}
+    # A snapshot composes a 3-second delivery query and four 2-second Hub reads.
+    # Leave response overhead without extending the independent health/stop requests.
+    return _local_request(f"http://127.0.0.1:{current['port']}/api/status", timeout=15)
 
 
 def _rows(value: Any) -> str:

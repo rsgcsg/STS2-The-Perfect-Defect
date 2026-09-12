@@ -9,7 +9,9 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from pathlib import Path
 from types import ModuleType
 from urllib.error import HTTPError
@@ -40,6 +42,7 @@ from stpd.workbench.developer_server import (
     instance_lock,
     render,
     running,
+    status_project,
     stop_project,
 )
 from stpd.workbench.hub_client import HubClient
@@ -370,6 +373,99 @@ def test_local_server_auth_identity_and_safe_render(project):
     rendered = render({"delivery": {"message": "<script>x</script>", "token": "secret"}}, "")
     assert "<script>" not in rendered and "&lt;script&gt;" in rendered
     assert "secret" not in rendered
+
+
+@pytest.mark.parametrize("malformed", [False, True])
+def test_project_status_cli_reads_composed_response_and_rejects_malformed(
+    project, monkeypatch, malformed
+):
+    path, config = project
+    app = Application(config)
+    snapshot = app.snapshot
+    requests = []
+
+    def observed_snapshot():
+        requests.append("snapshot")
+        if malformed:
+            return []
+        # A normal composed observation can exceed the short local health timeout.
+        time.sleep(2.25)
+        return snapshot()
+
+    monkeypatch.setattr(app, "snapshot", observed_snapshot)
+    server = create_server(app)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    (config.state_dir / "runtime.json").write_text(
+        json.dumps(
+            {
+                "port": server.server_port,
+                "instance_id": app.instance_id,
+                "configuration_id": configuration_id(config),
+                "control_token": app.control_token,
+            }
+        )
+    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "stpd.workbench", "project", "status", "--config", str(path)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        value = json.loads(result.stdout)
+        if malformed:
+            assert result.returncode == 1
+            assert value == {"status": "FAIL", "code": "invalid_local_response"}
+        else:
+            assert result.returncode == 0, result.stdout + result.stderr
+            assert value["schema"] == "stpd/developer-status-v1"
+            assert value["instance_id"] == app.instance_id
+            assert value["delivery"] == {"status": "not_configured"}
+        assert requests == ["snapshot"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+        app.close()
+
+
+def test_status_timeout_does_not_extend_health_stop_or_hide_errors(project, monkeypatch, capsys):
+    path, config = project
+    (config.state_dir / "runtime.json").write_text(
+        json.dumps(
+            {
+                "port": 12345,
+                "instance_id": "test-instance",
+                "configuration_id": configuration_id(config),
+                "control_token": "test-control",
+            }
+        )
+    )
+    requests = []
+
+    class Opener:
+        def open(self, request, *, timeout):
+            requests.append((request.full_url, timeout))
+            if request.full_url.endswith("/api/status"):
+                raise TimeoutError("private diagnostic must not escape")
+            return BytesIO(b'{"instance_id":"test-instance","status":"stopping"}')
+
+    monkeypatch.setattr("stpd.workbench.developer_server.build_opener", lambda *_: Opener())
+    assert main(["project", "status", "--config", str(path)]) == 1
+    assert json.loads(capsys.readouterr().out) == {"status": "FAIL", "code": "TimeoutError"}
+    assert stop_project(config)["status"] == "stopping"
+    assert requests == [
+        ("http://127.0.0.1:12345/health", 2),
+        ("http://127.0.0.1:12345/api/status", 15),
+        ("http://127.0.0.1:12345/health", 2),
+        ("http://127.0.0.1:12345/stop", 2),
+    ]
+    (config.state_dir / "runtime.json").unlink()
+    assert status_project(config) == {"status": "not_running"}
+    assert len(requests) == 4
 
 
 def test_delivery_is_one_owned_public_tool_child(project, tmp_path, monkeypatch):
