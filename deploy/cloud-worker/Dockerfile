@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 RUN pip install --no-cache-dir "uv==$UV_VERSION"
 RUN git clone https://github.com/rsgcsg/STS2-The-Perfect-Defect.git /opt/stpd
 WORKDIR /opt/stpd
-RUN git checkout --detach "$STPD_SOURCE_REVISION" && uv sync --locked --all-extras
+# The clone layer can predate a new approved commit when Docker reuses its cache.
+RUN git fetch origin "$STPD_SOURCE_REVISION" && \
+    git checkout --detach "$STPD_SOURCE_REVISION" && uv sync --locked --all-extras
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PATH="/opt/stpd/.venv/bin:$PATH"
 # Modal uses its own Python runtime for the small wrapper. Model work executes
