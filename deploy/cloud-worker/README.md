@@ -39,6 +39,10 @@ FeatureSet or implicit "latest" checkpoint. Training resumes only an explicit sa
    `uv sync --locked --all-extras`; no local source or credentials are copied into it.
 3. Push the built image and resolve its immutable registry digest. Capture build source,
    base image, uv version, final OCI digest and registry/build receipts separately.
+   The current adapter uses an anonymously pullable image: both the Hub host and Modal
+   must be able to pull that exact digest. This public-code image contains no game files,
+   recordings, weights or credentials. Private-registry authentication is not configured
+   by the adapter and must not be assumed from a local registry login.
 4. Create a `ModalTarget` JSON using the Producer, final image `@sha256:...`, explicit GPU
    (or `none` for CPU), timeout, named storage Secret and optional pre-existing Qwen volume.
    The Secret contains scoped `STPD_S3_*` / `AWS_*` environment settings, and when required

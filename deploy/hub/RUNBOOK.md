@@ -229,7 +229,12 @@ and provider before disabling the optional variables or rolling back.
 ## Restore into paused state
 
 First stop API and proxy so there are no writers. Confirm all remote jobs are stopped or
-explicitly retained as uncertain; stopping Hub does not stop a cloud GPU.
+explicitly retained as uncertain; stopping Hub does not stop a cloud GPU. Restore initially
+in upload-only mode: through the secure operator editor, remove all three optional Modal
+keys from `/etc/stpd/hub-runtime.env` and set `STPD_HUB_BUDGET_UNITS=0` in
+`/etc/stpd/deployment.env` before restarting. The SQLite backup does not contain
+`modal-target.json`; do not boot with a dangling target path or copy a target whose
+source/lock/image differs from the selected recovery image.
 
 ```bash
 dc stop caddy hub
@@ -239,6 +244,8 @@ STPD_RETIRED_STATE="/srv/stpd/hub.before-restore-$(date -u +%Y%m%dT%H%M%SZ)"
 sudo mv /srv/stpd/hub "$STPD_RETIRED_STATE"
 sudo install -d -m 0700 -o 10001 -g 10001 /srv/stpd/hub /srv/stpd/hub/work /srv/stpd/hub/backups
 sudo install -m 0600 -o 10001 -g 10001 "$STPD_RETIRED_STATE/backups/recovery-verified.sqlite" /srv/stpd/hub/operations.sqlite
+sudo python3 deploy/hub/preflight.py --config /etc/stpd/deployment.env --host
+dc config -q
 dc up -d
 hubctl status
 ```
@@ -246,7 +253,9 @@ hubctl status
 The retired directory, including WAL/shm/scratch, remains untouched for audit. Only an API-made
 closed backup goes into the fresh directory; do not carry stale WAL/shm files across. Verify
 private objects, receipts and deployment identity, reconcile remote attempts, then explicitly
-unpause. Perform a full restore rehearsal on an isolated host; do not claim restoration from
+unpause. Re-enable compute only through the scheduler enablement procedure with a reviewed
+target matching the restored image; the API's successful paused start does not restore that
+target or its provider credentials. Perform a full restore rehearsal on an isolated host; do not claim restoration from
 merely observing that a backup file exists.
 
 ## Deploy, rollback and retire

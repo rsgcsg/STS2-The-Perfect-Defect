@@ -34,10 +34,8 @@ def instance_lock(path: Path) -> Iterator[None]:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a+b") as handle:
         handle.seek(0)
-        if not handle.read(1):
-            handle.write(b"0")
-            handle.flush()
-        handle.seek(0)
+        # Windows permits a byte lock beyond EOF; do not read another owner's
+        # locked byte merely to initialize the lock file.
         try:
             if os.name == "nt":
                 msvcrt = importlib.import_module("msvcrt")

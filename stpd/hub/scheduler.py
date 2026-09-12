@@ -60,10 +60,8 @@ class Scheduler:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = path.open("a+b")
         self._lock.seek(0)
-        if not self._lock.read(1):
-            self._lock.write(b"0")
-            self._lock.flush()
-        self._lock.seek(0)
+        # Windows byte locks may extend beyond EOF. Reading or initializing that
+        # byte before acquisition instead fails against a live owner's lock.
         try:
             if os.name == "nt":
                 api = importlib.import_module("msvcrt")

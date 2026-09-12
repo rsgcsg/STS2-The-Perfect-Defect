@@ -77,7 +77,9 @@ Use an exact clean STPD checkout/image. The same locked package supplies Hub and
 one distinct device credential per terminal; tokens can be revoked without deleting evidence.
 See [deployment](../deploy/hub/README.md) for TLS, mounts, limits and recovery.
 
-Common arguments are `--root /opt/stpd --state /var/lib/stpd/hub --store s3 --staging s3`.
+Common arguments are `--root /opt/stpd --state /var/lib/stpd --store s3 --staging s3`,
+matching the deployed Hub's single operations database. Use the runbook's `hubctl` helper
+inside that deployment; a different state directory would address a different database.
 Local development uses a local store and loopback staging instead.
 
 ```bash
