@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
 import preflight
+from test_support import PosixPermissionFixture
 
 
-class PreflightTests(unittest.TestCase):
+class PreflightTests(PosixPermissionFixture):
     def test_configuration_is_read_only_and_never_reports_secret_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -64,13 +67,13 @@ class PreflightTests(unittest.TestCase):
     def test_backup_reader_preserves_bytes_and_rejects_unpaused_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             backup = Path(directory) / "operations.sqlite"
-            with sqlite3.connect(backup) as db:
+            with closing(sqlite3.connect(backup)) as db, db:
                 db.execute("CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)")
                 db.execute("INSERT INTO settings VALUES('paused','1')")
             original = backup.read_bytes()
             self.assertEqual(preflight.check_backup(backup)["restore_mode"], "paused")
             self.assertEqual(backup.read_bytes(), original)
-            with sqlite3.connect(backup) as db:
+            with closing(sqlite3.connect(backup)) as db, db:
                 db.execute("UPDATE settings SET value='0'")
             with self.assertRaisesRegex(preflight.PreflightError, "restore_paused"):
                 preflight.check_backup(backup)
@@ -122,15 +125,22 @@ class PreflightTests(unittest.TestCase):
                     with self.assertRaisesRegex(preflight.PreflightError, "inside_mounted_state"):
                         preflight.check_compute(values, secrets, state, allow_compute=False)
                 secrets["STPD_MODAL_TARGET"] = "/var/lib/stpd/modal-target.json"
-                link = state / "linked.json"
-                link.symlink_to(target)
-                secrets["STPD_MODAL_TARGET"] = "/var/lib/stpd/linked.json"
-                with self.assertRaisesRegex(preflight.PreflightError, "symlinks_forbidden"):
-                    preflight.check_compute(values, secrets, state, allow_compute=False)
-                secrets["STPD_MODAL_TARGET"] = "/var/lib/stpd/modal-target.json"
                 target.write_text(original.decode().replace("a" * 40, "d" * 40))
                 with self.assertRaisesRegex(preflight.PreflightError, "source_lock_image_mismatch"):
                     preflight.check_compute(values, secrets, state, allow_compute=False)
+
+    @unittest.skipIf(os.name == "nt", "Linux symlink guard requires POSIX fixture rights")
+    def test_modal_target_symlinks_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory).resolve()
+            target = state / "real.json"
+            target.write_text("{}")
+            (state / "linked.json").symlink_to(target)
+            values = {"STPD_HUB_BUDGET_UNITS": "0"}
+            secrets = {"STPD_MODAL_TARGET": "/var/lib/stpd/linked.json",
+                       "MODAL_TOKEN_ID": "synthetic", "MODAL_TOKEN_SECRET": "synthetic"}
+            with self.assertRaisesRegex(preflight.PreflightError, "symlinks_forbidden"):
+                preflight.check_compute(values, secrets, state, allow_compute=False)
 
     def test_proxy_preserves_current_32_mib_upload_intent_contract(self) -> None:
         config = (Path(__file__).parent / "Caddyfile").read_text()
