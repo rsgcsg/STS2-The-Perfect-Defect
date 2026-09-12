@@ -15,7 +15,7 @@ or explicitly non-stable candidates; never use floating branches or sibling impo
 
 ## Read and work order
 
-Read README, docs/DOCUMENT_MAP.md, docs/STATUS.md, docs/memory/CURRENT.md and DECISIONS.md,
+Read README, docs/DOCUMENT_MAP.md, docs/STATUS.md, docs/memory/CURRENT.md and docs/memory/DECISIONS.md,
 then the owning canonical documents, exact source, and tests. Read
 [Development Workflow](docs/DEVELOPMENT_WORKFLOW.md) and
 [Engineering Governance](docs/ENGINEERING_GOVERNANCE.md) before editing.

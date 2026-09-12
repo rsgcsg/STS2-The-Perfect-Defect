@@ -69,6 +69,8 @@ not copied source trees, shared branches or submodules.
 
 ## Developer cloud B pipeline
 
+- [Release, terminal handoff, maintenance and training-plan freeze](B_PIPELINE_HANDOFF.md)
+
 - [B operations and external gates](CLOUD_PIPELINE_B.md)
 - [Execution scope and acceptance plan](CLOUD_PIPELINE_B_PLAN.md)
 - [ADR-0004: durable Hub](adr/0004-developer-cloud-hub.md)

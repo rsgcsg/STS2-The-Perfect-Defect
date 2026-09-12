@@ -54,7 +54,8 @@ that same gate; latest exact-source evidence determines readiness.
 See [operations](docs/PREFULLRUN_OPERATIONS.md), [research](docs/FULLRUN_RESEARCH.md),
 [training](docs/FULLRUN_TRAINING.md), [Gold](docs/FULLRUN_GOLD.md), and
 [workbench](docs/LOCAL_WORKBENCH.md). The B lane adds close-to-outbox delivery, private evidence ingress, a CPU Hub and disposable
-Modal execution using existing research workers. Start with [B pipeline operations](docs/CLOUD_PIPELINE_B.md).
+Modal execution using existing research workers. Start with [release, terminal handoff and next gates](docs/B_PIPELINE_HANDOFF.md),
+then [B pipeline operations](docs/CLOUD_PIPELINE_B.md).
 Real corpus sufficiency, actual storage/GPU qualification, Human Gold and STS2 live evaluation
 remain separately gated; source/test success is not service or scientific qualification.
 

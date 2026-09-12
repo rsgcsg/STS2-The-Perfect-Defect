@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import parse_qs
 
 from ..json_boundary import BoundaryError, decode_json, json_bytes
-from ..workbench.hub_client import RESULT_KINDS
+from .access import RESULT_KINDS
 from .database import token_hash
 from .uploads import LocalStaging, UploadService
 
@@ -92,11 +92,20 @@ class HubApplication:
 
     @staticmethod
     def upload_status(row: dict[str, Any]) -> dict[str, Any]:
+        # Persisted owner error codes are useful; raw exception text/URLs are not public status.
+        error = row.get("last_error")
+        if error is not None and (
+            not isinstance(error, str) or re.fullmatch(r"[a-z][a-z0-9_]{0,95}", error) is None
+        ):
+            error = "operational_error_redacted"
         return {
             "upload_id": row["id"],
             "content_id": row["content_id"],
             "status": row["status"],
             "receipt": json.loads(row["receipt"]) if row["receipt"] else None,
+            "verify_attempts": row["verify_attempts"],
+            "retry_at": row["retry_at"] if row["status"] == "verification_pending" else None,
+            "last_error": error,
         }
 
     def route(self, env: dict[str, Any]) -> tuple[str, str, bytes | Iterable[bytes]]:

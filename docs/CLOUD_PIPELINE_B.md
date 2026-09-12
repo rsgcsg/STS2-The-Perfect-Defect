@@ -1,5 +1,8 @@
 # Developer B pipeline operations
 
+For release distribution, terminal onboarding, incident ownership and the ordered model-plan
+freeze gates, start with [the current handoff](B_PIPELINE_HANDOFF.md).
+
 This is one STPD developer workbench consuming one independently released Platform Mod and
 its public collection tools. Repositories stay separate and packages are exact pins. Models
 are separate immutable artifacts. This scope connects existing research services; it does
@@ -142,3 +145,22 @@ under the approved cap. Existing research backbones/weights have their own admis
 Final Human collection starts with the one qualified Mod/tool/config and tests actual
 Close-to-remote receipt. Missing independent complete runs remain a data gate; no historical
 source cropping or relaxed admission is part of B.
+
+## Adapter provenance and provider scope
+
+The bundle3 adapter ID pins a supported Platform contract baseline. Its retained
+`source_evidence.platform_revision` field means that baseline, not the currently installed
+verifier or recorded game source. Actual verifier bytes/revision are bound by the producing
+STPD source and `uv.lock`; `recording_identity` preserves native recording provenance.
+Changing delivery-only package code does not relabel archived adapter output. A semantic
+projection change needs an explicit new adapter/artifact identity and reprojection tests.
+
+The research Worker and immutable artifact contracts are provider-neutral. The B scheduler
+currently persists Modal-specific target/call handles; a second automatic provider needs a
+reviewed operational handle migration and cancellation/recovery qualification. It is not
+plug-and-play merely because a Python Protocol exists.
+
+Upload status and incidents include the owning verification attempt count, safe last-error
+code and next retry time (only while pending). Terminal `transfer_failed` has no scheduled
+retry: the operator fixes the cause and explicitly authorizes retry. These fields are
+operational diagnostics, not native decision validity or Human-origin evidence.

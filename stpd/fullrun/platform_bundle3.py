@@ -30,8 +30,12 @@ from .contracts import (
     SourceProjection,
 )
 
-PLATFORM_REVISION = "6fb6afc9c7abb8a4d34d18d16de4f19f48bd608d"
-ADAPTER_ID = "stpd-platform-bundle3-adapter-v1@" + PLATFORM_REVISION
+# Immutable adapter contract baseline, not the installed verifier or recorded runtime.
+# The historical source_evidence.platform_revision wire field retains this meaning/ID.
+# Actual verifier dependency is pinned by the producing STPD source and uv.lock;
+# actual game/Mod provenance remains in recording_identity. Do not rewrite old artifacts.
+SUPPORTED_PLATFORM_CONTRACT_REVISION = "6fb6afc9c7abb8a4d34d18d16de4f19f48bd608d"
+ADAPTER_ID = "stpd-platform-bundle3-adapter-v1@" + SUPPORTED_PLATFORM_CONTRACT_REVISION
 MAX_BYTES = 256 * 1024 * 1024
 MAX_FILES = 20000
 _TERMINATIONS = frozenset(
@@ -517,7 +521,7 @@ class PlatformBundle3SourceAdapter:
                 source_evidence = FrozenObject.of(
                     {
                         "bundle_content_id": content_id,
-                        "platform_revision": PLATFORM_REVISION,
+                        "platform_revision": SUPPORTED_PLATFORM_CONTRACT_REVISION,
                         "canonical_ref": semantic_hash(row),
                         "commit": commit,
                         "proof_ref": semantic_hash(event),

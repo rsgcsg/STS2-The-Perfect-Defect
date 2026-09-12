@@ -12,21 +12,12 @@ from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from ..artifact_contracts import Manifest
+from ..hub.access import RESULT_KINDS
 from ..json_boundary import BoundaryError, decode_json, digest, json_bytes
 from .developer import atomic_json, endpoint
 
 JSON_LIMIT = 8 * 1024 * 1024
-RESULT_KINDS = frozenset(
-    {
-        "model",
-        "checkpoint",
-        "run_result",
-        "offline_evaluation",
-        "live_evaluation",
-        "performance",
-        "analysis",
-    }
-)
+
 
 
 class NoRedirect(HTTPRedirectHandler):
