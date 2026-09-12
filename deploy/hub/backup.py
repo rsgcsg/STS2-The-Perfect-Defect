@@ -194,6 +194,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--state", type=Path, default=Path("/var/lib/stpd"))
     parser.add_argument("--receipt")
     parser.add_argument("--destination", type=Path)
+    parser.add_argument("--discard-local-after-verified", action="store_true",
+                        help="remove only this invocation's snapshot after off-host readback")
     args = parser.parse_args(argv)
     try:
         from stpd.hub.database import CURRENT_SCHEMA, Operations
@@ -210,6 +212,8 @@ def main(argv: list[str] | None = None) -> int:
                 store, snapshot, producer.to_dict(), os.environ.get("STPD_WORKER_IMAGE", ""),
                 CURRENT_SCHEMA,
             )
+            if args.discard_local_after_verified:
+                snapshot.unlink()
             print(json.dumps({"schema": "stpd/hub-backup-command-v1", "backup_receipt": receipt,
                               "off_host_readback": "PASS", "restore_mode": "paused"}))
         else:

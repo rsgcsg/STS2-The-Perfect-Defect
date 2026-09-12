@@ -40,6 +40,10 @@ cannot impersonate the loopback API. Host firewall exposes only SSH to administr
   `/etc/stpd/hub-runtime.env`, mode 0600, outside Git. Do not source this file into a shell.
 - `backup.py`, `backup.env.example`: explicit private operator backup/upload and new-path
   restore-check using the owning SQLite API and a separate credential/bucket; no live restore.
+- `maintenance.py`, `stpd-backup.service`, `stpd-backup.timer`: supported daily exact-image
+  backup, bounded private last-success/failure status and 26-hour freshness check. Successful
+  scheduled snapshots are removed only after verified remote commit. Remote retention and
+  outside-host notifications require operator review; neither is silently configured.
 - `preflight.py`: read-only configuration, host and already-created backup checks. It reports
   field failures and presence, never parsed values. It does not contact storage or buy compute.
 - `ingress-lifecycle.json`: proposed ingress-only rule aborting unfinished multipart uploads.
