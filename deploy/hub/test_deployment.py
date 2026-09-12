@@ -17,6 +17,22 @@ from test_support import PosixPermissionFixture
 
 
 class PreflightTests(PosixPermissionFixture):
+    def test_named_modal_environment_is_accepted_without_enabling_compute(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env_file = root / "runtime.env"
+            env_file.write_text("MODAL_ENVIRONMENT=spireagent-b\n")
+            secrets = preflight.read_env(env_file, preflight.SECRET_KEYS)
+            values = {"STPD_HUB_BUDGET_UNITS": "0"}
+            self.assertEqual(preflight.check_compute(
+                values, secrets, root, allow_compute=False,
+            ), {"compute_budget": 0, "compute": "disabled"})
+            for invalid in ("", "wrong/environment", "environment with spaces"):
+                with self.assertRaisesRegex(preflight.PreflightError, "invalid_modal_environment"):
+                    preflight.check_compute(
+                        values, {"MODAL_ENVIRONMENT": invalid}, root, allow_compute=False,
+                    )
+
     def test_configuration_is_read_only_and_never_reports_secret_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

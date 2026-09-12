@@ -197,7 +197,8 @@ each queued job's `max_seconds`, and reservations must fit the explicitly config
 Pause existing dispatch and save a private backup first. Place the reviewed JSON in the mounted
 state directory and set **all three** optional keys in `/etc/stpd/hub-runtime.env` using the
 secure operator editor: `STPD_MODAL_TARGET=/var/lib/stpd/modal-target.json`, `MODAL_TOKEN_ID`,
-`MODAL_TOKEN_SECRET`. Never put credential values in command arguments or logs. The worker's
+`MODAL_TOKEN_SECRET`, and set `MODAL_ENVIRONMENT=spireagent-b` to match the deployed
+worker and Secret environment. Never put credential values in command arguments or logs. The worker's
 storage secret belongs to its provider deployment; it is separate from the Hub's Modal token.
 
 ```bash

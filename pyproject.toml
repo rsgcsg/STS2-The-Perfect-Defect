@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cloud = ["waitress>=3,<4", "modal==1.5.5"]
+cloud = ["waitress>=3,<4", "modal==1.5.5", "python-dotenv>=1.1,<2"]
 research = [
   "boto3>=1.35,<2",
   "duckdb>=1.4,<2",

@@ -30,6 +30,36 @@ model-quality verdict.
 Interrupted feature compilation can be explicitly rerun; there is no fabricated partial
 FeatureSet or implicit "latest" checkpoint. Training resumes only an explicit same-Run ID.
 
+## Account and storage setup without compute
+
+Use the repository Python 3.11 environment, never a bare `modal` executable from Conda or
+another Python installation. The locked `cloud` extra includes `python-dotenv`, which Modal's
+`--from-dotenv` command imports only when used. Developer bootstrap remains
+`uv sync --locked --all-extras`; operators needing only the CLI can use the explicit extra:
+
+```bash
+uv sync --locked --extra cloud
+uv run --locked --extra cloud modal environment list --json
+uv run --locked --extra cloud modal secret list --env spireagent-b --json
+uv run --locked --extra cloud modal secret create stpd-worker-storage \
+  --env spireagent-b --from-dotenv "$HOME/.config/spireagent/cloud/r2-modal.env"
+```
+
+Authenticate with `uv run --locked --extra cloud modal token new` only if current authentication
+is absent/expired; that step requires the operator's browser. Select an existing authorized
+workspace and environment. Secret creation is a separate metadata operation from deployment
+or function execution. Do not add `--force` to recover an uncertain create: first inspect the
+named Secret in that exact environment. Never print dotenv contents or put values in arguments.
+Keep the external file mode 0600 with only `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`STPD_S3_ENDPOINT`, `STPD_S3_REGION`, `STPD_S3_BUCKET`, and `STPD_S3_PREFIX`. Worker credentials
+are restricted to the private artifacts bucket; ingress and backups use separate roles.
+
+Use the same explicit `--env spireagent-b` for eventual deployment and `MODAL_ENVIRONMENT`
+for the Hub's provider process. Local CLI authentication/defaults are not copied into the
+future Hub container. Keep Hub compute budget zero until the separately authorized worker
+qualification. Secret existence/key validation proves configuration only, not injected values
+inside a worker, an image build, GPU availability, billing limits or an execution result.
+
 ## Image and deployment
 
 1. Push/review the exact source candidate and resolve its Producer and lock hash.

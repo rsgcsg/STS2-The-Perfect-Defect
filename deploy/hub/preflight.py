@@ -25,10 +25,11 @@ SECRET_KEYS = {
     "STPD_HUB_ADMIN_TOKEN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
     "STPD_S3_ENDPOINT", "STPD_S3_REGION", "STPD_S3_BUCKET", "STPD_S3_PREFIX",
     "STPD_INGRESS_BUCKET", "STPD_MODAL_TARGET", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET",
+    "MODAL_ENVIRONMENT",
 }
 COMPUTE_KEYS = {"STPD_MODAL_TARGET", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"}
 REQUIRED_SECRET_KEYS = SECRET_KEYS - {
-    "AWS_SESSION_TOKEN", "STPD_S3_REGION", "STPD_S3_PREFIX", *COMPUTE_KEYS,
+    "AWS_SESSION_TOKEN", "STPD_S3_REGION", "STPD_S3_PREFIX", "MODAL_ENVIRONMENT", *COMPUTE_KEYS,
 }
 IMAGE_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}"
 
@@ -90,6 +91,10 @@ def check_compute(
     budget = int(raw_budget)
     if budget and not allow_compute:
         raise PreflightError("initial_deployment_must_disable_compute_budget")
+    if "MODAL_ENVIRONMENT" in secrets and re.fullmatch(
+        r"[A-Za-z0-9_-]{1,64}", secrets["MODAL_ENVIRONMENT"],
+    ) is None:
+        raise PreflightError("invalid_modal_environment")
     configured = any(key in secrets for key in COMPUTE_KEYS)
     if not configured:
         if budget:
