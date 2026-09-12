@@ -130,6 +130,7 @@ def test_verified_source_pipeline_and_true_platform_client_wait(tmp_path: Path) 
     from wsgiref.simple_server import WSGIRequestHandler, make_server
 
     from platform_bundle3_fixture import bundle3
+    from sts2_platform_evidence.delivery import ReceiverVerificationPending
     from sts2_platform_evidence.delivery_http import HubTransport
 
     from stpd.hub.application import HubApplication
@@ -164,9 +165,9 @@ def test_verified_source_pipeline_and_true_platform_client_wait(tmp_path: Path) 
             allowed_upload_hosts=["127.0.0.1"],
             allow_loopback_http=True,
         )
-        with pytest.raises(TimeoutError):
+        with pytest.raises(ReceiverVerificationPending):
             client(bundle, transfer, {})
-        with pytest.raises(TimeoutError):
+        with pytest.raises(ReceiverVerificationPending):
             client(bundle, transfer, {})
         assert len(service.operations.uploads()) == 1
         assert len(list(service.staging.root.iterdir())) == 1
