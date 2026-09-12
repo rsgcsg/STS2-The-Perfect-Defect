@@ -290,6 +290,20 @@ def test_schema_migration_keeps_requests_and_rejects_future_schema(pipeline, tmp
         ).fetchall()
 
 
+def test_schema_migration_failure_rolls_back_all_ddl(tmp_path):
+    database = tmp_path / "broken-v1.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE VIEW jobs AS SELECT 'broken' AS id")
+        connection.execute("PRAGMA user_version=1")
+    with pytest.raises(sqlite3.OperationalError, match="view"):
+        Operations(database)
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone() == (1,)
+        assert connection.execute("SELECT type,name FROM sqlite_master").fetchall() == [
+            ("view", "jobs")
+        ]
+
+
 def test_valid_receipt_binding_still_requires_artifact_integrity(pipeline):
     ops, store, provider, job = pipeline
     with Scheduler(ops, store, provider, budget_limit=10) as scheduler:

@@ -32,7 +32,7 @@ class Operations:
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version not in {0, 1, CURRENT_SCHEMA}:
                 raise BoundaryError("hub", "unsupported_operations_schema")
-            db.executescript("""
+            schema = """
                 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
                 INSERT OR IGNORE INTO settings VALUES('paused','0');
                 CREATE TABLE IF NOT EXISTS devices(
@@ -60,7 +60,12 @@ class Operations:
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT, at REAL NOT NULL,
                     actor TEXT NOT NULL, operation TEXT NOT NULL, subject TEXT NOT NULL,
                     detail TEXT NOT NULL);
-            """)
+            """
+            # These fixed statements contain no embedded semicolons. executescript would
+            # implicitly commit our transaction and expose a partially applied migration.
+            for statement in schema.split(";"):
+                if statement.strip():
+                    db.execute(statement)
             columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
             if "options" not in columns:
                 db.execute("ALTER TABLE jobs ADD COLUMN options TEXT NOT NULL DEFAULT '{}'")
