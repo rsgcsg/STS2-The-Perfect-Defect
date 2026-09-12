@@ -6,10 +6,12 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
 import backup
+from test_support import PosixPermissionFixture
 
 from stpd.storage.local import LocalBlobStore
 
@@ -19,13 +21,13 @@ IMAGE = "registry.example/stpd@sha256:" + "c" * 64
 
 
 def snapshot(path: Path, *, paused: str = "1", version: int = 2) -> None:
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.execute("CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)")
         db.execute("INSERT INTO settings VALUES('paused',?)", (paused,))
         db.execute(f"PRAGMA user_version={version}")
 
 
-class BackupTests(unittest.TestCase):
+class BackupTests(PosixPermissionFixture):
     def test_private_chunked_round_trip_keeps_exact_bytes_and_new_file_only(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -82,7 +84,7 @@ class BackupTests(unittest.TestCase):
             self.assertEqual(old.read_bytes(), before)
             current = root / "current.sqlite"
             snapshot(current, version=2)
-            with sqlite3.connect(current) as db:
+            with closing(sqlite3.connect(current)) as db, db:
                 db.execute("PRAGMA journal_mode=WAL")
                 db.execute("UPDATE settings SET value='1'")
                 db.commit()
