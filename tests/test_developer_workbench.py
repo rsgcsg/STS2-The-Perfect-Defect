@@ -124,7 +124,8 @@ def installed_evidence(tmp_path, monkeypatch):
         if path.is_file():
             data = path.read_bytes()
             sha = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
-            rows.append(f"{path.relative_to(site)},sha256={sha},{len(data)}\n")
+            # Installed wheel RECORD paths use forward slashes on every platform.
+            rows.append(f"{path.relative_to(site).as_posix()},sha256={sha},{len(data)}\n")
     (metadata / "RECORD").write_text("".join(rows))
     distribution = importlib.metadata.Distribution.at(metadata)
     monkeypatch.setattr("importlib.metadata.distribution", lambda name: distribution)
@@ -177,13 +178,12 @@ def test_doctor_rejects_import_shadow_even_with_verified_record(
 def test_evidence_rejects_entrypoint_missing_from_record(installed_evidence):
     _, metadata = installed_evidence
     record = metadata / "RECORD"
-    record.write_text(
-        "".join(
-            row
-            for row in record.read_text().splitlines(keepends=True)
-            if not row.startswith("sts2_platform_evidence/delivery_cli.py,")
-        )
-    )
+    rows = record.read_text().splitlines(keepends=True)
+    retained = [
+        row for row in rows if not row.startswith("sts2_platform_evidence/delivery_cli.py,")
+    ]
+    assert len(rows) - len(retained) == 1, "the fixture must remove the verified entrypoint"
+    record.write_text("".join(retained))
     assert evidence_identity("1" * 40)["status"] == "IMPORT_ORIGIN_MISMATCH"
 
 
