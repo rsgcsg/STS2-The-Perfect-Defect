@@ -9,7 +9,7 @@ import secrets
 import sqlite3
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Any, cast
 
@@ -520,7 +520,10 @@ class Operations:
         if destination.exists():
             raise BoundaryError("hub", "backup_exists")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.path) as source, sqlite3.connect(destination) as target:
+        with (
+            closing(sqlite3.connect(self.path)) as source,
+            closing(sqlite3.connect(destination)) as target,
+        ):
             source.backup(target)
             target.execute("UPDATE settings SET value='1' WHERE key='paused'")
             target.commit()

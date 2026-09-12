@@ -158,3 +158,22 @@ def test_failed_transfer_retry_is_explicit_and_preserves_identity(tmp_path: Path
     assert row["intent"] == upload["intent"]
     with pytest.raises(BoundaryError, match="upload_transport_changed"):
         ops.create_upload("device", "a" * 64, "b" * 64, {"archive_sha256": "d" * 64})
+
+
+def test_backup_returns_closed_standalone_snapshot(tmp_path: Path) -> None:
+    import shutil
+    import sqlite3
+    from contextlib import closing
+
+    ops = Operations(tmp_path / "live.sqlite")
+    ops.register("collector", "x" * 32)
+    destination = tmp_path / "snapshot.sqlite"
+    ops.backup(destination)
+    assert not Path(str(destination) + "-wal").exists()
+    assert not Path(str(destination) + "-shm").exists()
+    transferred = tmp_path / "downloaded.sqlite"
+    shutil.copyfile(destination, transferred)
+    with closing(sqlite3.connect(transferred.as_uri() + "?mode=ro&immutable=1", uri=True)) as db:
+        assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert db.execute("SELECT value FROM settings WHERE key='paused'").fetchone()[0] == "1"
+        assert db.execute("SELECT id FROM devices").fetchone()[0] == "collector"
