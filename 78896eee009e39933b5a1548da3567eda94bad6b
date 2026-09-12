@@ -1,0 +1,112 @@
+{
+  "schema": "stpd/hub-public-qualification-v1",
+  "status": "SCOPED_HUB_OCI_TLS_R2_BACKUP_RESTORE_PASS",
+  "source_revision": "78896eee009e39933b5a1548da3567eda94bad6b",
+  "image": "ghcr.io/rsgcsg/stpd-worker@sha256:478f8513ab240687e97fd7d6defc414d070e2db1a713e8b8f161800adca51c88",
+  "anonymous_oci": {
+    "anonymous_network_fetch": "PASS",
+    "local_layer_cache_used": false,
+    "linux_amd64_manifest": "sha256:00f51f4b8d1f2426df4a88d2d421a40a3bb8a8f5be42797e8e028f2d4dcadb84",
+    "blobs": [
+      {
+        "digest": "sha256:c2ccc064055211226228dd9d12d59900ce28ff7c53da079fffdcd8d74d664e03",
+        "bytes": 9525
+      },
+      {
+        "digest": "sha256:a8ac7f6c67abc236e4c745052c404112b8fab6fe8ac3a329d1ef3b867ad67c71",
+        "bytes": 28232655
+      },
+      {
+        "digest": "sha256:5916320cd9ac92ae5ba3f99d8c7e3a3821d03b6bac8c7cd2cd1459bf1cc4f327",
+        "bytes": 3533409
+      },
+      {
+        "digest": "sha256:882a85d461488e9f738169100e18dabf5b52710cf9de01203645106010390643",
+        "bytes": 16024064
+      },
+      {
+        "digest": "sha256:6128e8861235d84a1b973ae2b2847000f2c1163dbf138e56f6ca2127512afdd2",
+        "bytes": 250
+      },
+      {
+        "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+        "bytes": 32
+      },
+      {
+        "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+        "bytes": 32
+      },
+      {
+        "digest": "sha256:fab61424b0fe552fa34044745763b8799fb65d245b9611c95cee318f0a1be75e",
+        "bytes": 29371964
+      },
+      {
+        "digest": "sha256:6562490492263f16b92417be50205b25db5678847506ce051efb53b8d931886f",
+        "bytes": 30390517
+      },
+      {
+        "digest": "sha256:72212a3dc8b3a9dda58ece192f4b639debd6d9ea9c426a0f0f23fa0b2d369bb3",
+        "bytes": 1407942
+      },
+      {
+        "digest": "sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+        "bytes": 32
+      },
+      {
+        "digest": "sha256:0691325f9ae80c1a9c597e090b0bdee2908340d0a131f6cefc65a5ca7ae2261a",
+        "bytes": 2903703464
+      }
+    ]
+  },
+  "public_https_fresh_upload": {
+    "classification": "SYNTHETIC_ONLY",
+    "transport": "PUBLIC_HTTPS",
+    "health": {
+      "producer": {
+        "repository": "rsgcsg/STS2-The-Perfect-Defect",
+        "source_revision": "78896eee009e39933b5a1548da3567eda94bad6b",
+        "uv_lock_sha256": "1b5d443fec3d75f4d49b2f9255b615d2be2db64adfaf16f182be38a445c0c60c"
+      },
+      "schema": "stpd/hub-health-v1",
+      "service": "stpd-hub"
+    },
+    "unauthenticated_status": 401,
+    "receipt": {
+      "content_id": "45947ef0bc6acde2adc75f47d818a0b7fa4c2c49d14f9fb5be68a1c784fd9d4d",
+      "evidence_id": "ecd1657548fa941b0a173d9f6e4eacfabc91ef756784cb701572b9f3d8c0e789",
+      "findings": [],
+      "manifest_sha256": "c9972bbde35d9a7dd000b03e065f8a6c18a750a17a527b6aa2d89d86af8e2b92",
+      "receipt_id": "7e26038a8840cac93046481230989262",
+      "schema": "stpd/receive-receipt-v1",
+      "status": "verified",
+      "verifier": {
+        "entrypoint": "verify_human_session_bundle",
+        "package": "rsgcsg-sts2-platform-evidence",
+        "source_lock": "1b5d443fec3d75f4d49b2f9255b615d2be2db64adfaf16f182be38a445c0c60c",
+        "version": "0.1.0rc3"
+      }
+    },
+    "replacement_client_idempotency": "PASS",
+    "human_data_uploaded": false,
+    "compute_budget": 0
+  },
+  "backup_restore_evidence_ref": "refs/notes/stpd-hub-live-qualification",
+  "compute_budget": 0,
+  "gpu_invocations": 0,
+  "real_human_uploads": 0,
+  "hub_state": "paused",
+  "uploads": 2,
+  "jobs": 0,
+  "nonclaims": [
+    "production_data_handoff",
+    "scheduled_backup_alerting",
+    "whole_host_loss_recovery",
+    "GPU_training_or_evaluation",
+    "real_Human_Close_to_cloud"
+  ],
+  "evidence_sha256": {
+    "anonymous-oci.json": "9920f03ea74a3c07ece41f9fbfe8838d39b9877520b843747069238cbc2a65c1",
+    "fresh-public-https-upload.json": "169317826f6f9a8ad6e413441c2748f398d02be00fa28cd351dfafef3d005c04",
+    "public-https-upload-smoke.json": "19fcea789772ac392df60740aaf3573ae7e0dd3d322dfc921fe4eaabd82eda5a"
+  }
+}
