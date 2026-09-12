@@ -1,0 +1,27 @@
+[Unit]
+Description=STPD private operational backup with verified off-host receipt
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=DOCKER_CONFIG=/var/lib/stpd-maintenance/docker-client
+StateDirectory=stpd-maintenance
+StateDirectoryMode=0700
+ExecStart=/usr/bin/flock -n /run/lock/stpd-backup.lock /usr/bin/python3 /opt/stpd-deploy/source/deploy/hub/maintenance.py backup
+TimeoutStartSec=20min
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateNetwork=true
+ReadWritePaths=/var/lib/stpd-maintenance /run/lock
+StandardOutput=journal
+StandardError=journal
+LogRateLimitIntervalSec=60s
+LogRateLimitBurst=10

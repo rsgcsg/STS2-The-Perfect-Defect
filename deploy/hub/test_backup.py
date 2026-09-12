@@ -28,6 +28,30 @@ def snapshot(path: Path, *, paused: str = "1", version: int = 2) -> None:
 
 
 class BackupTests(PosixPermissionFixture):
+    def test_only_current_snapshot_discarded_after_verified_remote_commit(self) -> None:
+        from stpd.artifact_contracts import Producer
+        from stpd.hub.database import Operations
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "backups").mkdir()
+            Operations(root / "operations.sqlite")
+            old = root / "backups" / "retained.sqlite"
+            old.write_bytes(b"existing evidence")
+            store = LocalBlobStore(root / "remote")
+            command = ["backup", "--state", str(root), "--discard-local-after-verified"]
+            with (patch("stpd.workbench.control.source_identity",
+                        return_value=Producer.decode(PRODUCER)),
+                  patch.object(backup, "configured_store", return_value=store),
+                  patch.dict("os.environ", {"STPD_WORKER_IMAGE": IMAGE}),
+                  patch("builtins.print")):
+                self.assertEqual(backup.main(command), 0)
+                self.assertEqual(tuple((root / "backups").iterdir()), (old,))
+                with patch.object(store, "get", return_value=b"wrong"):
+                    self.assertEqual(backup.main(command), 2)
+                self.assertEqual(len(tuple((root / "backups").iterdir())), 2)
+                self.assertEqual(old.read_bytes(), b"existing evidence")
+
     def test_private_chunked_round_trip_keeps_exact_bytes_and_new_file_only(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

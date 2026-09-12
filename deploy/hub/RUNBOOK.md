@@ -166,21 +166,68 @@ operator recovery inventory alongside source/lock/image/config identities. The r
 verifies receipt/chunk/full-file SHA256, current owning database schema, SQLite integrity and
 paused state. The tool refuses an existing destination and never installs a database. A 512 MiB
 snapshot limit bounds this first implementation; exceeding it is an explicit failure requiring
-capacity/retention review. No local/remote backup is automatically deleted. Monitor disk and
-bucket growth; retention must preserve a tested compatible recovery point.
+capacity/retention review. Manual commands retain their snapshots. The scheduled command uses
+`--discard-local-after-verified`: it deletes only its own temporary snapshot after the complete
+off-host commit/readback succeeds. Failed snapshots, old files and all remote backups remain
+untouched. This flag is not general retention or garbage collection.
 
-For daily scheduling, an administrator puts the reviewed helper and `backupctl backup` into
-an external root-owned mode-0700 `/etc/stpd/backup-daily.sh` using the exact image digest. It
-must use `set -eu`, fixed absolute paths, and preserve a nonzero exit on failure. Add this entry
-to root's crontab using `sudo crontab -e` after manually proving the command and retrieval:
+### Install and inspect scheduled backup
 
-```cron
-15 3 * * * /usr/bin/flock -n /run/lock/stpd-backup.lock /etc/stpd/backup-daily.sh >> /var/log/stpd-backup.log 2>&1
+The supported Linux recipe uses the reviewed `stpd-backup.service` / `stpd-backup.timer`, not
+a copied shell function containing credentials. It expects the exact clean deployment checkout
+at `/opt/stpd-deploy/source`, Docker already running, and the external env files above. The
+runner parses raw values without shell expansion; it reads the current exact image from
+`deployment.env` and refuses mutable tags. The image must already be locally pulled. The
+ephemeral backup container has only the separate backup credential and the state mount; it
+has no Docker socket, Modal credentials or compute scheduling command.
+
+After a manual backup and retrieval pass, install and exercise the actual service once:
+
+```bash
+sudo install -m 0644 deploy/hub/stpd-backup.service /etc/systemd/system/stpd-backup.service
+sudo install -m 0644 deploy/hub/stpd-backup.timer /etc/systemd/system/stpd-backup.timer
+sudo systemd-analyze verify /etc/systemd/system/stpd-backup.service /etc/systemd/system/stpd-backup.timer
+sudo systemctl daemon-reload
+sudo systemctl start stpd-backup.service
+sudo python3 /opt/stpd-deploy/source/deploy/hub/maintenance.py status
+sudo systemctl enable --now stpd-backup.timer
+sudo systemctl list-timers stpd-backup.timer
 ```
 
-Pre-create `/var/log/stpd-backup.log` as root mode 0600 and configure bounded log rotation.
-Alert on failed runs or backup age over 26 hours; cron output alone is not monitoring. Take an
-additional backup before deployments. Keep Caddy TLS state and external config/secret recovery
+The persistent timer runs daily at 03:15 UTC with up to 15 minutes jitter and catches a missed
+run after boot. `flock` prevents overlapping scheduled runs. A backup has a 15-minute wall
+limit; the host runner stops only its exact named container on timeout. An unconfirmed stop is
+reported explicitly. Inspect that container before retrying; killing a Docker client does not
+prove container termination. No periodic command submits GPU work or changes Hub pause/budget.
+
+Private `/var/lib/stpd-maintenance/backup-status.json` is one bounded atomic operational
+projection: latest attempt/result, last verified receipt, timestamp and image. Failed attempts
+retain the last successful recovery point. `maintenance.py status` exits nonzero for missing,
+failed, interrupted, future-dated or more-than-26-hour-old success. Immutable off-host receipts
+remain the authority; this status file is not itself a backup. Copy each verified receipt to
+the protected off-host operator recovery inventory; do not depend on this host-local projection
+to find the recovery point after host loss.
+
+```bash
+sudo python3 /opt/stpd-deploy/source/deploy/hub/maintenance.py status
+sudo systemctl status stpd-backup.service --no-pager
+sudo journalctl -u stpd-backup.service -n 20 --no-pager
+```
+
+Compose already rotates each service's local-driver logs at 10 MiB × 3 files. Backup emits one
+small sanitized status per run to systemd journal; journal retention remains the host operator's
+existing policy. No SDK stderr, signed URL or credential is published. Inspect disk and bucket
+size at least weekly, especially retained failed snapshots. Never expire immutable chunks,
+receipts or evidence through an age-only bucket rule: shared chunks may be the only recovery
+point. Remote backup GC is deliberately manual until a reviewed reachability-aware process
+exists. Preserve at least one tested compatible receipt before authorizing any cleanup.
+
+**Notification boundary:** persistent failure/status is implemented; email, webhook and an
+independent outside-host heartbeat are not configured by this tool. Connect the nonzero status
+and host/TLS availability to the operator's chosen monitor before claiming unattended alerting.
+Until then an operator must inspect status daily; a dead host cannot report its own failure.
+
+Take an additional backup before deployments. Keep Caddy TLS state and external config/secret recovery
 material in the protected operator backup system separately; this tool intentionally backs up
 only operational SQLite. A successful upload is not a full disaster recovery qualification:
 perform the paused restore rehearsal below on an isolated host.
@@ -238,6 +285,15 @@ keys from `/etc/stpd/hub-runtime.env` and set `STPD_HUB_BUDGET_UNITS=0` in
 source/lock/image differs from the selected recovery image.
 
 ```bash
+sudo systemctl stop stpd-backup.timer
+sudo systemctl stop stpd-backup.service
+sudo docker ps --filter name=stpd-backup-
+```
+
+Confirm no backup container remains before proceeding; stopping a service/client alone does
+not prove container termination. Then stop the Hub and retrieve the selected recovery point:
+
+```bash
 dc stop caddy hub
 backupctl restore-check --receipt EXACT_BACKUP_RECEIPT_SHA256 --destination /var/lib/stpd/backups/recovery-verified.sqlite
 sudo python3 deploy/hub/preflight.py --backup /srv/stpd/hub/backups/recovery-verified.sqlite
@@ -258,19 +314,26 @@ unpause. Re-enable compute only through the scheduler enablement procedure with 
 target matching the restored image; the API's successful paused start does not restore that
 target or its provider credentials. Perform a full restore rehearsal on an isolated host; do not claim restoration from
 merely observing that a backup file exists.
+After recovery, manually run `stpd-backup.service`, verify its new off-host receipt and retrieval,
+then start `stpd-backup.timer` again. Do not carry a green maintenance status across a restored
+state without a new backup.
 
 ## Deploy, rollback and retire
 
-Pause dispatch, take/off-host-verify a backup, retain current digest/config identities, and
+Stop the backup timer and wait for any running backup to finish before replacing the deployment
+checkout/config. Pause dispatch, take/off-host-verify a backup, retain current digest/config identities, and
 review compatibility before changing `/etc/stpd/deployment.env` to a new exact image. Re-run
 preflight and `dc config -q`, pull the image, recreate the service, and verify actual load plus
 receipt compatibility. Recheck every source-bound evidence claim on the new source.
+Install changed service/timer definitions from that exact checkout and `systemctl daemon-reload`.
+Prove one backup/retrieval with the new image before restarting the timer. There is no second
+hardcoded image pin in a handwritten cron helper to drift from the Hub deployment.
 
 Rollback uses the previous reviewed image/config and a compatible backup. Do not simply boot
 old code against a database a newer release has migrated. If compatibility is not established,
 restore the matching paused snapshot into a fresh directory using the procedure above. Revoke
 compromised device tokens or credentials explicitly; that is independent of image rollback.
 
-Retirement stops services and confirms no paid compute remains. Archive operational receipts,
+Retirement disables the backup timer, stops services and confirms no paid compute remains. Archive operational receipts,
 images/config references and recovery material according to retention policy. Do not delete
 state volumes or immutable evidence merely to remove stopped containers.
