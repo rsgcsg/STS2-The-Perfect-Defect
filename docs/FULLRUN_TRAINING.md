@@ -1,8 +1,9 @@
 # Full-Run Training and Disposable Workers
 
 This is an engineering implementation, not a Full-Run dataset, cloud or scientific result.
-The final qualified Platform adapter remains absent; only synthetic engineering sources are
-installed. Historical combat-v0 and its scientific protocol are retained unchanged.
+A pinned Platform bundle3 adapter and a separately scoped synthetic adapter are installed.
+Real corpus sufficiency and scientific admission remain separate. Historical combat-v0 and
+its scientific protocol are retained unchanged.
 
 ## Immutable input pipeline
 
@@ -53,8 +54,10 @@ https://docs.pytorch.org/docs/main/notes/serialization.html
 RunReporter is a port. ObjectStoreRunReporter persists events as manifests, so an event-index
 write failure is recoverable. One conditional immutable completion slot selects the final
 RunResult; identical retries are idempotent and conflicting results fail. This does not
-claim exactly-once process execution or implement a central lease service. A future Hub can
-replace this adapter without changing Run or Model identities.
+claim exactly-once process execution. In the B Hub lane, CandidateReporter writes immutable
+candidates and events without that local completion slot. The Hub validates source/plan/bytes
+and selects with its durable attempt fence; it never runs a second competing completion
+ledger. See [B operations](CLOUD_PIPELINE_B.md).
 
 ## Offline evaluation
 

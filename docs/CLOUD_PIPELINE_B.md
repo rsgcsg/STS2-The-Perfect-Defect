@@ -9,7 +9,7 @@ not add a Full-Run model, Mac Qwen backend, cloud inference, cloud STS2 or RL.
 
 1. Human plays through the existing Platform Mod. Successful Recorder Close durably seals a
    session. The externally running fixed-tool delivery process discovers that seal, records
-   an immutable outbox item, packs and verifies it. Unsealed sessions remain local incidents;
+   an immutable outbox item, packs and verifies it. Unsealed sessions remain local and are counted as unsealed;
    neither timestamps nor upload retries invent native decisions or successors.
 2. A revocable developer token requests a short-lived staging upload authorization. The token
    goes only to the Hub; the upload uses the returned capability. Transport retries retain
@@ -37,8 +37,8 @@ not add a Full-Run model, Mac Qwen backend, cloud inference, cloud STS2 or RL.
 8. Developers view status and download selected result artifacts with hashes and provenance.
    Parent references remain intact, but raw data is not downloaded as a hidden parent closure.
    Download success does not establish model-load, real-game behavior or scientific quality.
-   `project policy` starts only an explicitly configured existing adapter; it does not start
-   gameplay or supply a new Full-Run inference implementation.
+   `project policy` inspects an explicitly supplied existing policy manifest; it does not load
+   or activate an adapter, start gameplay or supply a new Full-Run inference implementation.
 
 ## Developer terminal
 
@@ -61,8 +61,9 @@ The Platform-owned delivery config is documented in its Evidence DELIVERY.md. It
 recording/outbox/tool absolute paths, externally pinned tool release, worker/campaign and
 operator Human-origin attestation. Do not silently attest future sessions or reuse an outbox
 after changing identity. Set `STPD_HUB_TOKEN` in the process environment; it is a developer
-credential, never the admin token. `open` supervises delivery while running. Closing the
-workbench stops background processing; sealed items reconcile on the next open.
+credential, never the admin token. `open` supervises delivery while running. `project stop` stops
+background processing; closing a browser tab does not stop the detached processes. Sealed
+items reconcile on the next open.
 
 All active developer identities can read shared result kinds (model, checkpoint, run result,
 offline/live evaluation, performance and analysis) and redacted job status. Uploads and their
