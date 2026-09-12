@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -12,13 +13,19 @@ from ..json_boundary import BoundaryError
 from ..storage.registry import SQLiteRegistry, sync_registry
 from ..storage.run_reporter import ObjectStoreRunReporter
 from ..storage.store import copy_artifact
-from ..workers.worker import execute
 from .control import doctor, launch_packet, open_store, source_identity
 from .readiness import read_receipt, readiness
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    arguments = sys.argv[1:] if argv is None else argv
+    if arguments and arguments[0] == "project":
+        from .developer_cli import main as project_main
+
+        return project_main(arguments[1:])
+    parser = argparse.ArgumentParser(
+        description=__doc__, epilog="Developer entry: python -m stpd.workbench project --help"
+    )
     parser.add_argument(
         "command",
         choices=(
@@ -93,6 +100,8 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command == "doctor":
                 result = doctor(store, smoke=args.smoke)
             elif args.command in {"worker", "launch"}:
+                from ..workers.worker import execute
+
                 if not args.run:
                     raise BoundaryError("cli", "exact_run_required")
                 runtime = source_identity(args.root)
