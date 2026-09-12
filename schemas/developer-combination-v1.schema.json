@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "$id": "https://stpd.dev/schemas/developer-combination-v1.schema.json",
+  "properties": {
+    "schema": {
+      "const": "stpd/developer-combination-v1"
+    },
+    "platform_repository": {
+      "const": "https://github.com/rsgcsg/STS2-AI-PLATFORM.git"
+    },
+    "platform_source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "evidence_source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "policy_mode": {
+      "const": "existing-adapter-only"
+    },
+    "node_packages": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "package": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_revision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "component_tree_revision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "release_asset_sha256": {
+            "type": "string",
+            "minLength": 1
+          },
+          "package_content_sha256": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "package",
+          "version",
+          "source_revision",
+          "component_tree_revision",
+          "release_asset_sha256",
+          "package_content_sha256"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "platform_repository",
+    "platform_source_revision",
+    "evidence_source_revision",
+    "policy_mode",
+    "node_packages"
+  ]
+}
