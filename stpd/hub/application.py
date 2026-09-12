@@ -10,6 +10,7 @@ import secrets
 import time
 from collections.abc import Callable, Iterable
 from typing import Any
+from urllib.parse import parse_qs
 
 from ..json_boundary import BoundaryError, decode_json, json_bytes
 from ..workbench.hub_client import RESULT_KINDS
@@ -102,7 +103,13 @@ class HubApplication:
         method, path = env["REQUEST_METHOD"], env.get("PATH_INFO", "")
         ops = self.service.operations
         if method == "GET" and path == "/health":
-            return self.response({"service": "stpd-hub", "schema": "stpd/hub-health-v1"})
+            return self.response(
+                {
+                    "service": "stpd-hub",
+                    "schema": "stpd/hub-health-v1",
+                    "producer": self.service.producer.to_dict(),
+                }
+            )
         upload = re.fullmatch(r"/v1/uploads/([a-f0-9]{32})(?:/(body|complete))?", path)
         if method == "PUT" and upload and upload[2] == "body":
             self.validate_capability(upload[1], env.get("HTTP_X_UPLOAD_CAPABILITY", ""))
@@ -129,9 +136,7 @@ class HubApplication:
         admin = secrets.compare_digest(self.admin_hash, token_hash(token))
         device = None if admin else ops.authenticate(token)
         if method == "GET" and path == "/v1/status":
-            counts: dict[str, int] = {}
-            for item in ops.uploads(device):
-                counts[item["status"]] = counts.get(item["status"], 0) + 1
+            counts = ops.upload_counts(device)
             return self.response(
                 {
                     "schema": "stpd/hub-status-v1",
@@ -141,12 +146,25 @@ class HubApplication:
                 }
             )
         if method == "GET" and path in {"/v1/uploads", "/v1/incidents"}:
-            items = [self.upload_status(row) for row in ops.uploads(device)]
-            if path.endswith("incidents"):
-                items = [
-                    row for row in items if row["status"] in {"quarantined", "transfer_failed"}
-                ]
-            return self.response({"items": items})
+            query = parse_qs(env.get("QUERY_STRING", ""), strict_parsing=True)
+            if set(query) - {"limit", "offset"} or any(len(value) != 1 for value in query.values()):
+                raise BoundaryError("hub", "invalid_pagination")
+            limit, offset = int(query.get("limit", ["100"])[0]), int(query.get("offset", ["0"])[0])
+            if not 1 <= limit <= 100 or offset < 0:
+                raise BoundaryError("hub", "invalid_pagination")
+            statuses = ("quarantined", "transfer_failed") if path.endswith("incidents") else None
+            items = [
+                self.upload_status(row)
+                for row in ops.uploads(device, limit=limit, offset=offset, statuses=statuses)
+            ]
+            return self.response(
+                {
+                    "items": items,
+                    "limit": limit,
+                    "offset": offset,
+                    "next_offset": offset + limit if len(items) == limit else None,
+                }
+            )
         if method == "POST" and path == "/v1/uploads":
             if device is None:
                 raise BoundaryError("hub", "collector_identity_required")

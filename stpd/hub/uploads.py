@@ -218,11 +218,17 @@ class UploadService:
 
     def verify_pending(self, upload_id: str | None = None) -> int:
         count = 0
-        for row in self.operations.uploads():
-            if upload_id is not None and row["id"] != upload_id:
-                continue
-            if row["status"] != "verification_pending" or row["retry_at"] > time.time():
-                continue
+        for _ in range(1 if upload_id is not None else 16):
+            metadata = (
+                self.operations.upload(upload_id)
+                if upload_id is not None
+                else self.operations.pending_upload(time.time())
+            )
+            if metadata is None:
+                break
+            if metadata["status"] != "verification_pending" or metadata["retry_at"] > time.time():
+                break
+            row = self.operations.upload(metadata["id"])
             try:
                 self.verify(row)
             except Exception as error:

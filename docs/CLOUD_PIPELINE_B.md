@@ -93,8 +93,9 @@ python -m stpd.hub enqueue --kind training --input-id RUN_ID \
 
 For remote operation append the common arguments to every command; otherwise these examples
 use local directories. Feature specs use the strict FeatureJobSpec codec. They contain actual
-qualified backend identity, not a guessed GPU dtype/version. Jobs remain queued without an
-explicit configured Modal target and nonzero budget. Reservations are conservative campaign
+qualified backend identity, not a guessed GPU dtype/version. Pass `serve --modal-target /ABS/target.json --budget-units N` only for the deployed exact
+Modal target. Jobs remain queued without this configured target and nonzero budget. The
+target native timeout must not exceed each job's approved maximum. Reservations are conservative campaign
 units, not a provider billing meter; consumed reservations do not automatically refund.
 The operator must also set provider spend limits and an approved timeout/GPU/concurrency.
 

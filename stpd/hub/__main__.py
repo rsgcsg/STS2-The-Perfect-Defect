@@ -87,6 +87,7 @@ def main() -> int:
     parser.add_argument("--reserved-units", type=int, default=0)
     parser.add_argument("--resume")
     parser.add_argument("--stop-after", type=int)
+    parser.add_argument("--modal-target", type=Path, help="exact deployed ModalTarget JSON")
     parser.add_argument("--isolated", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--evidence", help="operator-reviewed provider stop evidence reference")
     parser.add_argument(
@@ -188,7 +189,11 @@ def main() -> int:
         elif args.command == "status":
             print(
                 json.dumps(
-                    {"paused": ops.paused(), "uploads": len(ops.uploads()), "jobs": len(ops.jobs())}
+                    {
+                        "paused": ops.paused(),
+                        "uploads": sum(ops.upload_counts().values()),
+                        "jobs": len(ops.jobs()),
+                    }
                 )
             )
         else:
@@ -201,18 +206,37 @@ def main() -> int:
             if args.host not in {"localhost", "127.0.0.1", "::1"}:
                 raise BoundaryError("hub", "bind_loopback_use_tls_reverse_proxy")
             shutdown = threading.Event()
+            scheduler = None
+            scheduler_thread = None
+            if args.modal_target is not None:
+                from ..cloud_jobs.modal import ModalProvider, ModalTarget
+                from .scheduler import Scheduler
+
+                target = ModalTarget.decode(decode_json(args.modal_target.read_bytes()))
+                if target.producer != service.producer:
+                    raise BoundaryError("hub", "modal_target_source_mismatch")
+                scheduler = Scheduler(
+                    ops, service.store, ModalProvider(target), budget_limit=args.budget_units
+                )
+
+                def schedule() -> None:
+                    assert scheduler is not None
+                    while not shutdown.is_set():
+                        try:
+                            result = scheduler.tick(time.time())
+                            if result["state"] != "idle":
+                                print(json.dumps(result), flush=True)
+                        except Exception as error:
+                            code = error.code if isinstance(error, BoundaryError) else "tick_failed"
+                            print(json.dumps({"stage": "scheduler", "error": code}), flush=True)
+                        shutdown.wait(5)
+
+                scheduler_thread = threading.Thread(target=schedule, daemon=True)
+                scheduler_thread.start()
 
             def verifier() -> None:
                 while not shutdown.is_set():
-                    pending = next(
-                        (
-                            row
-                            for row in ops.uploads()
-                            if row["status"] == "verification_pending"
-                            and row["retry_at"] <= time.time()
-                        ),
-                        None,
-                    )
+                    pending = ops.pending_upload(time.time())
                     if pending is None:
                         shutdown.wait(5)
                         continue
@@ -271,6 +295,10 @@ def main() -> int:
             finally:
                 shutdown.set()
                 thread.join(timeout=5)
+                if scheduler_thread is not None:
+                    scheduler_thread.join(timeout=5)
+                if scheduler is not None:
+                    scheduler.close()
         return 0
     except KeyboardInterrupt:
         return 130

@@ -8,17 +8,17 @@ The B Hub operations SQLite separately owns mutable upload/attempt/budget state 
 backed up; it is never rebuilt from a Registry cache. See [ADR-0004](adr/0004-developer-cloud-hub.md)
 and [B operations](CLOUD_PIPELINE_B.md).
 DuckDB and local static HTML consume projections. Cloud GPU is disposable compute using the
-same Worker contract. Registry/RunReporter may later gain Hub adapters without changing IDs.
-No permanent service or provider-specific training branch is required.
+same Worker contract. Hub selects validated candidate results with durable attempt fences, without changing artifact IDs.
+The B deployment adds one permanent CPU service and one provider adapter; training stays shared.
 
 Platform owns S, complete A_sem(S), exact Human action, native Commit and causal successor.
 Preserve H != S and A_public != A_sem(S). `stpd/fullrun` consumes a separately versioned
-ResearchTransitionV1; only the synthetic source adapter is installed before final Platform
-qualification. It does not reinterpret historical public bindings as final semantic evidence.
+ResearchTransitionV1/V2. The pinned bundle3 adapter preserves public and native execution
+catalog authority as distinct facts. The synthetic adapter remains only engineering input.
 
 ```text
-qualified Platform source (future exact adapter) / explicit synthetic engineering source
-  -> ResearchTransitionV1 -> admission/dedup/whole-run component split -> Dataset
+verified Platform bundle3 source / explicit synthetic engineering source
+  -> ResearchTransitionV1/V2 -> admission/dedup/whole-run component split -> Dataset
   -> provisional Lite/Standard/Full ModelView -> frozen Qwen/FakeQwen FeatureSet
   -> exact TrainingInput -> Experiment/Run -> provider-neutral Worker
   -> durable Checkpoint/resume -> shared Linear/MLP Model -> OfflineEvaluation

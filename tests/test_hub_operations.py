@@ -118,7 +118,12 @@ def test_http_device_isolation_no_admin_or_payload_access(tmp_path: Path) -> Non
     assert call("/v1/artifacts/" + shared.artifact_id, "a" * 32)[0] == "200 OK"
     row = ops.create_upload("one", "a" * 64, "b" * 64, {})
     assert call("/v1/uploads/" + row["id"], "b" * 32)[0] == "409 Conflict"
-    assert call("/v1/uploads", "b" * 32)[1] == {"items": []}
+    assert call("/v1/uploads", "b" * 32)[1] == {
+        "items": [],
+        "limit": 100,
+        "offset": 0,
+        "next_offset": None,
+    }
     assert len(call("/v1/uploads", "a" * 32)[1]["items"]) == 1
 
 

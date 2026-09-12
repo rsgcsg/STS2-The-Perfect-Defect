@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from collections.abc import Sequence
@@ -21,12 +23,21 @@ def constrain_worker() -> None:
 def run_verifier(
     arguments: Sequence[str], *, timeout: float = 150, shutdown: threading.Event | None = None
 ) -> bool:
+    # The parent owns temporary storage so a killed child cannot leak expanded bundles.
+    with tempfile.TemporaryDirectory(prefix="stpd-verifier-") as scratch:
+        return _run_verifier(arguments, timeout, shutdown, scratch)
+
+
+def _run_verifier(
+    arguments: Sequence[str], timeout: float, shutdown: threading.Event | None, scratch: str
+) -> bool:
     try:
         process = subprocess.Popen(
             [sys.executable, "-m", "stpd.hub", "verify", "--isolated", *arguments],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            env={**os.environ, "TMPDIR": scratch, "TEMP": scratch, "TMP": scratch},
         )
     except OSError:
         return False
