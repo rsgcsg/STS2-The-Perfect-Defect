@@ -1,0 +1,113 @@
+name: stpd-hub
+services:
+  hub:
+    image: ${STPD_WORKER_IMAGE:?Supply the exact reviewed worker OCI digest}
+    platform: linux/amd64
+    container_name: stpd-hub
+    network_mode: host
+    user: "10001:10001"
+    working_dir: /opt/stpd
+    entrypoint: ["/opt/stpd/.venv/bin/python", "-m", "stpd.hub"]
+    command:
+      - serve
+      - --root
+      - /opt/stpd
+      - --state
+      - /var/lib/stpd
+      - --store
+      - s3
+      - --staging
+      - s3
+      - --public-url
+      - https://${STPD_HUB_DOMAIN:?Supply the public TLS hostname}
+      - --host
+      - 127.0.0.1
+      - --port
+      - "8765"
+      - --budget-units
+      - ${STPD_HUB_BUDGET_UNITS:-0}
+    env_file:
+      - path: ${STPD_HUB_SECRET_FILE:?Supply an external mode-0600 runtime env file}
+        format: raw
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      GIT_OPTIONAL_LOCKS: "0"
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /opt/stpd
+      TMPDIR: /var/lib/stpd/work
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    read_only: true
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    stop_grace_period: 165s
+    cpus: 2.0
+    mem_limit: 2560m
+    memswap_limit: 2560m
+    pids_limit: 128
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    volumes:
+      - type: bind
+        source: ${STPD_HUB_STATE_DIR:?Supply the private persistent state directory}
+        target: /var/lib/stpd
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "/opt/stpd/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  caddy:
+    image: ${STPD_CADDY_IMAGE:?Supply a reviewed Caddy OCI digest}
+    platform: linux/amd64
+    container_name: stpd-hub-tls
+    network_mode: host
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+    environment:
+      STPD_HUB_DOMAIN: ${STPD_HUB_DOMAIN:?Supply the public TLS hostname}
+      STPD_ACME_EMAIL: ${STPD_ACME_EMAIL:?Supply an ACME contact}
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 256m
+    pids_limit: 64
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    volumes:
+      - type: bind
+        source: ./Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - type: bind
+        source: ${STPD_HUB_CADDY_DIR:?Supply private persistent TLS state}/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${STPD_HUB_CADDY_DIR:?Supply private persistent TLS state}/config
+        target: /config
+        bind:
+          create_host_path: false
+    depends_on:
+      hub:
+        condition: service_healthy
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
