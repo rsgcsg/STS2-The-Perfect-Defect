@@ -18,3 +18,6 @@ Use tools/project.py check/closeout, including both clean-source CPU E2Es. Actua
 sufficient independent real run components and model/runtime qualification remain distinct
 external gates. No new Full-Run model, Mac backend, cloud game, inference service or RL is
 implemented by this pipeline work. Historical combat-v0/H1/S1/Gold evidence keeps its scope.
+
+Current release/terminal/maintenance workflow and ordered model-protocol freeze are in
+B_PIPELINE_HANDOFF.md. Never point a newly attested campaign at a historical recording root.
