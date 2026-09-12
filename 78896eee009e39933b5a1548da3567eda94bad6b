@@ -1,0 +1,65 @@
+{
+  "schema": "stpd/hub-predeployment-qualification-v1",
+  "captured_at": "2026-09-12T12:22:19.196163+00:00",
+  "source_revision": "78896eee009e39933b5a1548da3567eda94bad6b",
+  "base_revision": "67566db562b95f57468290b97659c9f2e3862fe1",
+  "uv_lock_sha256": "1b5d443fec3d75f4d49b2f9255b615d2be2db64adfaf16f182be38a445c0c60c",
+  "ci_run": 34683986493,
+  "verdict": "BLOCKED_REGISTRY_AUTHORIZATION",
+  "host": {
+    "os": "Ubuntu 24.04.4 LTS",
+    "arch": "x86_64",
+    "ram_mib": 3819,
+    "docker": "29.8.0",
+    "compose": "5.5.1",
+    "ssh_known_key": "PASS",
+    "dns_matches_vps": "PASS",
+    "firewall": "SSH restricted to current operator source; 80/443 public; other incoming denied",
+    "post_firewall_ssh": "PASS",
+    "available_disk_after_build": "23 GiB reported by df"
+  },
+  "image": {
+    "reference": "ghcr.io/rsgcsg/stpd-worker@sha256:478f8513ab240687e97fd7d6defc414d070e2db1a713e8b8f161800adca51c88",
+    "local_build": "PASS",
+    "source_identity_in_readonly_nonroot_container": "PASS",
+    "size_bytes": 8658946739,
+    "python_base": "python:3.11-slim-bookworm@sha256:528257d48c1da0dcecc2e725d1ae34498d60c965f1241e39cd6a85a8859bdf84",
+    "caddy": "caddy@sha256:13ba145cba2f3e28fa801994876e4c086d1b95d5aa2a520a734765ffb6b12017",
+    "caddy_version": "2.11.4",
+    "caddy_offline_config": "PASS"
+  },
+  "r2_from_vps_image": {
+    "conditional_smoke": "PASS",
+    "integrity": "PASS",
+    "non_claims": [
+      "provider-wide qualification",
+      "scientific validity"
+    ],
+    "schema": "stpd/store-doctor-v1",
+    "verified_manifests": 0
+  },
+  "remaining_probe_objects": 0,
+  "compute_budget": 0,
+  "gpu_invocations": 0,
+  "human_uploads": 0,
+  "blocker": {
+    "stage": "publish OCI to ghcr.io/rsgcsg/stpd-worker",
+    "cause": "current GitHub scopes gist/read:org/repo/workflow lack write:packages; no registry credential available",
+    "required": "operator-authorized GHCR package publishing credential; public code-only image for anonymous pull"
+  },
+  "not_run": [
+    "registry publish and anonymous cold pull",
+    "Hub API deployment",
+    "TLS certificate issuance/external HTTPS",
+    "deployed Hub upload/duplicate/quarantine/retry smoke",
+    "deployed database backup/readback/paused restore rehearsal",
+    "Modal or GPU compute"
+  ],
+  "evidence_sha256": {
+    "bootstrap.log": "622a540eee7c2b70826f7d17e43f014cb06c65133a67d150318906f372177a9f",
+    "build.log": "72ee612478bc74ffaadc12f5755595b87ef6ec0d897a00a829c8ba863c997c19",
+    "image-check.log": "4a770b38ce284ec451e6b15e8b5c9eab99cb14e181110577f27a63f0f43c18dc",
+    "caddy-validation.json": "d21c487313aec54e18d776e4277035c8e6630adb0326122473a0479d3ffefddb",
+    "r2-image-smoke.json": "479f561f62c6907bf45e91d823c5f60e494a5fc41ec0450009c6a5040dfb2182"
+  }
+}
