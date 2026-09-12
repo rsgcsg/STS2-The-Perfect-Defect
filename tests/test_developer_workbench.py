@@ -187,6 +187,83 @@ def test_evidence_rejects_entrypoint_missing_from_record(installed_evidence):
     assert evidence_identity("1" * 40)["status"] == "IMPORT_ORIGIN_MISMATCH"
 
 
+@pytest.mark.parametrize("owner_status", ["PASS", "BLOCKED"])
+def test_doctor_delegates_delivery_readiness_to_isolated_platform_owner(
+    project, tmp_path, monkeypatch, owner_status
+):
+    _, initial = project
+    delivery = tmp_path / "delivery.json"
+    delivery.write_text("{}")  # The consumer must not maintain a second config parser.
+    config = ProjectConfig(
+        initial.state_dir, "https://hub.example", "", delivery, initial.combination
+    )
+    monkeypatch.setattr(
+        "stpd.workbench.developer.dependency_checks",
+        lambda _: {"evidence": {"status": "PASS", "delivery_entrypoint_verified": True}},
+    )
+    monkeypatch.setattr("stpd.workbench.developer.tool_identity", lambda: {})
+    monkeypatch.setenv("STPD_HUB_ADMIN_TOKEN", "must-not-forward")
+    monkeypatch.setenv("PYTHONPATH", "must-not-use")
+
+    def owner(command, **kwargs):
+        assert command[:5] == [
+            sys.executable,
+            "-I",
+            "-m",
+            "sts2_platform_evidence.delivery_cli",
+            "doctor",
+        ]
+        assert command[-1] == str(delivery)
+        assert "STPD_HUB_ADMIN_TOKEN" not in kwargs["env"]
+        assert "PYTHONPATH" not in kwargs["env"]
+        return subprocess.CompletedProcess(
+            command,
+            0 if owner_status == "PASS" else 1,
+            json.dumps(
+                {
+                    "schema": "sts2.evidence/delivery-doctor-1",
+                    "status": owner_status,
+                    "hub_url": "https://hub.example",
+                    "discovered_sessions": 7,
+                    "checks": {"collection_release": {"status": owner_status}},
+                }
+            ).encode(),
+            b"",
+        )
+
+    monkeypatch.setattr("stpd.workbench.developer.subprocess.run", owner)
+    report = doctor(config)
+    assert report["status"] == owner_status
+    assert report["checks"]["delivery_preflight"]["discovered_sessions"] == 7
+
+
+@pytest.mark.parametrize("response", [b"not-json", b'{"status":"PASS"}'])
+def test_doctor_does_not_accept_missing_or_old_platform_preflight(
+    project, tmp_path, monkeypatch, response
+):
+    _, initial = project
+    delivery = tmp_path / "delivery.json"
+    delivery.write_text("{}")
+    config = ProjectConfig(
+        initial.state_dir, "https://hub.example", "", delivery, initial.combination
+    )
+    monkeypatch.setattr(
+        "stpd.workbench.developer.dependency_checks",
+        lambda _: {"evidence": {"status": "PASS", "delivery_entrypoint_verified": True}},
+    )
+    monkeypatch.setattr("stpd.workbench.developer.tool_identity", lambda: {})
+    monkeypatch.setattr(
+        "stpd.workbench.developer.subprocess.run",
+        lambda *a, **k: subprocess.CompletedProcess(
+            [], 0, response, b"private-diagnostic-must-not-return"
+        ),
+    )
+    report = doctor(config)
+    assert report["status"] == "BLOCKED"
+    assert report["checks"]["delivery_preflight"]["status"] == "UNAVAILABLE"
+    assert "private-diagnostic" not in json.dumps(report)
+
+
 def test_evidence_rejects_loaded_entrypoint_mismatch(installed_evidence, tmp_path, monkeypatch):
     name = "sts2_platform_evidence.delivery_cli"
     module = ModuleType(name)
