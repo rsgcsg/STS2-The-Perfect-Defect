@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -23,9 +24,12 @@ PUBLIC_KEYS = {
 SECRET_KEYS = {
     "STPD_HUB_ADMIN_TOKEN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
     "STPD_S3_ENDPOINT", "STPD_S3_REGION", "STPD_S3_BUCKET", "STPD_S3_PREFIX",
-    "STPD_INGRESS_BUCKET",
+    "STPD_INGRESS_BUCKET", "STPD_MODAL_TARGET", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET",
 }
-REQUIRED_SECRET_KEYS = SECRET_KEYS - {"AWS_SESSION_TOKEN", "STPD_S3_REGION", "STPD_S3_PREFIX"}
+COMPUTE_KEYS = {"STPD_MODAL_TARGET", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"}
+REQUIRED_SECRET_KEYS = SECRET_KEYS - {
+    "AWS_SESSION_TOKEN", "STPD_S3_REGION", "STPD_S3_PREFIX", *COMPUTE_KEYS,
+}
 IMAGE_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}"
 
 
@@ -56,7 +60,67 @@ def owner_uid(path: Path) -> int:
     return path.stat().st_uid
 
 
-def check_configuration(config: Path) -> dict[str, Any]:
+def checkout_identity() -> dict[str, str]:
+    """Read this deployment checkout; Hub still owns the runtime Producer guard."""
+    root = Path(__file__).resolve().parents[2]
+    command = ["git", "-c", f"safe.directory={root}"]
+
+    def read(*args: str) -> bytes:
+        return subprocess.check_output(
+            command + list(args), cwd=root, stderr=subprocess.PIPE,
+            env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"},
+        )
+
+    if read("status", "--porcelain"):
+        raise PreflightError("compute_requires_exact_clean_deployment_checkout")
+    revision = read("rev-parse", "HEAD").decode().strip()
+    lock = (root / "uv.lock").read_bytes()
+    if re.fullmatch(r"[0-9a-f]{40}", revision) is None or read("show", "HEAD:uv.lock") != lock:
+        raise PreflightError("compute_checkout_identity_mismatch")
+    return {"repository": "rsgcsg/STS2-The-Perfect-Defect", "source_revision": revision,
+            "uv_lock_sha256": hashlib.sha256(lock).hexdigest()}
+
+
+def check_compute(
+    values: dict[str, str], secrets: dict[str, str], state: Path, *, allow_compute: bool,
+) -> dict[str, Any]:
+    raw_budget = values["STPD_HUB_BUDGET_UNITS"]
+    if re.fullmatch(r"0|[1-9][0-9]{0,18}", raw_budget) is None:
+        raise PreflightError("compute_budget_must_be_nonnegative_integer")
+    budget = int(raw_budget)
+    if budget and not allow_compute:
+        raise PreflightError("initial_deployment_must_disable_compute_budget")
+    configured = any(key in secrets for key in COMPUTE_KEYS)
+    if not configured:
+        if budget:
+            raise PreflightError("positive_budget_requires_exact_modal_target")
+        return {"compute_budget": 0, "compute": "disabled"}
+    if any(not secrets.get(key) for key in COMPUTE_KEYS):
+        raise PreflightError("optional_compute_environment_incomplete")
+    container_path = Path(secrets["STPD_MODAL_TARGET"])
+    mount = Path("/var/lib/stpd")
+    if not container_path.is_relative_to(mount) or ".." in container_path.parts:
+        raise PreflightError("modal_target_must_be_inside_mounted_state")
+    target_path = state / container_path.relative_to(mount)
+    if any(part.is_symlink() for part in (target_path, *target_path.parents)):
+        raise PreflightError("modal_target_symlinks_forbidden")
+    info = target_path.stat()
+    if not stat.S_ISREG(info.st_mode) or info.st_size > 64 * 1024:
+        raise PreflightError("modal_target_requires_bounded_regular_file")
+    if info.st_mode & 0o077 or owner_uid(target_path) != 10001:
+        raise PreflightError("modal_target_requires_private_uid_10001_file")
+    target = json.loads(target_path.read_bytes())
+    if (
+        not isinstance(target, dict) or target.get("schema") != "stpd/modal-target-v1"
+        or target.get("producer") != checkout_identity()
+        or target.get("image") != values["STPD_WORKER_IMAGE"]
+    ):
+        raise PreflightError("modal_target_current_source_lock_image_mismatch")
+    return {"compute_budget": budget,
+            "compute": "configured_budget_zero" if not budget else "explicitly_enabled"}
+
+
+def check_configuration(config: Path, *, allow_compute: bool = False) -> dict[str, Any]:
     values = read_env(config, PUBLIC_KEYS)
     if set(values) != PUBLIC_KEYS or any(not value for value in values.values()):
         raise PreflightError("deployment_fields_missing")
@@ -67,8 +131,6 @@ def check_configuration(config: Path) -> dict[str, Any]:
         raise PreflightError("public_dns_hostname_required")
     if re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", values["STPD_ACME_EMAIL"]) is None:
         raise PreflightError("acme_contact_required")
-    if values["STPD_HUB_BUDGET_UNITS"] != "0":
-        raise PreflightError("initial_deployment_must_disable_compute_budget")
     paths = {}
     for name in ("STPD_HUB_STATE_DIR", "STPD_HUB_CADDY_DIR", "STPD_HUB_SECRET_FILE"):
         path = Path(values[name])
@@ -102,7 +164,8 @@ def check_configuration(config: Path) -> dict[str, Any]:
     if secrets["STPD_S3_BUCKET"] == secrets["STPD_INGRESS_BUCKET"]:
         raise PreflightError("separate_ingress_and_artifact_buckets_required")
     return {
-        "configuration": "PASS", "credential_values": "not_reported", "compute_budget": 0,
+        "configuration": "PASS", "credential_values": "not_reported",
+        **check_compute(values, secrets, state, allow_compute=allow_compute),
         "checks_not_performed": ["DNS ownership", "TLS issuance", "bucket privacy", "cloud IAM",
                                  "loaded OCI identity", "real upload", "real GPU"],
     }
@@ -150,13 +213,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path)
     parser.add_argument("--backup", type=Path)
     parser.add_argument("--host", action="store_true")
+    parser.add_argument("--allow-compute", action="store_true",
+                        help="validate an explicitly authorized nonzero compute budget")
     args = parser.parse_args(argv)
     try:
         if not (args.config or args.backup or args.host):
             raise PreflightError("select_config_backup_or_host_checks")
         report: dict[str, Any] = {"schema": "stpd/hub-preflight-v1", "read_only": True}
         if args.config:
-            report.update(check_configuration(args.config))
+            report.update(check_configuration(args.config, allow_compute=args.allow_compute))
         if args.backup:
             report.update(check_backup(args.backup))
         if args.host:

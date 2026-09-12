@@ -83,6 +83,55 @@ class PreflightTests(unittest.TestCase):
                 with self.assertRaises(preflight.PreflightError):
                     preflight.read_env(config, {"X"})
 
+    def test_optional_compute_is_exact_mounted_and_explicitly_budgeted(self) -> None:
+        producer = {"repository": "rsgcsg/STS2-The-Perfect-Defect", "source_revision": "a" * 40,
+                    "uv_lock_sha256": "b" * 64}
+        image = "registry.example/stpd@sha256:" + "c" * 64
+        values = {"STPD_WORKER_IMAGE": image, "STPD_HUB_BUDGET_UNITS": "0"}
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory).resolve()
+            target = state / "modal-target.json"
+            target.write_text(json.dumps({"schema": "stpd/modal-target-v1", "producer": producer,
+                                          "image": image, "gpu": "L4", "timeout_seconds": 300,
+                                          "storage_secret_name": "storage",
+                                          "qwen_volume_name": None}))
+            target.chmod(0o600)
+            secrets = {"STPD_MODAL_TARGET": "/var/lib/stpd/modal-target.json",
+                       "MODAL_TOKEN_ID": "private-modal-id", "MODAL_TOKEN_SECRET": "private-secret"}
+            original = target.read_bytes()
+            with (patch.object(preflight, "owner_uid", return_value=10001),
+                  patch.object(preflight, "checkout_identity", return_value=producer)):
+                report = preflight.check_compute(values, secrets, state, allow_compute=False)
+                self.assertEqual(report["compute"], "configured_budget_zero")
+                self.assertNotIn("private-", json.dumps(report))
+                self.assertEqual(target.read_bytes(), original)
+                values["STPD_HUB_BUDGET_UNITS"] = "1"
+                with self.assertRaisesRegex(preflight.PreflightError, "disable_compute_budget"):
+                    preflight.check_compute(values, secrets, state, allow_compute=False)
+                self.assertEqual(preflight.check_compute(
+                    values, secrets, state, allow_compute=True,
+                )["compute"], "explicitly_enabled")
+                with self.assertRaisesRegex(preflight.PreflightError, "requires_exact_modal"):
+                    preflight.check_compute(values, {}, state, allow_compute=True)
+                values["STPD_HUB_BUDGET_UNITS"] = "0"
+                incomplete = {"MODAL_TOKEN_ID": "private-modal-id"}
+                with self.assertRaisesRegex(preflight.PreflightError, "environment_incomplete"):
+                    preflight.check_compute(values, incomplete, state, allow_compute=False)
+                for bad_path in ("/etc/target.json", "/var/lib/stpd/../target.json"):
+                    secrets["STPD_MODAL_TARGET"] = bad_path
+                    with self.assertRaisesRegex(preflight.PreflightError, "inside_mounted_state"):
+                        preflight.check_compute(values, secrets, state, allow_compute=False)
+                secrets["STPD_MODAL_TARGET"] = "/var/lib/stpd/modal-target.json"
+                link = state / "linked.json"
+                link.symlink_to(target)
+                secrets["STPD_MODAL_TARGET"] = "/var/lib/stpd/linked.json"
+                with self.assertRaisesRegex(preflight.PreflightError, "symlinks_forbidden"):
+                    preflight.check_compute(values, secrets, state, allow_compute=False)
+                secrets["STPD_MODAL_TARGET"] = "/var/lib/stpd/modal-target.json"
+                target.write_text(original.decode().replace("a" * 40, "d" * 40))
+                with self.assertRaisesRegex(preflight.PreflightError, "source_lock_image_mismatch"):
+                    preflight.check_compute(values, secrets, state, allow_compute=False)
+
     def test_proxy_preserves_current_32_mib_upload_intent_contract(self) -> None:
         config = (Path(__file__).parent / "Caddyfile").read_text()
         self.assertIn("max_size 33554432", config)
