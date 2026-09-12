@@ -21,3 +21,7 @@ implemented by this pipeline work. Historical combat-v0/H1/S1/Gold evidence keep
 
 Current release/terminal/maintenance workflow and ordered model-protocol freeze are in
 B_PIPELINE_HANDOFF.md. Never point a newly attested campaign at a historical recording root.
+
+First dedicated Human Close-to-R2 and 412-record V2 projection passed at historical
+99aa819; see evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md. One run is not
+a Dataset. Preserve existing tool/outbox/receipts during Python diagnostic upgrades.

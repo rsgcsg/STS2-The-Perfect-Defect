@@ -76,3 +76,5 @@ not copied source trees, shared branches or submodules.
 - [ADR-0004: durable Hub](adr/0004-developer-cloud-hub.md)
 
 - [B architecture and operational closeout review](evidence/B_PIPELINE_QUALITY_CLOSEOUT_2026-09-12.md)
+
+- [First dedicated Human upload and projection audit](evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md)

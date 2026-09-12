@@ -12,7 +12,11 @@ these source changes. Scoped real Hub/OCI/TLS/R2/backup/restore receipts at sour
 They used synthetic uploads and do not qualify a changed candidate, production Human
 collection, GPU execution or whole-host recovery. Read [current handoff](B_PIPELINE_HANDOFF.md)
 for terminal/distribution/maintenance and the ordered training-plan freeze gates.
-Historical qualification below remains tied to its original refs.
+The first dedicated new Human campaign passed Close-to-R2 readback and 412-record
+research projection at source `99aa8199dbbcee7c600fcdb5b923168214e92635`; see the
+[bounded Human audit](evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md). Dataset
+admission correctly requires more independent runs. New repairs need their own
+current source/CI/service receipts. Historical qualification below remains tied to its original refs.
 
 ## Pre-Full-Run engineering closeout
 
