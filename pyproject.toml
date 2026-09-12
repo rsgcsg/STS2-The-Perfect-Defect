@@ -11,10 +11,11 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
   "numpy>=2.0,<3",
   "pyarrow>=18,<24",
-  "rsgcsg-sts2-platform-evidence @ git+https://github.com/rsgcsg/STS2-AI-PLATFORM.git@a5f733d32b3657168c593552eaac4d850284d181#subdirectory=components/evidence",
+  "rsgcsg-sts2-platform-evidence @ git+https://github.com/rsgcsg/STS2-AI-PLATFORM.git@a43e0cc8095107291e2b3ac2882faa7b7e9cc70e#subdirectory=components/evidence",
 ]
 
 [project.optional-dependencies]
+cloud = ["waitress>=3,<4", "modal==1.5.5"]
 research = [
   "boto3>=1.35,<2",
   "duckdb>=1.4,<2",
