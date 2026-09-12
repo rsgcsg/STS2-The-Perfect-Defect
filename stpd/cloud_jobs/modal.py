@@ -121,11 +121,11 @@ class ModalProvider:
             function = sdk.Function.from_name(self.target.app_name, "compute")
             call = function.spawn(request.to_dict(), self.target.target_id)
             return ModalCall(self.target.target_id, request, call.object_id)
-        except Exception as error:
+        except Exception:
             raise BoundaryError(
                 "modal", "submission_unknown",
                 "reconcile the recorded attempt with the provider; do not submit again",
-            ) from error
+            ) from None
 
     def _call(self, handle: ModalCall) -> Any:
         if (
@@ -142,10 +142,10 @@ class ModalProvider:
             return None
         except BoundaryError:
             raise
-        except Exception as error:
+        except Exception:
             # Transport failure and remote failure are not guessed apart. Hub
             # retains uncertain until provider terminal evidence is available.
-            raise BoundaryError("modal", "result_unavailable") from error
+            raise BoundaryError("modal", "result_unavailable") from None
         result = object_fields(value, {"target_id", "receipt"}, "modal.response")
         if result["target_id"] != self.target.target_id:
             raise BoundaryError("modal", "deployed_target_mismatch")
@@ -158,8 +158,8 @@ class ModalProvider:
             self._call(handle).cancel(terminate_containers=True)
         except BoundaryError:
             raise
-        except Exception as error:
-            raise BoundaryError("modal", "cancellation_unknown") from error
+        except Exception:
+            raise BoundaryError("modal", "cancellation_unknown") from None
         # Acknowledgement is not a fabricated terminal/result receipt. The Hub
         # records it and reconciles the provider's task status before rescheduling.
 

@@ -24,7 +24,9 @@ Receipts are **candidate_prepared**, not Hub completion or scientific admission.
 CandidateReporter writes immutable events/candidates, including compute attempt/request
 references in event details, and never writes `run-completions/`. Hub must persist requests,
 validate receipt identity and payloads, then select results in its current fenced transaction.
-CPU receipt checks are binding/integrity checks, not a GPU replay or model-quality verdict.
+CPU receipt checks also decode bounded checkpoints, recompute the shared training plan and
+compare loaded model tensors with the checkpoint head. They are not a GPU replay or
+model-quality verdict.
 Interrupted feature compilation can be explicitly rerun; there is no fabricated partial
 FeatureSet or implicit "latest" checkpoint. Training resumes only an explicit same-Run ID.
 
@@ -53,7 +55,8 @@ resources. Modal's free/default lookup routes to a named App's latest version; d
 changed code/resources under an old target name. Each invocation verifies target ID and the
 worker verifies actual clean executing-checkout Producer. It invokes the image's locked
 `/opt/stpd/.venv/bin/python -m stpd.cloud_jobs`, not Modal's injected SDK Python for training.
-No source-identity check is disabled to support packaging. The wrapper is serialized with
+The local serialized deployment wrapper must also execute from the clean exact target
+Producer. No source-identity check is disabled to support packaging. The wrapper is serialized with
 only standard-library dependencies and primitive target identity, not the local STPD package.
 
 ## Submit, reconcile and restore
@@ -80,3 +83,12 @@ Official API references checked for this implementation:
 Provider adapter tests plus CPU replacement-process evidence qualify only engineering.
 They do not establish account availability, real S3 semantics, CUDA/BF16 admission, cost,
 scientific validity, Human origin or native gameplay correctness.
+
+## Portable subprocess evidence
+
+After committing the exact clean candidate, run
+`uv run --locked python -m stpd.cloud_jobs.smoke --output .local/cloud-worker-cpu.json`.
+It prepares explicit synthetic input on CPU, compiles features in a separate process,
+pauses training, resumes in a replacement process and compares learned weights and dev
+metrics to an uninterrupted process. The final result identities can differ because
+checkpoint audit RNG bytes belong to their actual process; those bytes are never rewritten.

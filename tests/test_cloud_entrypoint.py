@@ -50,6 +50,7 @@ def test_modal_definition_bounds_runtime_and_invokes_only_locked_worker(
     target_file = tmp_path / "target.json"
     target_file.write_text(json.dumps(selected.to_dict()))
     monkeypatch.setenv("STPD_MODAL_TARGET", str(target_file))
+    monkeypatch.setattr("stpd.workbench.control.source_identity", lambda _: PRODUCER)
     calls = {}
 
     class App:
@@ -94,3 +95,9 @@ def test_modal_definition_bounds_runtime_and_invokes_only_locked_worker(
     }
     with pytest.raises(ValueError, match="deployed_target_mismatch"):
         compute({}, "different")
+    monkeypatch.setattr(
+        "stpd.workbench.control.source_identity",
+        lambda _: replace(PRODUCER, source_revision="f" * 40),
+    )
+    with pytest.raises(BoundaryError, match="wrapper_source_lock_mismatch"):
+        runpy.run_path(str(Path(__file__).parents[1] / "deploy/cloud-worker/modal_app.py"))

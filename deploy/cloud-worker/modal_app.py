@@ -13,9 +13,13 @@ import os
 from pathlib import Path
 
 from stpd.cloud_jobs.modal import ModalTarget
+from stpd.json_boundary import BoundaryError, decode_json
+from stpd.workbench.control import source_identity
 
 modal = importlib.import_module("modal")
-target = ModalTarget.decode(json.loads(Path(os.environ["STPD_MODAL_TARGET"]).read_text()))
+target = ModalTarget.decode(decode_json(Path(os.environ["STPD_MODAL_TARGET"]).read_bytes()))
+if source_identity(Path(__file__).resolve().parents[2]) != target.producer:
+    raise BoundaryError("modal_deploy", "wrapper_source_lock_mismatch")
 deployed_target_id = target.target_id
 app = modal.App(target.app_name)
 image = modal.Image.from_registry(target.image, add_python="3.11")
