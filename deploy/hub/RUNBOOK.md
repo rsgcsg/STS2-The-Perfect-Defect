@@ -27,7 +27,7 @@ sudo install -m 0600 deploy/hub/backup.env.example /etc/stpd/hub-backup.env
 Edit those external files with the intended non-secret settings and credentials through the
 operator's secure editor. Generate the admin token with an approved password manager; do not
 print it in shell history or share it in chat. Keep the initial budget at zero. Use three distinct private
-R2 buckets (ingress, artifacts, operator backups) and exact immutable OCI references. Supply no Modal token to this Hub deployment.
+R2 buckets (ingress, artifacts, operator backups) and exact immutable OCI references. Leave optional Modal variables unset for this initial upload-only load.
 Record reviewed source SHA, lock hash, both image digests and a hash of the non-secret config.
 Keep the previous deployment config/image identities for rollback; never log the secret file.
 
@@ -124,8 +124,8 @@ hubctl reconcile --job EXACT_JOB_ID --evidence REVIEWED_PROVIDER_STOP_EVIDENCE_R
 hubctl unpause
 ```
 
-Those are operator-reviewed facts, not a workaround to erase an unknown delivery. This initial
-Compose file does not submit compute itself and keeps the budget at zero.
+Those are operator-reviewed facts, not a workaround to erase an unknown delivery. Default
+Compose configuration keeps the budget at zero and the optional same-process scheduler unset.
 
 ## Consistent private off-host backup
 
@@ -184,6 +184,47 @@ additional backup before deployments. Keep Caddy TLS state and external config/s
 material in the protected operator backup system separately; this tool intentionally backs up
 only operational SQLite. A successful upload is not a full disaster recovery qualification:
 perform the paused restore rehearsal below on an isolated host.
+
+## Enable the existing same-Hub scheduler
+
+Do this only after operator account/budget authorization and qualification of the exact Modal
+worker target using `deploy/cloud-worker/README.md`. This procedure does not provision Modal
+resources. Deploy the exact target's content-derived app namespace and verify its source/lock,
+worker OCI image and resource limits. Do not overwrite a different target under a shared name.
+The same Hub schedules at most one active job/GPU; its target timeout must be no greater than
+each queued job's `max_seconds`, and reservations must fit the explicitly configured budget.
+
+Pause existing dispatch and save a private backup first. Place the reviewed JSON in the mounted
+state directory and set **all three** optional keys in `/etc/stpd/hub-runtime.env` using the
+secure operator editor: `STPD_MODAL_TARGET=/var/lib/stpd/modal-target.json`, `MODAL_TOKEN_ID`,
+`MODAL_TOKEN_SECRET`. Never put credential values in command arguments or logs. The worker's
+storage secret belongs to its provider deployment; it is separate from the Hub's Modal token.
+
+```bash
+hubctl pause
+backupctl backup
+sudo install -m 0600 -o 10001 -g 10001 /PRIVATE_OPERATOR/reviewed-modal-target.json /srv/stpd/hub/modal-target.json
+sudo python3 deploy/hub/preflight.py --config /etc/stpd/deployment.env --host
+```
+
+The first check still uses budget zero and may validate the fully configured dormant target.
+Then explicitly change `STPD_HUB_BUDGET_UNITS` in `/etc/stpd/deployment.env` to the authorized
+positive reservation limit and validate that opt-in:
+
+```bash
+sudo python3 deploy/hub/preflight.py --config /etc/stpd/deployment.env --host --allow-compute
+dc config -q
+dc up -d --force-recreate hub
+hubctl status
+```
+
+Retain the selected namespace/target/image identity in the operator inventory. Resolve any
+in-flight/unknown provider attempt before `hubctl unpause`. Then enqueue only an approved bounded
+canary with the existing Hub/Workbench job commands; inspect attempt fences, deadlines and
+candidate validation before increasing workload. No queued job or positive budget constitutes
+model-quality qualification. To stop new work, `hubctl pause`; changing env/budget alone does not
+cancel an already running GPU. Confirm cancellation/terminal state with the owning scheduler
+and provider before disabling the optional variables or rolling back.
 
 ## Restore into paused state
 

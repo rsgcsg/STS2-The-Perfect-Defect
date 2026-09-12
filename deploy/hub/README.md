@@ -76,13 +76,28 @@ accept modest staging duplication. Never expire source artifacts, model dependen
 archives or operational backups through the ingress rule. Local clients retain originals while
 awaiting cloud receipts; retention is not inferred from an HTTP PUT response.
 
-## Compute is disabled by default
+## Optional scheduling in the same Hub
 
-`STPD_HUB_BUDGET_UNITS=0` blocks enqueueing jobs. Compose has no GPU service, Modal secret or
-background compute-launch service. Queue preparation, account qualification and model-quality
-claims remain separate. A later reviewed dispatch service may use the existing frozen job
-contracts; explicit budget, timeout, target digest and failure reconciliation must precede any
-paid call. A restored Hub starts paused and must reconcile external work before unpausing.
+`STPD_HUB_BUDGET_UNITS=0` and absent optional Modal variables leave the default service in
+upload/verification mode. To enable the existing scheduler in the **same Hub process**, an
+operator configures `STPD_MODAL_TARGET=/var/lib/stpd/modal-target.json`, `MODAL_TOKEN_ID` and
+`MODAL_TOKEN_SECRET` in the external runtime env, then deliberately sets a positive budget.
+No second Hub, GPU service or independently polling scheduler container is introduced.
+
+The target JSON must name the exact current source/lock and same reviewed worker image digest.
+Its content-derived app namespace must match the deployed Modal function; do not reuse a mutable
+name for a different target. The owning scheduler restricts one active job/GPU, checks the target
+timeout against each job's maximum, and reconciles uncertain delivery before any replacement
+attempt. A positive budget is an operational reservation limit, not a dollar billing guarantee.
+
+Preflight checks mounted target path/private ownership/current source-lock-image identity and
+complete credential presence without contacting Modal. It accepts nonzero budgets only with
+`--allow-compute`; ordinary preflight keeps the initial zero-budget safeguard. Hub startup still
+owns complete typed target validation and runtime producer matching. An exact deployed target,
+account authorization, provider limits and bounded real cloud canary are separate prerequisites;
+these source files create no account, provision no resource and submit no paid call by themselves.
+A restored Hub starts paused and must reconcile external work before unpausing. See the runbook
+for explicit enablement and pause procedures.
 
 ## Validation available without Docker or credentials
 
