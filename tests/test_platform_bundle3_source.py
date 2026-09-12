@@ -299,3 +299,30 @@ def test_received_bundle_keeps_transport_parent_and_reverifies_bytes(tmp_path: P
     dataset = admit((projected,))
     result = publish_dataset(target, dataset, (source,), PRODUCER)
     assert load_dataset(target, result.artifact_id)[1] == dataset
+
+
+def test_expansion_limit_covers_hidden_tar_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import gzip
+
+    from stpd.fullrun import platform_bundle3 as adapter
+
+    # No regular file is needed to exhaust resources: a tar extended header alone
+    # can otherwise bypass a limit applied only after TarInfo members are yielded.
+    content = io.BytesIO()
+    with tarfile.open(fileobj=content, mode="w", format=tarfile.PAX_FORMAT) as archive:
+        info = tarfile.TarInfo("short")
+        info.pax_headers = {"comment": "x" * 50000}
+        archive.addfile(info)
+    raw = gzip.compress(content.getvalue(), mtime=0)
+    monkeypatch.setattr(adapter, "MAX_BYTES", 2048)
+    assert len(raw) < adapter.MAX_BYTES
+    with pytest.raises(BoundaryError, match="expanded_size_limit"):
+        adapter.PlatformBundle3SourceAdapter().project(raw)
+
+
+def test_truncated_gzip_is_classified_as_invalid_archive(tmp_path: Path) -> None:
+    raw = archive_bundle(bundle3(tmp_path))
+    with pytest.raises(BoundaryError, match="invalid_archive"):
+        PlatformBundle3SourceAdapter().project(raw[:-4])
