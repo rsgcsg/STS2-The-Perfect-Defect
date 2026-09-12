@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import threading
 import time
 from dataclasses import asdict
@@ -229,7 +230,7 @@ def main() -> int:
                         "--upload",
                         pending["id"],
                     ]
-                    if not run_verifier(arguments):
+                    if not run_verifier(arguments, shutdown=shutdown) and not shutdown.is_set():
                         ops.verification_failure(
                             pending["id"], "verifier_resource_or_process_limit", now=time.time()
                         )
@@ -241,6 +242,11 @@ def main() -> int:
 
             thread = threading.Thread(target=verifier, daemon=True)
             thread.start()
+
+            def stop_signal(signum: int, frame: Any) -> None:
+                raise KeyboardInterrupt
+
+            signal.signal(signal.SIGTERM, stop_signal)
             try:
                 print(
                     json.dumps(
@@ -266,6 +272,8 @@ def main() -> int:
                 shutdown.set()
                 thread.join(timeout=5)
         return 0
+    except KeyboardInterrupt:
+        return 130
     except (BoundaryError, ValueError, OSError) as error:
         print(
             json.dumps(
