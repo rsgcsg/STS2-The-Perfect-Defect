@@ -11,7 +11,7 @@ from typing import Any
 
 from ..json_boundary import BoundaryError, decode_json, digest, text
 from .developer import DEFAULT_CONFIG, ROOT, ProjectConfig, doctor, setup
-from .developer_server import _local_request, open_project, running, serve, stop_project
+from .developer_server import open_project, serve, status_project, stop_project
 from .hub_client import HubClient
 
 
@@ -99,12 +99,7 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command == "serve":
                 result = serve(config)
             elif args.command == "status":
-                runtime = running(config)
-                result = (
-                    {"status": "not_running"}
-                    if runtime is None
-                    else _local_request(f"http://127.0.0.1:{runtime['port']}/api/status")
-                )
+                result = status_project(config)
             else:
                 if not args.artifact or not config.hub_url:
                     raise BoundaryError("download", "artifact_and_hub_required")
