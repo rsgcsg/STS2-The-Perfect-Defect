@@ -1,0 +1,265 @@
+"""Single-Hub scheduling over durable invocation intent and fenced result selection.
+
+Provider calls are never the operations ledger. A lost submit response remains
+unknown; only a saved handle is polled after restart. A lease is not proof that an
+external worker stopped. This module starts no cloud work without a positive budget.
+"""
+
+from __future__ import annotations
+
+import importlib
+import json
+import math
+import os
+import threading
+from typing import Any, Protocol
+
+from ..cloud_jobs.contracts import ComputeReceipt, ComputeRequest, load_feature_job
+from ..cloud_jobs.execution import validate_receipt
+from ..cloud_jobs.modal import ModalCall, ModalTarget
+from ..json_boundary import BoundaryError
+from ..storage.store import ArtifactStore
+from ..workers.contracts import load_training_input
+from .database import Operations
+
+ACTIVE = frozenset({"running", "uncertain", "submission_unknown", "cancelling"})
+
+
+class ComputeProvider(Protocol):
+    target: ModalTarget
+
+    def submit(self, request: ComputeRequest) -> ModalCall: ...
+    def poll(self, handle: ModalCall) -> ComputeReceipt | None: ...
+    def cancel(self, handle: ModalCall) -> None: ...
+
+
+class Scheduler:
+    """Hold one OS lifetime lock per operations DB; call ``tick(now)`` from a loop.
+
+    Use as a context manager or call close in the owning service's finally block.
+    The lock survives neither process death nor explicit close. It is not deleted
+    or stolen on a guessed timeout. SQLite CAS still fences every state mutation.
+    """
+
+    def __init__(
+        self,
+        operations: Operations,
+        store: ArtifactStore,
+        provider: ComputeProvider,
+        *,
+        budget_limit: int = 0,
+    ) -> None:
+        if type(budget_limit) is not int or budget_limit < 0:
+            raise BoundaryError("scheduler", "invalid_budget")
+        self.operations, self.store, self.provider = operations, store, provider
+        self.budget_limit = budget_limit
+        self._tokens: dict[str, str] = {}
+        self._serial = threading.Lock()
+        self._closed = False
+        path = operations.path.resolve().with_suffix(".scheduler.lock")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = path.open("a+b")
+        self._lock.seek(0)
+        if not self._lock.read(1):
+            self._lock.write(b"0")
+            self._lock.flush()
+        self._lock.seek(0)
+        try:
+            if os.name == "nt":
+                api = importlib.import_module("msvcrt")
+                api.locking(self._lock.fileno(), api.LK_NBLCK, 1)
+            else:
+                api = importlib.import_module("fcntl")
+                api.flock(self._lock.fileno(), api.LOCK_EX | api.LOCK_NB)
+        except OSError:
+            self._lock.close()
+            raise BoundaryError("scheduler", "another_scheduler_owns_database") from None
+
+    def __enter__(self) -> Scheduler:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.close()
+
+    def close(self) -> None:
+        with self._serial:
+            if not self._closed:
+                self._closed = True
+                self._lock.close()
+                self._tokens.clear()
+
+    def _reply(self, state: str, job: str | None = None, **detail: Any) -> dict[str, Any]:
+        return {"schema": "stpd/scheduler-tick-v1", "state": state, "job_id": job, **detail}
+
+    def _token(self, row: dict[str, Any], now: float) -> str:
+        job = str(row["id"])
+        if job not in self._tokens:
+            recovered = self.operations.recover_compute(
+                job,
+                row["attempt_id"],
+                row["fence"],
+                now=now,
+            )
+            self._tokens[job] = recovered["lease_token"]
+        return self._tokens[job]
+
+    def _preflight(self, row: dict[str, Any]) -> ComputeRequest:
+        kind = {"feature": "features", "training": "training"}.get(row["kind"])
+        if kind is None:
+            raise BoundaryError("scheduler", "unsupported_job_kind")
+        target = self.provider.target
+        if target.timeout_seconds > row["max_seconds"]:
+            raise BoundaryError("scheduler", "provider_timeout_exceeds_job_budget")
+        options = json.loads(row["options"])
+        request = ComputeRequest(
+            kind,
+            row["input_id"],
+            target.producer,
+            row["attempt_id"],
+            options.get("resume"),
+            options.get("stop_after"),
+        )
+        if kind == "features":
+            load_feature_job(self.store, request.input_id, target.producer)
+        else:
+            run = self.store.get_manifest(request.input_id)
+            if run.kind != "run" or run.producer != target.producer:
+                raise BoundaryError("scheduler", "run_source_or_kind_mismatch")
+            load_training_input(self.store, run.parent("training_input"), target.producer)
+        return request
+
+    def _submit(self, row: dict[str, Any], now: float) -> dict[str, Any]:
+        job, token = row["id"], row["lease_token"]
+        self._tokens[job] = token
+        try:
+            request = self._preflight(row)
+        except (BoundaryError, OSError, ValueError) as error:
+            code = error.code if isinstance(error, BoundaryError) else "input_unavailable"
+            self.operations.fail_before_compute(job, token, code, now=now)
+            return self._reply("preflight_failed", job, code=code)
+        if not self.operations.prepare_compute(
+            job,
+            token,
+            request.to_dict(),
+            self.provider.target.target_id,
+            now=now,
+        ):
+            return self._reply("already_prepared_no_resubmit", job)
+        try:
+            handle = self.provider.submit(request)
+        except Exception:
+            self.operations.compute_uncertain(
+                job,
+                token,
+                row["attempt_id"],
+                row["fence"],
+                "submission_unknown",
+            )
+            return self._reply("submission_unknown", job)
+        # A crash before this transaction leaves durable 'submitting', never permission to retry.
+        self.operations.bind_compute_handle(
+            job,
+            token,
+            row["attempt_id"],
+            row["fence"],
+            handle.to_dict(),
+        )
+        return self._reply("submitted", job, request_id=request.request_id)
+
+    def _cancel(self, row: dict[str, Any], token: str, handle: ModalCall) -> None:
+        job, attempt, fence = row["id"], row["attempt_id"], row["fence"]
+        if row["status"] != "cancelling":
+            self.operations.cancel(job)
+        if self.operations.begin_compute_cancel(job, token, attempt, fence):
+            try:
+                self.provider.cancel(handle)
+            except Exception:
+                self.operations.record_compute_cancel(
+                    job, token, attempt, fence, acknowledged=False
+                )
+            else:
+                self.operations.record_compute_cancel(job, token, attempt, fence, acknowledged=True)
+
+    def _poll(self, row: dict[str, Any], now: float) -> dict[str, Any]:
+        job, attempt, fence = row["id"], row["attempt_id"], row["fence"]
+        token = self._token(row, now)
+        saved = self.operations.compute_state(job)
+        if saved is None or saved["handle"] is None:
+            self.operations.compute_uncertain(job, token, attempt, fence, "handle_not_recorded")
+            return self._reply(
+                "submission_unknown", job, recovery="provider_reconciliation_required"
+            )
+        request = ComputeRequest.decode(saved["request"])
+        handle = ModalCall.decode(saved["handle"])
+        if (
+            saved["target_id"] != self.provider.target.target_id
+            or handle.target_id != saved["target_id"]
+            or handle.request != request
+            or row["provider_ref"] != handle.call_id
+            or saved["attempt_id"] != attempt
+            or saved["fence"] != fence
+        ):
+            self.operations.compute_uncertain(job, token, attempt, fence, "saved_handle_mismatch")
+            return self._reply("target_or_handle_mismatch", job)
+        cancelling = row["status"] == "cancelling"
+        deadline_elapsed = now >= row["deadline"]
+        if cancelling:
+            self._cancel(row, token, handle)
+        try:
+            receipt = self.provider.poll(handle)
+            if receipt is not None:
+                receipt.bind(request)
+                if cancelling:
+                    # Returning this exact call's receipt proves it ended, but does not select it.
+                    self.operations.accept_compute(
+                        job, token, attempt, fence, receipt.to_dict(), cancelled=True
+                    )
+                    return self._reply("cancelled", job)
+                validate_receipt(self.store, request, receipt)
+                self.operations.accept_compute(job, token, attempt, fence, receipt.to_dict())
+                return self._reply(
+                    "paused" if receipt.state == "paused" else "completed",
+                    job,
+                    request_id=request.request_id,
+                )
+        except (BoundaryError, OSError, ValueError) as error:
+            code = error.code if isinstance(error, BoundaryError) else "result_unavailable"
+            if deadline_elapsed and not cancelling:
+                self._cancel(row, token, handle)
+            # Retain the attempt and its handle. Poll/validation may be retried, never spawn.
+            self.operations.compute_uncertain(job, token, attempt, fence, code)
+            return self._reply("result_uncertain", job, code=code)
+        if deadline_elapsed and not cancelling:
+            # Observe an already returned exact receipt before requesting stop. The target's
+            # native timeout bounds compute, not the Hub's observation time or lease clock.
+            self._cancel(row, token, handle)
+            cancelling = True
+        if cancelling:
+            return self._reply("cancelling", job, recovery="await_exact_provider_terminal_evidence")
+        if row["status"] == "running":
+            self.operations.heartbeat(job, token, now=now)
+        return self._reply("pending", job)
+
+    def tick(self, now: float) -> dict[str, Any]:
+        if not math.isfinite(now):
+            raise BoundaryError("scheduler", "invalid_clock")
+        with self._serial:
+            if self._closed:
+                raise BoundaryError("scheduler", "scheduler_closed")
+            if self.operations.paused():
+                return self._reply("paused_by_operator")
+            self.operations.expire(now=now)
+            jobs = self.operations.jobs()
+            active = [row for row in jobs if row["status"] in ACTIVE]
+            active_ids = {row["id"] for row in active}
+            self._tokens = {job: token for job, token in self._tokens.items() if job in active_ids}
+            if len(active) > 1:
+                raise BoundaryError("scheduler", "multiple_active_jobs")
+            if active:
+                return self._poll(active[0], now)
+            if self.budget_limit == 0:
+                return self._reply("launch_disabled")
+            if sum(row["reserved_units"] for row in jobs) > self.budget_limit:
+                return self._reply("budget_blocked")
+            claimed = self.operations.claim("scheduler", now=now)
+            return self._reply("idle") if claimed is None else self._submit(claimed, now)
