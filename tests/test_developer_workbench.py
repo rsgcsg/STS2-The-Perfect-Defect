@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import importlib.metadata
+import importlib.util
 import json
+import os
+import subprocess
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from types import ModuleType
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -15,9 +23,11 @@ from stpd.artifact_contracts import Manifest, Parent, Payload
 from stpd.json_boundary import BoundaryError
 from stpd.workbench.__main__ import main
 from stpd.workbench.developer import (
+    PUBLIC_REPOSITORY,
     ROOT,
     ProjectConfig,
     combination,
+    doctor,
     endpoint,
     evidence_identity,
     setup,
@@ -87,6 +97,130 @@ def test_public_dependency_identity_rejects_sibling_install(monkeypatch):
 
     monkeypatch.setattr("importlib.metadata.distribution", lambda name: Distribution())
     assert evidence_identity("1" * 40)["status"] == "PIN_MISMATCH"
+
+
+@pytest.fixture
+def installed_evidence(tmp_path, monkeypatch):
+    """A complete wheel-style identity without executing its package initializer."""
+    site = tmp_path / "site-packages"
+    package = site / "sts2_platform_evidence"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("raise AssertionError('must not import during doctor')\n")
+    (package / "delivery_cli.py").write_text("raise AssertionError('must not run during doctor')\n")
+    metadata = site / "rsgcsg_sts2_platform_evidence-0.1.0.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text("Name: rsgcsg-sts2-platform-evidence\nVersion: 0.1.0\n")
+    (metadata / "direct_url.json").write_text(
+        json.dumps(
+            {
+                "url": PUBLIC_REPOSITORY,
+                "vcs_info": {"commit_id": "1" * 40},
+                "subdirectory": "components/evidence",
+            }
+        )
+    )
+    rows = []
+    for path in sorted(site.rglob("*")):
+        if path.is_file():
+            data = path.read_bytes()
+            sha = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
+            rows.append(f"{path.relative_to(site)},sha256={sha},{len(data)}\n")
+    (metadata / "RECORD").write_text("".join(rows))
+    distribution = importlib.metadata.Distribution.at(metadata)
+    monkeypatch.setattr("importlib.metadata.distribution", lambda name: distribution)
+    for name in list(sys.modules):
+        if name == "sts2_platform_evidence" or name.startswith("sts2_platform_evidence."):
+            monkeypatch.delitem(sys.modules, name)
+    monkeypatch.syspath_prepend(str(site))
+    return package, metadata
+
+
+def test_evidence_record_binds_package_and_delivery_without_import(installed_evidence):
+    identity = evidence_identity("1" * 40)
+    assert identity["status"] == "PASS"
+    assert identity["delivery_entrypoint_verified"] is True
+    assert "sts2_platform_evidence" not in sys.modules
+
+
+@pytest.mark.parametrize("already_loaded", [False, True])
+def test_doctor_rejects_import_shadow_even_with_verified_record(
+    installed_evidence, project, tmp_path, monkeypatch, already_loaded
+):
+    package, _ = installed_evidence
+    if already_loaded:
+        spec = importlib.util.spec_from_file_location(
+            "sts2_platform_evidence", package / "__init__.py"
+        )
+        monkeypatch.setitem(
+            sys.modules, "sts2_platform_evidence", importlib.util.module_from_spec(spec)
+        )
+    shadow = tmp_path / "shadow" / "sts2_platform_evidence"
+    shadow.mkdir(parents=True)
+    (shadow / "__init__.py").write_text("raise AssertionError('shadow must not run')\n")
+    monkeypatch.syspath_prepend(str(shadow.parent))
+    assert evidence_identity("1" * 40)["status"] == "IMPORT_ORIGIN_MISMATCH"
+    _, initial = project
+    delivery_file = tmp_path / "delivery.json"
+    delivery_file.write_text('{"hub_url":"https://hub.example"}')
+    config = ProjectConfig(
+        initial.state_dir, "https://hub.example", "", delivery_file, initial.combination
+    )
+    monkeypatch.setattr(
+        "stpd.workbench.developer.dependency_checks",
+        lambda _: {"evidence": evidence_identity("1" * 40)},
+    )
+    report = doctor(config)
+    assert report["status"] == "BLOCKED"
+    assert report["checks"]["delivery_tool"]["status"] == "NOT_VERIFIED"
+
+
+def test_evidence_rejects_entrypoint_missing_from_record(installed_evidence):
+    _, metadata = installed_evidence
+    record = metadata / "RECORD"
+    record.write_text(
+        "".join(
+            row
+            for row in record.read_text().splitlines(keepends=True)
+            if not row.startswith("sts2_platform_evidence/delivery_cli.py,")
+        )
+    )
+    assert evidence_identity("1" * 40)["status"] == "IMPORT_ORIGIN_MISMATCH"
+
+
+def test_evidence_rejects_loaded_entrypoint_mismatch(installed_evidence, tmp_path, monkeypatch):
+    name = "sts2_platform_evidence.delivery_cli"
+    module = ModuleType(name)
+    module.__file__ = str(tmp_path / "unverified.py")
+    module.__spec__ = importlib.util.spec_from_file_location(name, module.__file__)
+    monkeypatch.setitem(sys.modules, name, module)
+    assert evidence_identity("1" * 40)["status"] == "IMPORT_ORIGIN_MISMATCH"
+
+
+def test_isolated_delivery_uses_installed_tool_from_hostile_cwd_and_pythonpath(tmp_path):
+    shadow = tmp_path / "sts2_platform_evidence"
+    shadow.mkdir()
+    (shadow / "__init__.py").write_text("raise AssertionError('shadow must not run')\n")
+    environment = dict(os.environ, PYTHONPATH=str(tmp_path))
+    result = subprocess.run(
+        [sys.executable, "-I", "-m", "sts2_platform_evidence.delivery_cli", "--help"],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    # Isolating the Platform child does not replace or disable editable STPD.
+    editable = subprocess.run(
+        [sys.executable, "-I", "-c", "import stpd; print(stpd.__file__)"],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert editable.returncode == 0, editable.stderr
+    assert Path(editable.stdout.strip()).resolve() == (ROOT / "stpd/__init__.py").resolve()
 
 
 def test_project_cli_redacts_config_errors(project, capsys):
@@ -167,6 +301,7 @@ def test_delivery_is_one_owned_public_tool_child(project, tmp_path, monkeypatch)
     config_file.write_text("{}")
     config = ProjectConfig(initial.state_dir, "", "", config_file, initial.combination)
     commands = []
+    options = []
 
     class Child:
         def __init__(self):
@@ -185,19 +320,37 @@ def test_delivery_is_one_owned_public_tool_child(project, tmp_path, monkeypatch)
 
     def launch(command, **kwargs):
         commands.append(command)
+        options.append(kwargs)
         return child
 
     app = Application(config)
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path / "shadow"))
+    monkeypatch.setenv("PYTHONHOME", str(tmp_path / "shadow-home"))
+    monkeypatch.setenv("STPD_HUB_ADMIN_TOKEN", "test-admin")
+    monkeypatch.setenv("STPD_HUB_TOKEN", "test-device")
     monkeypatch.setattr("stpd.workbench.developer_server.subprocess.Popen", launch)
     app.start_delivery()
     assert len(commands) == 1
     assert commands[0][1:] == [
+        "-I",
         "-m",
         "sts2_platform_evidence.delivery_cli",
         "run",
         "--config",
         str(config_file),
     ]
+    assert options[0]["cwd"] == config.state_dir
+    environment = options[0]["env"]
+    assert not {"PYTHONPATH", "PYTHONHOME", "STPD_HUB_ADMIN_TOKEN"} & environment.keys()
+    assert environment["STPD_HUB_TOKEN"] == "test-device"
+
+    def status(command, **kwargs):
+        assert command[1:4] == ["-I", "-m", "sts2_platform_evidence.delivery_cli"]
+        assert kwargs["cwd"] == config.state_dir and kwargs["env"] == environment
+        return subprocess.CompletedProcess(command, 0, b'{"pending":1}')
+
+    monkeypatch.setattr("stpd.workbench.developer_server.subprocess.run", status)
+    assert app.delivery_status()["outbox"] == {"pending": 1}
     app.close()
     assert child.finished
 
