@@ -1,0 +1,200 @@
+{
+  "schema": "stpd/b-final-closeout-receipt-v1",
+  "observed_at": "2026-09-12T14:40:08.625765+00:00",
+  "status": "ENGINEERING_AND_SCOPED_OPERATIONS_PASS_PENDING_HUMAN_CLOSE_TO_CLOUD",
+  "base": "67566db562b95f57468290b97659c9f2e3862fe1",
+  "source": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+  "platform_source": "d09552130d5aad0639b5d5358bc3acfed49ba493",
+  "uv_lock_sha256": "7d7189706458ce21f73c68688995f5d6ec1cac3bcf29e4cee2068658749db9a2",
+  "ci": 34698542263,
+  "local_gate": {
+    "full_closeout": "PASS",
+    "pytest_passed": 450,
+    "pytest_skipped": 1,
+    "cpu_e2e_lanes": 2
+  },
+  "image": "ghcr.io/rsgcsg/stpd-worker@sha256:9bd1470c39f0be5ae1db204595c11a8d3061543fba57e0d88ee7222340846cf5",
+  "loaded_source": {
+    "source": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+    "clean": true,
+    "lock_sha256": "7d7189706458ce21f73c68688995f5d6ec1cac3bcf29e4cee2068658749db9a2"
+  },
+  "public_positive_smoke": {
+    "classification": "SYNTHETIC_ONLY",
+    "transport": "PUBLIC_HTTPS",
+    "health": {
+      "producer": {
+        "repository": "rsgcsg/STS2-The-Perfect-Defect",
+        "source_revision": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+        "uv_lock_sha256": "7d7189706458ce21f73c68688995f5d6ec1cac3bcf29e4cee2068658749db9a2"
+      },
+      "schema": "stpd/hub-health-v1",
+      "service": "stpd-hub"
+    },
+    "unauthenticated_status": 401,
+    "receipt": {
+      "content_id": "45947ef0bc6acde2adc75f47d818a0b7fa4c2c49d14f9fb5be68a1c784fd9d4d",
+      "evidence_id": "99c1a102e65948bfc80a20c88d775e1c10ddde9a976434408792762eb39d8dee",
+      "findings": [],
+      "manifest_sha256": "c9972bbde35d9a7dd000b03e065f8a6c18a750a17a527b6aa2d89d86af8e2b92",
+      "receipt_id": "d105fe94cdd9380a463fd3fdeb500e24",
+      "schema": "stpd/receive-receipt-v1",
+      "status": "verified",
+      "verifier": {
+        "entrypoint": "verify_human_session_bundle",
+        "package": "rsgcsg-sts2-platform-evidence",
+        "source_lock": "7d7189706458ce21f73c68688995f5d6ec1cac3bcf29e4cee2068658749db9a2",
+        "version": "0.1.0rc4"
+      }
+    },
+    "replacement_client_idempotency": "PASS",
+    "human_data_uploaded": false,
+    "compute_budget": 0
+  },
+  "public_negative_smoke": {
+    "checks": {
+      "bounded_operational_failure": "PASS",
+      "quarantine": "PASS",
+      "sanitized_incident_projection": "PASS",
+      "zero_jobs_paused": "PASS"
+    },
+    "compute_submitted": false,
+    "data_scope": "SYNTHETIC_ONLY",
+    "producer_source_revision": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+    "schema": "stpd/final-negative-service-smoke-v1",
+    "status": "PASS",
+    "uploads": {
+      "invalid_archive": {
+        "content_id": "1105e9abe4610d237902e75a2eb285e4ee671fa95b52545d022d92b9a6e8fe83",
+        "evidence_id": "92f6538650f6a703092ac3b72b8d0865875d43a84d446b6d36761fea66ad5d4d",
+        "findings": [
+          "platform_verification_failed"
+        ],
+        "last_error": null,
+        "manifest_sha256": "aa37c814f981a02ffbb7cee45fc029eae1da0dda98bed4311a0b3429d5f745a5",
+        "status": "quarantined",
+        "upload_id": "6d1740db4dabe72b32acbe5d307e492e",
+        "verify_attempts": 0
+      },
+      "missing_object": {
+        "content_id": "44c5800cbde90126ef9b957db867f50611b6a8d594a540d94358e82ef0e4df33",
+        "last_error": "transport_or_storage_unavailable",
+        "manifest_sha256": "0b8c6136c2d9a523fceb5bc4e8297834de95c3fefc9508b6b1ef1796b4f27462",
+        "status": "transfer_failed",
+        "upload_id": "df28f637aedb7617d8d178e2ec40a39f",
+        "verify_attempts": 5
+      }
+    }
+  },
+  "production_handoff": {
+    "schema": "stpd/production-terminal-handoff-observation-v1",
+    "health": {
+      "producer": {
+        "repository": "rsgcsg/STS2-The-Perfect-Defect",
+        "source_revision": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+        "uv_lock_sha256": "7d7189706458ce21f73c68688995f5d6ec1cac3bcf29e4cee2068658749db9a2"
+      },
+      "schema": "stpd/hub-health-v1",
+      "service": "stpd-hub"
+    },
+    "anonymous_status": 401,
+    "registered_device_auth": "PASS",
+    "paused": true,
+    "uploads": 0,
+    "jobs": 0,
+    "local_recording_entries": 0,
+    "outbox_created": false,
+    "human_attestation": "PENDING",
+    "delivery_started": false,
+    "real_human_uploads": 0,
+    "compute_budget": 0
+  },
+  "backup": {
+    "age_seconds": 13.847264,
+    "backup_health": "PASS",
+    "external_notification": "not_configured_by_this_tool",
+    "last_attempt_at": "2026-09-12T14:37:42.824019+00:00",
+    "last_backup_receipt": "325abee63a682959f5163476029d6f0a149a767916fed2405235fab02407ded0",
+    "last_status": "success",
+    "last_success_at": "2026-09-12T14:37:47.519392+00:00",
+    "maximum_age_seconds": 93600,
+    "schema": "stpd/hub-backup-status-v1",
+    "worker_image": "ghcr.io/rsgcsg/stpd-worker@sha256:9bd1470c39f0be5ae1db204595c11a8d3061543fba57e0d88ee7222340846cf5"
+  },
+  "restore": {
+    "schema": "stpd/hub-backup-command-v1",
+    "backup_receipt": "325abee63a682959f5163476029d6f0a149a767916fed2405235fab02407ded0",
+    "restore_check": "PASS",
+    "restore_mode": "paused",
+    "sha256": "4f337802e265f172a9a4e4517ccd61279b7a1bbfbeae0289716b612f4859c940",
+    "producer": {
+      "repository": "rsgcsg/STS2-The-Perfect-Defect",
+      "source_revision": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+      "uv_lock_sha256": "7d7189706458ce21f73c68688995f5d6ec1cac3bcf29e4cee2068658749db9a2"
+    },
+    "worker_image": "ghcr.io/rsgcsg/stpd-worker@sha256:9bd1470c39f0be5ae1db204595c11a8d3061543fba57e0d88ee7222340846cf5",
+    "restored_inventory": {
+      "uploads": 0,
+      "jobs": 0,
+      "devices": [
+        "developer-fire-macos-canary"
+      ]
+    },
+    "state_directory": "/srv/stpd/hub-production-v1"
+  },
+  "maintenance": {
+    "daily_timer": "enabled_active",
+    "next_observed_utc": "2026-09-13T03:23:47Z",
+    "external_notification": "NOT_CONFIGURED"
+  },
+  "developer_kit": {
+    "path": "/Users/fire/.local/share/spireagent/releases/developer-kits/b-candidate-99aa819/spireagent-b-developer-candidate.zip",
+    "sha256": "e23738bad737d9fc5b0a8f24037c3ce92af5a739e7881cfe940716cd024fb186",
+    "bytes": 945814,
+    "stpd_source": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+    "platform_source": "d09552130d5aad0639b5d5358bc3acfed49ba493",
+    "classification": "NON_STABLE_DEVELOPER_CANDIDATE"
+  },
+  "capacity": {
+    "host_disk_gib": 38,
+    "final_free_gib_approx": 8.7,
+    "incident": "Intermediate candidate plus build cache exhausted disk; only unqualified intermediate image/cache removed; recovered exact final build passed",
+    "uv_cache_extra_mib_approx": 31,
+    "uv_cache_hardlinks": "5GiB displayed alone shares installed venv inodes; no duplicate5GiB cache claim",
+    "policy": "Inspect df/system-df/buildx-du before each build; retain current and qualified rollback; remove only identified unused candidates/cache, never volumes/state; use another builder if measured build peak does not fit"
+  },
+  "reviews": [
+    "Independent actual cross-repository architecture/diff review",
+    "Owning delivery/tool/configuration regressions",
+    "Independent ops script and actual systemd backup/restore review"
+  ],
+  "non_claims": [
+    "Human-origin attestation or new Human Close-to-cloud",
+    "Dataset admission or science sufficiency",
+    "GPU invocation training or model quality",
+    "Full-Run gameplay policy adapter cloud game inference or RL",
+    "Whole-host disaster recovery external outage alerts or high availability",
+    "Full OCI Python .NET security audit",
+    "Anonymous all-layer network cold fetch at this head; exact anonymous pull used cached layers"
+  ],
+  "historical_evidence": "Earlier Git notes and qualification states/receipts retained unchanged",
+  "evidence_sha256": {
+    "portable-final.log": "7e8fa1bc199eb9c6a9b312db0cf1b936de67e93528c60c4d096ce30bde248193",
+    "ci-final.json": "8ced654da12aa21d06ce8a91d17d0e09bb4d696fba540aa56e98bdc2617b7ccc",
+    "oci-build-push.log": "67b5b34ae3e9c3858a2c55da10bd26aba46cc06feb618eafcc740a5ca7a4942e",
+    "preflight-final.json": "a648162611556babf46701313c76e68afb6ea538cf405ae6c9de700cccfa33d2",
+    "preflight-production.json": "a648162611556babf46701313c76e68afb6ea538cf405ae6c9de700cccfa33d2",
+    "deployed-image.json": "fa633b5a5f386bba96d591aaf878c2d21819da93819964272832f9034753d11c",
+    "loaded-source.json": "e44c6ab358de94a41f0b7331ada0cefca9b5991631955bf0749711a21b4931bc",
+    "final-public-https-upload.json": "37204330c0100a688c2dbd665c32058c42302b3f2367a0040644b094225e8b6c",
+    "final-negative-smoke.json": "7f6b5b2e179fbf92d06663df3bf97e06ff4ae8aebe359b03c0024503b4509c8a",
+    "scheduled-qualification-backup.json": "2b05a7bc2615265e2fe759132303df4a6ecf3f44900c6a56cc8cceab5a124c5c",
+    "scheduled-qualification-restore.json": "268067a4d814955429bec08d2adce152c93056f4764421641b0e87243d8e4970",
+    "scheduled-production-backup.json": "ce9f574c0fc9d0adf0715aec031547078ab5aaf4bed7ec5c26db92a8302b2552",
+    "scheduled-production-restore.json": "49cc21724b95de8dcb8f21ea7682e6c7e23beff29af74ad1031bd86eb103715a",
+    "production-observation.json": "8578efe9879d5b0b5154ce460f058d4494c3acea1e1a703059bb25f63fb3abd0",
+    "maintenance-enabled.log": "c2af796e563bb6e87423f160b8f0f401a538468d3dbc5d6126657109806f72bb",
+    "terminal-doctor-final.json": "9e080139fe64f205f538ee0709b15018c84f5270c1905caa90a2aceb46a55321",
+    "developer-kit-receipt.json": "216ad26ee860701faa4d22369d9e5d6885470fd7422b4e4a3da0d7ad3af80ec8"
+  }
+}
