@@ -346,10 +346,50 @@ def doctor(config: ProjectConfig) -> dict[str, Any]:
         }
         verified = checks["evidence"].get("delivery_entrypoint_verified", False)
         checks["delivery_tool"] = {"status": "PASS" if verified else "NOT_VERIFIED"}
-        if config.delivery_config.is_file():
-            value = decode_json(config.delivery_config.read_bytes())
-            same_hub = isinstance(value, dict) and endpoint(value.get("hub_url")) == config.hub_url
-            checks["delivery_hub"] = {"status": "PASS" if same_hub else "ENDPOINT_MISMATCH"}
+        if config.delivery_config.is_file() and verified:
+            # Platform owns config, attestation, release/runtime and outbox checks.
+            # Isolated invocation retains the installed public package boundary;
+            # it neither imports sibling source nor initializes/enrolls an outbox.
+            environment = dict(os.environ)
+            for name in ("STPD_HUB_ADMIN_TOKEN", "PYTHONPATH", "PYTHONHOME"):
+                environment.pop(name, None)
+            try:
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-I",
+                        "-m",
+                        "sts2_platform_evidence.delivery_cli",
+                        "doctor",
+                        "--config",
+                        str(config.delivery_config),
+                    ],
+                    env=environment,
+                    capture_output=True,
+                    timeout=20,
+                    check=False,
+                )
+                observed = decode_json(result.stdout)
+                if (
+                    not isinstance(observed, dict)
+                    or observed.get("schema") != "sts2.evidence/delivery-doctor-1"
+                    or observed.get("status") not in {"PASS", "BLOCKED"}
+                    or not isinstance(observed.get("checks"), dict)
+                ):
+                    raise ValueError("invalid_owner_preflight")
+                ready = result.returncode == 0 and observed["status"] == "PASS"
+                checks["delivery_preflight"] = {
+                    "status": "PASS" if ready else "BLOCKED",
+                    "owner_checks": observed["checks"],
+                    "discovered_sessions": observed.get("discovered_sessions"),
+                }
+                checks["delivery_hub"] = {
+                    "status": "PASS"
+                    if observed.get("hub_url") == config.hub_url
+                    else "ENDPOINT_MISMATCH"
+                }
+            except (OSError, ValueError, BoundaryError, subprocess.SubprocessError):
+                checks["delivery_preflight"] = {"status": "UNAVAILABLE"}
     return {
         "schema": "stpd/developer-doctor-v1",
         "status": "PASS" if all(v["status"] == "PASS" for v in checks.values()) else "BLOCKED",
