@@ -174,4 +174,3 @@ def credential_presence() -> dict[str, bool]:
         "token_secret_env": bool(os.environ.get("MODAL_TOKEN_SECRET")),
         "profile_file": (Path.home() / ".modal.toml").is_file(),
     }
-
