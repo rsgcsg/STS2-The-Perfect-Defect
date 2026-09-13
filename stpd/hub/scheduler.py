@@ -178,6 +178,23 @@ class Scheduler:
             else:
                 self.operations.record_compute_cancel(job, token, attempt, fence, acknowledged=True)
 
+    def _index_result(self, receipt: ComputeReceipt) -> None:
+        from .console_index import ConsoleIndex
+
+        try:
+            ConsoleIndex(self.operations).artifact_closure(
+                self.store,
+                tuple(
+                    identity for identity in (receipt.output_id, receipt.checkpoint_id) if identity
+                ),
+            )
+        except Exception:
+            # Only the rebuildable console projection failed, not selected compute truth.
+            with self.operations.transaction() as db:
+                self.operations._event(
+                    db, "console", "artifact_index_unavailable", receipt.request_id, {}
+                )
+
     def _poll(self, row: dict[str, Any], now: float) -> dict[str, Any]:
         job, attempt, fence = row["id"], row["attempt_id"], row["fence"]
         token = self._token(row, now)
@@ -215,6 +232,9 @@ class Scheduler:
                     return self._reply("cancelled", job)
                 validate_receipt(self.store, request, receipt)
                 self.operations.accept_compute(job, token, attempt, fence, receipt.to_dict())
+                # Result selection is already durable. A disposable metadata index cannot
+                # turn completed compute back into uncertain or resubmit an invocation.
+                self._index_result(receipt)
                 return self._reply(
                     "paused" if receipt.state == "paused" else "completed",
                     job,

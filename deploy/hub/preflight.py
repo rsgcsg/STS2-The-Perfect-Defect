@@ -25,11 +25,13 @@ SECRET_KEYS = {
     "STPD_HUB_ADMIN_TOKEN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
     "STPD_S3_ENDPOINT", "STPD_S3_REGION", "STPD_S3_BUCKET", "STPD_S3_PREFIX",
     "STPD_INGRESS_BUCKET", "STPD_MODAL_TARGET", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET",
-    "MODAL_ENVIRONMENT",
+    "MODAL_ENVIRONMENT", "STPD_ACCESS_ISSUER", "STPD_ACCESS_AUDIENCE",
+    "STPD_ACCESS_ALLOWLIST", "STPD_HUB_BACKUP_STATUS",
 }
 COMPUTE_KEYS = {"STPD_MODAL_TARGET", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"}
 REQUIRED_SECRET_KEYS = SECRET_KEYS - {
     "AWS_SESSION_TOKEN", "STPD_S3_REGION", "STPD_S3_PREFIX", "MODAL_ENVIRONMENT", *COMPUTE_KEYS,
+    "STPD_ACCESS_ISSUER", "STPD_ACCESS_AUDIENCE", "STPD_ACCESS_ALLOWLIST", "STPD_HUB_BACKUP_STATUS",
 }
 IMAGE_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}"
 
@@ -125,6 +127,33 @@ def check_compute(
             "compute": "configured_budget_zero" if not budget else "explicitly_enabled"}
 
 
+def check_console(secrets: dict[str, str], state: Path) -> dict[str, str]:
+    names = ("STPD_ACCESS_ISSUER", "STPD_ACCESS_AUDIENCE", "STPD_ACCESS_ALLOWLIST")
+    if not any(key in secrets for key in names):
+        return {"browser_console": "disabled"}
+    if not all(secrets.get(key) for key in names):
+        raise PreflightError("optional_browser_environment_incomplete")
+    if re.fullmatch(r"https://[a-z0-9-]+\.cloudflareaccess\.com", secrets[names[0]]) is None:
+        raise PreflightError("invalid_access_issuer")
+    if re.fullmatch(r"[a-f0-9]{64}", secrets[names[1]]) is None:
+        raise PreflightError("invalid_access_audience")
+    container = Path(secrets[names[2]])
+    mount = Path("/var/lib/stpd")
+    if not container.is_relative_to(mount) or ".." in container.parts:
+        raise PreflightError("access_allowlist_must_be_inside_mounted_state")
+    path = state / container.relative_to(mount)
+    if any(part.is_symlink() for part in (path, *path.parents)):
+        raise PreflightError("access_allowlist_symlinks_forbidden")
+    info = path.stat()
+    if (not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_size > 65536
+            or owner_uid(path) != 10001):
+        raise PreflightError("access_allowlist_requires_bounded_private_uid_10001_file")
+    value = json.loads(path.read_bytes())
+    if not isinstance(value, dict) or value.get("schema") != "stpd/console-access-v1":
+        raise PreflightError("invalid_access_allowlist")
+    return {"browser_console": "configured_not_live_qualified"}
+
+
 def check_configuration(config: Path, *, allow_compute: bool = False) -> dict[str, Any]:
     values = read_env(config, PUBLIC_KEYS)
     if set(values) != PUBLIC_KEYS or any(not value for value in values.values()):
@@ -171,6 +200,7 @@ def check_configuration(config: Path, *, allow_compute: bool = False) -> dict[st
     return {
         "configuration": "PASS", "credential_values": "not_reported",
         **check_compute(values, secrets, state, allow_compute=allow_compute),
+        **check_console(secrets, state),
         "checks_not_performed": ["DNS ownership", "TLS issuance", "bucket privacy", "cloud IAM",
                                  "loaded OCI identity", "real upload", "real GPU"],
     }

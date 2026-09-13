@@ -99,6 +99,70 @@ sudo, forward that one explicitly authorized variable with `sudo --preserve-env=
 for the registration command, or invoke Compose from an approved Docker operator account;
 never preserve the entire user environment. Do not distribute the Hub admin token to devices.
 
+## Browser console login and local connection
+
+The local project console uses its existing private device token for `/v1/console/*`; it
+never needs the Hub admin token or a browser login to upload. Its cloud record link opens
+`https://YOUR-HUB/app/#collections/UPLOAD_ID`. Cloud login is separate from device delivery,
+so logging out of the website does not stop uploads. The cloud cannot observe an offline
+terminal's unuploaded queue. There is no cloud-to-local game control or browser localhost fetch.
+
+Use one Cloudflare Access self-hosted application for exact `/app` and `/app/*` (including
+`/app/api/*` and assets); leave `/v1/*` and `/health` outside this browser application.
+Use an allow policy for explicitly approved email identities and email one-time PIN or the
+team's existing identity provider. Do not create a Bypass policy. Configure no paid plan.
+Before enabling browser access, confirm the Cloudflare zone is proxied and TLS is Full (strict).
+The Hub validates the JWT at the origin; a spoofed email header or direct-IP request does not
+bypass login. JWT key discovery uses only the configured Cloudflare team origin and is bounded.
+
+The account owner supplies the team domain and application AUD after creating the application.
+An operator prepares `/var/lib/stpd/console-access.json` in mounted private Hub state, owned
+by uid 10001 and mode 0600, using this format with real explicitly allowed devices:
+
+```json
+{"schema":"stpd/console-access-v1","principals":[
+  {"email":"collector@example.org","role":"collector","devices":["developer-device-01"]},
+  {"email":"reviewer@example.org","role":"reviewer","devices":["developer-device-01"]}
+]}
+```
+
+The optional `subject` pins the exact validated Access subject in addition to email. Roles:
+`collector` sees only listed devices' collections and shared result metadata;
+`reviewer` additionally sees project Dataset metadata; `operator` also sees private operational
+status. No role gets raw/Dataset payload download or write operations through the console.
+Research metadata roles are project-wide permissions, independent of the explicit device list.
+Use `STPD_ACCESS_ISSUER`, `STPD_ACCESS_AUDIENCE`, `STPD_ACCESS_ALLOWLIST` from the runtime env
+example, run preflight, then replace only the exact Hub candidate. Missing configuration keeps
+`/app` disabled. Partial or malformed configuration fails startup. Allowlist changes require a
+Hub restart; device revoke continues to affect Bearer access independently.
+
+After a candidate changes owner summary support, explicitly rebuild its **derived index** once:
+
+```bash
+hubctl console-refresh
+```
+
+This reads verified immutable evidence using its existing identity and the installed Platform
+summary owner, without replacing original receipts, manifests or raw data. It also indexes
+safe metadata from existing artifact manifests. A specific existing upload can be refreshed
+with `hubctl console-refresh --upload EXACT_UPLOAD_ID`. GET requests never do this work.
+New verified uploads index their summary once. Hub-published Datasets are indexed at creation;
+scheduler-selected result manifests and their lineage are indexed after validated result
+selection. Artifacts copied by other tools need an explicit refresh. The console states its index scope; missing index data
+is not a claim that the object store has no data. Summary failure does not invalidate a
+previously successful receiver receipt; it displays `unavailable` and requires owner repair.
+
+The backup panel optionally consumes the existing maintenance owner's bounded status file via
+`STPD_HUB_BACKUP_STATUS`; make only that safe projection readable inside mounted state. Do not
+mount backup credentials or whole host directories. Absent projection means `not_configured`,
+not a claim that backups are failing or passing. Whole-host recovery and external alert delivery
+remain unqualified until their own exact evidence exists.
+
+Before real browser qualification, exercise missing/expired/wrong-audience/tampered JWT,
+plain email-header spoofing, direct-origin bypass, collector cross-device access, and preserved
+raw/Dataset restrictions. Then an allowlisted Human logs in once, checks a known receipt and
+confirms local-to-cloud links. This is a login/UI gate, not GPU or new Human recording evidence.
+
 ## Normal operations and incident handling
 
 ```bash

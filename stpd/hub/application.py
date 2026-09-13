@@ -9,23 +9,42 @@ import re
 import secrets
 import time
 from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
 from ..json_boundary import BoundaryError, decode_json, json_bytes
 from .access import RESULT_KINDS
+from .console_auth import AccessVerifier, ConsolePrincipal
 from .database import token_hash
 from .uploads import LocalStaging, UploadService
 
 
 class HubApplication:
-    def __init__(self, service: UploadService, admin_token: str, *, budget_limit: int = 0) -> None:
+    def __init__(
+        self,
+        service: UploadService,
+        admin_token: str,
+        *,
+        budget_limit: int = 0,
+        browser_access: AccessVerifier | None = None,
+        backup_status: Path | None = None,
+    ) -> None:
         if len(admin_token) < 32:
             raise BoundaryError("hub", "admin_token_too_short")
         self.service = service
         self.admin_hash = token_hash(admin_token)
         self.capability_key = hashlib.sha256(("upload-capability:" + admin_token).encode()).digest()
         self.budget_limit = budget_limit
+        self.browser_access = browser_access
+        from .console_routes import ConsoleRoutes
+
+        self.console = ConsoleRoutes(
+            service,
+            budget_limit,
+            backup_status=backup_status,
+            browser_enabled=browser_access is not None,
+        )
 
     def capability(self, upload_id: str, deadline: int) -> str:
         signature = hmac.new(
@@ -49,7 +68,15 @@ class HubApplication:
         try:
             status, kind, body = self.route(environ)
         except BoundaryError as error:
-            status = "401 Unauthorized" if error.code == "unauthorized" else "409 Conflict"
+            status = {
+                "unauthorized": "401 Unauthorized",
+                "browser_access_not_configured": "503 Service Unavailable",
+                "collection_not_found": "404 Not Found",
+                "resource_not_found": "404 Not Found",
+                "invalid_pagination": "400 Bad Request",
+                "unexpected_query": "400 Bad Request",
+                "status_filter_requires_collections": "400 Bad Request",
+            }.get(error.code, "409 Conflict")
             kind, body = "application/json", json_bytes({"error": error.code})
         except (ValueError, KeyError, TypeError):
             status, kind, body = (
@@ -67,7 +94,12 @@ class HubApplication:
             ("Content-Type", kind),
             ("Cache-Control", "no-store"),
             ("X-Content-Type-Options", "nosniff"),
-            ("Content-Security-Policy", "default-src 'none'"),
+            (
+                "Content-Security-Policy",
+                "default-src 'none'; script-src 'self'; style-src 'self'; "
+                "connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+            ),
+            ("Referrer-Policy", "no-referrer"),
         ]
         if isinstance(body, bytes):
             headers.append(("Content-Length", str(len(body))))
@@ -111,6 +143,21 @@ class HubApplication:
     def route(self, env: dict[str, Any]) -> tuple[str, str, bytes | Iterable[bytes]]:
         method, path = env["REQUEST_METHOD"], env.get("PATH_INFO", "")
         ops = self.service.operations
+        if method == "GET" and path == "/":
+            return (
+                "200 OK",
+                "text/html; charset=utf-8",
+                (
+                    "<!doctype html><html lang='zh-CN'><meta charset='utf-8'>"
+                    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                    "<title>SpireAgent 项目控制台</title><main>"
+                    "<h1>SpireAgent 项目控制台</h1>"
+                    "<p><a href='/app/'>登录查看云端数据</a></p>"
+                    "<p>本机设备连接与网页登录分开；网页登录或退出不影响后台上传。</p>"
+                    "<p>云端只显示已收到的数据。本机待上传队列请在本机控制台查看。</p>"
+                    "</main></html>"
+                ).encode(),
+            )
         if method == "GET" and path == "/health":
             return self.response(
                 {
@@ -119,6 +166,33 @@ class HubApplication:
                     "producer": self.service.producer.to_dict(),
                 }
             )
+        if path == "/app" or path.startswith("/app/"):
+            if self.browser_access is None:
+                raise BoundaryError("console", "browser_access_not_configured")
+            principal = self.browser_access.authenticate(
+                env.get("HTTP_CF_ACCESS_JWT_ASSERTION", "")
+            )
+            if method != "GET":
+                return self.response({"error": "console_read_only"}, "405 Method Not Allowed")
+            if path.startswith("/app/api/"):
+                return self.response(
+                    self.console.read(
+                        path[len("/app/api/") :], env.get("QUERY_STRING", ""), principal
+                    )
+                )
+            from ..console.page import asset, render_shell
+
+            if path in {"/app", "/app/"}:
+                return (
+                    "200 OK",
+                    "text/html; charset=utf-8",
+                    render_shell(mode="cloud", api_base="/app/api").encode(),
+                )
+            if path.startswith("/app/assets/"):
+                found = asset(path.removeprefix("/app/assets/"))
+                if found is not None:
+                    return "200 OK", found[0], found[1]
+            return self.response({"error": "not_found"}, "404 Not Found")
         upload = re.fullmatch(r"/v1/uploads/([a-f0-9]{32})(?:/(body|complete))?", path)
         if method == "PUT" and upload and upload[2] == "body":
             self.validate_capability(upload[1], env.get("HTTP_X_UPLOAD_CAPABILITY", ""))
@@ -144,6 +218,23 @@ class HubApplication:
         token = authorization[7:]
         admin = secrets.compare_digest(self.admin_hash, token_hash(token))
         device = None if admin else ops.authenticate(token)
+        if path.startswith("/v1/console/"):
+            if method != "GET":
+                return self.response({"error": "console_read_only"}, "405 Method Not Allowed")
+            if admin:
+                with ops.transaction() as db:
+                    devices = tuple(
+                        row[0] for row in db.execute("SELECT id FROM devices ORDER BY id")
+                    )
+                principal = ConsolePrincipal("operator", devices)
+            else:
+                assert device is not None
+                principal = ConsolePrincipal("collector", (device,))
+            return self.response(
+                self.console.read(
+                    path.removeprefix("/v1/console/"), env.get("QUERY_STRING", ""), principal
+                )
+            )
         if method == "GET" and path == "/v1/status":
             counts = ops.upload_counts(device)
             return self.response(
