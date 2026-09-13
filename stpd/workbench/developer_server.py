@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import hmac
-import html
 import importlib
 import json
 import os
@@ -20,9 +19,12 @@ from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
 
+from ..console.page import CSP, asset, render_shell
 from ..json_boundary import BoundaryError
+from .console import LocalConsole
 from .dashboard import _safe_value
 from .developer import ROOT, ProjectConfig, atomic_json, doctor, tool_identity
 from .hub_client import HubClient
@@ -161,51 +163,6 @@ def status_project(config: ProjectConfig) -> dict[str, Any]:
     return _local_request(f"http://127.0.0.1:{current['port']}/api/status", timeout=15)
 
 
-def _rows(value: Any) -> str:
-    return (
-        "<pre>"
-        + html.escape(json.dumps(_safe_value(value), ensure_ascii=False, indent=2))
-        + "</pre>"
-    )
-
-
-def render(state: dict[str, Any], platform_url: str) -> str:
-    links = (
-        (
-            f'<a href="{html.escape(platform_url, quote=True)}" target="_blank" rel="noreferrer">'
-            "Open Platform Workbench ↗</a>"
-        )
-        if platform_url
-        else "Platform endpoint not configured"
-    )
-    sections = "".join(
-        "<section><h2>" + name + "</h2>" + _rows(state.get(key)) + "</section>"
-        for name, key in (
-            ("Delivery", "delivery"),
-            ("Cloud", "hub"),
-            ("Runtime identity", "identity"),
-        )
-    )
-    return (
-        '<!doctype html><html lang="en"><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<meta http-equiv="refresh" content="10"><title>STPD Project</title><style>'
-        "body{font:15px system-ui;background:#111820;color:#e4edf4;margin:0;padding:28px;"
-        "max-width:1100px}h1{margin:0 0 8px}p{color:#a8bac8}a{color:#83d9de}"
-        "section{background:#1b2632;border:1px solid #334351;border-radius:12px;padding:20px;"
-        "margin-top:18px}h2{font-size:18px;margin:0 0 12px}pre{white-space:pre-wrap;"
-        "overflow-wrap:anywhere;color:#bfd0dd;font-size:12px}</style>"
-        "<h1>STPD Project</h1><p>Collect · Deliver · Track · Verify results</p>"
-        f"<nav>{links}</nav><p>Read-only operations view. Cloud reception, data admission, "
-        "training completion and model quality are separate facts.</p>"
-        + sections
-        + "<section><h2>Results &amp; existing policies</h2><p>Use project download "
-        "--artifact ID for verified result payloads. Parent datasets are not downloaded. "
-        "Use project policy --manifest FILE to inspect an existing adapter manifest. "
-        "Opening this workbench starts no gameplay.</p></section></html>"
-    )
-
-
 class Application:
     def __init__(self, config: ProjectConfig) -> None:
         self.config = config
@@ -215,6 +172,14 @@ class Application:
         self.delivery: subprocess.Popen[bytes] | None = None
         self.delivery_log: Any = None
         self.hub = HubClient(config.hub_url, timeout=2) if config.hub_url else None
+        self.console = LocalConsole(
+            config, self.hub, self.delivery_environment, self.delivery_process, self.identity
+        )
+
+    def delivery_process(self) -> str:
+        if self.delivery is None:
+            return "not_configured"
+        return "running" if self.delivery.poll() is None else "stopped"
 
     @staticmethod
     def delivery_environment() -> dict[str, str]:
@@ -315,7 +280,7 @@ def create_server(app: Application) -> ThreadingHTTPServer:
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header(
                 "Content-Security-Policy",
-                "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+                CSP,
             )
             self.end_headers()
             self.wfile.write(value)
@@ -323,13 +288,32 @@ def create_server(app: Application) -> ThreadingHTTPServer:
         def do_GET(self) -> None:
             if not self.local_host():
                 self.respond(403, b"{}")
-            elif self.path == "/health":
+                return
+            parsed = urlsplit(self.path)
+            if parsed.path == "/health":
                 self.respond(200, json.dumps({"instance_id": app.instance_id}).encode())
-            elif self.path == "/api/status":
+            elif parsed.path == "/api/status":
                 self.respond(200, json.dumps(_safe_value(app.snapshot())).encode())
-            elif self.path == "/":
+            elif parsed.path.startswith("/api/console/"):
+                try:
+                    value = app.console.route(parsed.path[len("/api/console/"):], parsed.query)
+                    self.respond(200, json.dumps(_safe_value(value), ensure_ascii=False).encode())
+                except BoundaryError as error:
+                    status = 404 if error.code in {"route_not_found", "record_not_found"} else 409
+                    self.respond(status, json.dumps({"error": error.code}).encode())
+                except (OSError, ValueError, subprocess.SubprocessError):
+                    self.respond(503, b'{"error":"observation_unavailable"}')
+            elif parsed.path.startswith("/assets/"):
+                found = asset(parsed.path[len("/assets/"):])
+                if found is None:
+                    self.respond(404, b"{}")
+                else:
+                    kind, data = found
+                    self.respond(200, data, kind)
+            elif parsed.path == "/":
                 self.respond(
-                    200, render(app.snapshot(), app.config.platform_url).encode(), "text/html"
+                    200, render_shell("local", "/api/console", app.config.hub_url).encode(),
+                    "text/html",
                 )
             else:
                 self.respond(404, b"{}")

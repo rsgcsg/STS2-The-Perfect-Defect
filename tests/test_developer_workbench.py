@@ -40,7 +40,6 @@ from stpd.workbench.developer_server import (
     configuration_id,
     create_server,
     instance_lock,
-    render,
     running,
     status_project,
     stop_project,
@@ -370,9 +369,6 @@ def test_local_server_auth_identity_and_safe_render(project):
         server.shutdown()
         server.server_close()
         app.close()
-    rendered = render({"delivery": {"message": "<script>x</script>", "token": "secret"}}, "")
-    assert "<script>" not in rendered and "&lt;script&gt;" in rendered
-    assert "secret" not in rendered
 
 
 @pytest.mark.parametrize("malformed", [False, True])

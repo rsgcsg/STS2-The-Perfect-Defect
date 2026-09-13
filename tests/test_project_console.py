@@ -1,0 +1,225 @@
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import threading
+from io import BytesIO
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+import pytest
+
+from stpd.console.page import CSP, asset, render_shell
+from stpd.json_boundary import BoundaryError
+from stpd.workbench.console import LocalConsole, ProjectionCache, pagination
+from stpd.workbench.developer import ProjectConfig, combination
+from stpd.workbench.developer_server import Application, create_server
+from stpd.workbench.hub_client import HubClient
+
+
+def config(tmp_path, *, delivery=True, hub=True):
+    state = tmp_path / "state"
+    state.mkdir(exist_ok=True)
+    return ProjectConfig(
+        state,
+        "https://hub.example" if hub else "",
+        "http://127.0.0.1:15526",
+        tmp_path / "delivery.json" if delivery else None,
+        combination(),
+    )
+
+
+def test_shared_shell_has_no_embedded_runtime_data_or_external_dependencies():
+    for mode, api in [("local", "/api/console"), ("cloud", "/app/api")]:
+        page = render_shell(mode, api, "https://hub.example")
+        assert 'lang="zh-CN"' in page and 'data-api="' + api in page
+        assert "http-equiv" not in page
+        assert "localStorage" not in asset("console.js")[1].decode()
+        assert "innerHTML" not in asset("console.js")[1].decode()
+        assert "unsafe-inline" not in CSP
+        for view in ("collections", "datasets", "jobs", "models", "system"):
+            assert 'data-view="' + view in page
+    assert asset("../developer.py") is None
+    assert asset("missing.js") is None
+    with pytest.raises(ValueError):
+        render_shell("cloud", "/arbitrary")
+    with pytest.raises(ValueError):
+        render_shell("local", "/api/console", "javascript:alert(1)")
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "limit=0",
+        "limit=101",
+        "offset=-1",
+        "limit=2&limit=3",
+        "offset=hello",
+        "path=secrets",
+        "limit=1&offset=0&extra=2",
+    ],
+)
+def test_pagination_rejects_unbounded_or_arbitrary_queries(query):
+    with pytest.raises(BoundaryError, match="invalid_pagination"):
+        pagination(query)
+
+
+def test_typed_hub_pagination_does_not_relax_path_or_redirect_boundary(monkeypatch):
+    client = HubClient("https://hub.example")
+    monkeypatch.setenv("STPD_HUB_TOKEN", "device-credential")
+    requests = []
+
+    class Opener:
+        def open(self, request, timeout):
+            requests.append(request)
+            return BytesIO(b'{"items":[],"offset":100}')
+
+    client.opener = Opener()
+    assert client.get("/v1/console/collections", limit=25, offset=100)["offset"] == 100
+    assert requests[0].full_url == "https://hub.example/v1/console/collections?limit=25&offset=100"
+    with pytest.raises(BoundaryError):
+        client.get("/v1/console/collections?token=other")
+    with pytest.raises(BoundaryError):
+        client.get("/v1/console/collections", limit=True)
+    assert len(requests) == 1
+
+
+def test_cache_preserves_receipt_and_observation_time_when_cloud_fails():
+    cache = ProjectionCache(ttl=0, maximum=2)
+    receipt = {"receipt_id": "a" * 32, "status": "verified"}
+    value = cache.read(
+        "record", lambda: {"receipt": receipt, "observed_at": "2026-01-01T00:00:00Z"}
+    )
+    value["receipt"]["status"] = "caller_must_not_mutate_cache"
+
+    def unavailable():
+        raise BoundaryError("hub", "unavailable")
+
+    stale = cache.read("record", unavailable)
+    assert stale["status"] == "stale" and stale["receipt"] == receipt
+    assert stale["observed_at"] == "2026-01-01T00:00:00Z"
+    assert "checked_at" in stale
+    missing = cache.read("never_observed", unavailable)
+    assert missing["status"] == "unavailable" and "receipt" not in missing
+    assert "observed_at" not in missing
+    recovered = cache.read(
+        "record", lambda: {"receipt": receipt, "observed_at": "2026-01-02T00:00:00Z"}
+    )
+    assert "status" not in recovered and "error_code" not in recovered
+    cache.read("third", lambda: {"value": 1})
+    assert len(cache.values) == 2
+
+
+def test_local_console_uses_isolated_owner_projection_and_keeps_dispositions(tmp_path, monkeypatch):
+    cfg = config(tmp_path)
+    item = {
+        "id": "a" * 64,
+        "session_id": "session-a",
+        "source": "/private/human/source",
+        "content_id": "c" * 64,
+        "status": "verified",
+        "attempts": 5,
+        "receipt": {"status": "verified"},
+        "summary": {
+            "counts": {"canonical": 569, "real_failures": 0, "cancelled": 1, "diagnostics": 55}
+        },
+    }
+    owner = {
+        "schema": "sts2.evidence/delivery-status-2",
+        "sessions": [item],
+        "total": 125,
+        "counts": {"pending": 0, "verified": 125},
+        "next_offset": 125,
+        "quality": {"canonical": 999, "real_failures": 3},
+    }
+    calls = []
+
+    def read(command, **kwargs):
+        calls.append(command)
+        assert command[:5] == [
+            sys.executable,
+            "-I",
+            "-m",
+            "sts2_platform_evidence.delivery_cli",
+            "status",
+        ]
+        assert kwargs["env"] == {"STPD_HUB_TOKEN": "device-only"}
+        assert kwargs["cwd"] == cfg.state_dir
+        return subprocess.CompletedProcess(command, 0, json.dumps(owner).encode())
+
+    monkeypatch.setattr("stpd.workbench.console.subprocess.run", read)
+    console = LocalConsole(
+        cfg, None, lambda: {"STPD_HUB_TOKEN": "device-only"}, lambda: "running", {}
+    )
+    result = console.collections(25, 100)
+    row = result["items"][0]
+    assert result["total"] == 125 and result["offset"] == 100
+    assert "source" not in row and "private" not in json.dumps(row)
+    assert row["attempts"] == 5 and row["summary"]["counts"]["real_failures"] == 0
+    assert row["research"]["status"] == "not_assessed"
+    assert "--summary" in calls[0] and calls[0][-1] == "100"
+    overview = console.overview()
+    # Global quality must come from the owner aggregate, not the current page.
+    assert overview["quality"]["canonical"] == 999
+    assert overview["quality"]["real_failures"] == 3
+
+
+def test_local_detail_requires_exact_remote_content_and_preserves_offline_receipt(
+    tmp_path, monkeypatch
+):
+    console = LocalConsole(config(tmp_path), None, lambda: {}, lambda: "running", {})
+    item = {
+        "id": "a" * 64,
+        "content_id": "b" * 64,
+        "upload_id": "c" * 32,
+        "status": "verified",
+        "receipt": {"status": "verified"},
+    }
+    monkeypatch.setattr(console, "local_status", lambda **kwargs: {"sessions": [item]})
+    monkeypatch.setattr(console, "remote", lambda *a, **k: {"item": {"content_id": "d" * 64}})
+    with pytest.raises(BoundaryError, match="remote_identity_mismatch"):
+        console.collection_detail("a" * 64)
+    monkeypatch.setattr(console, "remote", lambda *a, **k: {"status": "unavailable"})
+    result = console.collection_detail("a" * 64)
+    assert result["item"]["status"] == "verified"
+    assert result["item"]["remote"]["status"] == "unavailable"
+
+
+def test_http_shell_and_assets_do_not_query_owners_or_accept_browser_mutations(
+    tmp_path, monkeypatch
+):
+    app = Application(config(tmp_path, delivery=False, hub=False))
+    monkeypatch.setattr(
+        app, "snapshot", lambda: pytest.fail("shell must not block on owner queries")
+    )
+    server = create_server(app)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    root = f"http://127.0.0.1:{server.server_port}"
+    try:
+        with urlopen(root + "/?view=collections", timeout=2) as response:
+            page = response.read().decode()
+            assert "采集记录" in page and app.control_token not in page
+            assert response.headers["Content-Security-Policy"] == CSP
+        for name, kind in (("console.js", "text/javascript"), ("console.css", "text/css")):
+            with urlopen(root + "/assets/" + name, timeout=2) as response:
+                assert response.headers["Content-Type"].startswith(kind)
+        with urlopen(root + "/api/console/collections?limit=25&offset=100", timeout=2) as response:
+            data = json.load(response)
+            assert data["status"] == "not_configured" and data["items"] == []
+        for path in ("/api/console/collections", "/api/console/jobs", "/stop"):
+            with pytest.raises(HTTPError) as error:
+                urlopen(Request(root + path, data=b"{}"), timeout=2)
+            assert error.value.code == 403
+        with pytest.raises(HTTPError) as error:
+            urlopen(
+                Request(root + "/assets/console.js", headers={"Host": "attacker.example"}),
+                timeout=2,
+            )
+        assert error.value.code == 403
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+        app.close()

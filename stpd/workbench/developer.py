@@ -195,8 +195,12 @@ def setup(
 
 def tool_identity() -> dict[str, Any]:
     source = hashlib.sha256()
-    for path in sorted((ROOT / "stpd/workbench").glob("*.py")):
-        source.update(path.name.encode() + b"\0" + path.read_bytes())
+    paths = list((ROOT / "stpd/workbench").glob("*.py")) + [
+        path for path in (ROOT / "stpd/console").glob("*")
+        if path.suffix in {".py", ".css", ".js"}
+    ]
+    for path in sorted(paths):
+        source.update(path.relative_to(ROOT).as_posix().encode() + b"\0" + path.read_bytes())
     result: dict[str, Any] = {
         "workbench_sha256": source.hexdigest(),
         "uv_lock_sha256": hashlib.sha256((ROOT / "uv.lock").read_bytes()).hexdigest(),

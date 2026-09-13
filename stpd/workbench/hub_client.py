@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from ..artifact_contracts import Manifest
@@ -34,13 +34,27 @@ class HubClient:
         self.timeout = timeout
         self.opener = build_opener(NoRedirect())
 
-    def _request(self, route: str) -> Any:
+    def _request(
+        self, route: str, *, limit: int | None = None, offset: int | None = None
+    ) -> Any:
         token = os.environ.get("STPD_HUB_TOKEN")
         if not token:
             raise BoundaryError("hub", "credential_not_configured")
         if not route.startswith("/v1/") or any(c in route for c in ("?", "#", "\\")):
             raise BoundaryError("hub", "invalid_route")
-        request = Request(self.url + route, headers={"Authorization": "Bearer " + token})
+        query = {}
+        if limit is not None:
+            if type(limit) is not int or not 1 <= limit <= 100:
+                raise BoundaryError("hub", "invalid_pagination")
+            query["limit"] = limit
+        if offset is not None:
+            if type(offset) is not int or offset < 0:
+                raise BoundaryError("hub", "invalid_pagination")
+            query["offset"] = offset
+        suffix = "?" + urlencode(query) if query else ""
+        request = Request(
+            self.url + route + suffix, headers={"Authorization": "Bearer " + token}
+        )
         try:
             return self.opener.open(request, timeout=self.timeout)
         except HTTPError as error:
@@ -48,8 +62,10 @@ class HubClient:
         except (URLError, OSError, ValueError):
             raise BoundaryError("hub", "unavailable") from None
 
-    def get(self, route: str) -> dict[str, Any]:
-        with self._request(route) as response:
+    def get(
+        self, route: str, *, limit: int | None = None, offset: int | None = None
+    ) -> dict[str, Any]:
+        with self._request(route, limit=limit, offset=offset) as response:
             raw = response.read(JSON_LIMIT + 1)
         if len(raw) > JSON_LIMIT:
             raise BoundaryError("hub", "response_too_large")
