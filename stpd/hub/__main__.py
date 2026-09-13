@@ -153,7 +153,13 @@ def main() -> int:
             result = build_dataset(
                 service.store, tuple(args.received), service.producer, seed=args.seed
             )
-            service.console_index.artifact_closure(service.store, (result["dataset_id"],))
+            try:
+                service.console_index.artifact_closure(service.store, (result["dataset_id"],))
+                result["console_index_status"] = "available"
+            except Exception:
+                # Dataset publication already succeeded. A derived catalogue failure is
+                # visible but cannot turn it into a failed publication or admission.
+                result["console_index_status"] = "unavailable"
             print(json.dumps(result))
         elif args.command == "feature-job":
             from ..cloud_jobs.contracts import FeatureJobSpec

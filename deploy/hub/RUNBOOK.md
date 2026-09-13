@@ -151,6 +151,11 @@ scheduler-selected result manifests and their lineage are indexed after validate
 selection. Artifacts copied by other tools need an explicit refresh. The console states its index scope; missing index data
 is not a claim that the object store has no data. Summary failure does not invalidate a
 previously successful receiver receipt; it displays `unavailable` and requires owner repair.
+If the index or even its failure marker cannot be written, the immutable upload/compute outcome
+still remains authoritative. An absent summary is unknown, never zero failures. Dataset CLI and
+scheduler completion reports expose `console_index_status` separately; optional index work cannot
+change success into a publication/compute failure. Explicit `console-refresh` itself fails visibly
+when its requested repair cannot complete; do not suppress failures of that operator command.
 
 The backup panel optionally consumes the existing maintenance owner's bounded status file via
 `STPD_HUB_BACKUP_STATUS`; make only that safe projection readable inside mounted state. Do not

@@ -58,9 +58,14 @@ def envelope(items: list[dict[str, Any]], total: int, limit: int, offset: int) -
 
 
 class ConsoleIndex:
-    def __init__(self, operations: Operations) -> None:
+    def __init__(self, operations: Operations, *, initialize: bool = True) -> None:
         self.operations = operations
-        with operations.transaction() as db:
+        if initialize:
+            self.initialize()
+
+    def initialize(self) -> None:
+        """Owner startup or explicit repair only; never called by a GET projection."""
+        with self.operations.transaction() as db:
             db.execute(
                 "CREATE TABLE IF NOT EXISTS console_collections("
                 "upload_id TEXT PRIMARY KEY, archive_bytes INTEGER, summary TEXT, "

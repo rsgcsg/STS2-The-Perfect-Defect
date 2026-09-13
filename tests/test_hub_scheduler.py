@@ -364,3 +364,33 @@ def test_console_index_failure_never_reopens_selected_compute(pipeline, monkeypa
         assert scheduler.tick(3)["state"] == "idle"
         assert len(provider.calls) == 1
     assert ConsoleIndex(ops).health()["last_artifact_index_issue_at"] is not None
+
+
+def test_index_and_secondary_telemetry_failures_cannot_change_completed_compute(
+    pipeline,
+    monkeypatch,
+):
+    from stpd.hub.console_index import ConsoleIndex
+
+    ops, store, provider, job = pipeline
+    event = ops._event
+
+    def index_broken(*args):
+        raise BoundaryError("console", "projection_failed")
+
+    def event_broken(db, actor, operation, subject, detail):
+        if operation == "artifact_index_unavailable":
+            raise BoundaryError("console", "failure_event_failed")
+        event(db, actor, operation, subject, detail)
+
+    monkeypatch.setattr(ConsoleIndex, "artifact_closure", index_broken)
+    monkeypatch.setattr(ops, "_event", event_broken)
+    with Scheduler(ops, store, provider, budget_limit=10) as scheduler:
+        assert scheduler.tick(1)["state"] == "submitted"
+        provider.ready = True
+        result = scheduler.tick(2)
+        assert result["state"] == "completed"
+        assert result["console_index_status"] == "unavailable"
+        assert ops.jobs()[0]["status"] == "completed"
+        assert scheduler.tick(3)["state"] == "idle"
+        assert len(provider.calls) == 1
