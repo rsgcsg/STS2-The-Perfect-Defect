@@ -63,6 +63,7 @@ def main() -> int:
             "prepare-run",
             "enqueue",
             "retry-upload",
+            "console-refresh",
         ],
     )
     parser.add_argument("--root", type=Path, default=Path.cwd())
@@ -137,6 +138,8 @@ def main() -> int:
                 raise BoundaryError("hub", "job_and_stop_evidence_required")
             ops.reconcile_stopped(args.job, args.evidence)
             print(json.dumps({"reconciled": args.job}))
+        elif args.command == "console-refresh":
+            print(json.dumps(service.refresh_console(upload_id=args.upload)))
         elif args.command == "verify":
             print(json.dumps({"processed": service.verify_pending(args.upload)}))
         elif args.command == "retry-upload":
@@ -147,13 +150,11 @@ def main() -> int:
         elif args.command == "dataset":
             from .pipeline import build_dataset
 
-            print(
-                json.dumps(
-                    build_dataset(
-                        service.store, tuple(args.received), service.producer, seed=args.seed
-                    )
-                )
+            result = build_dataset(
+                service.store, tuple(args.received), service.producer, seed=args.seed
             )
+            service.console_index.artifact_closure(service.store, (result["dataset_id"],))
+            print(json.dumps(result))
         elif args.command == "feature-job":
             from ..cloud_jobs.contracts import FeatureJobSpec
             from .pipeline import prepare_features
@@ -207,7 +208,16 @@ def main() -> int:
             from .verification_worker import run_verifier
 
             secret = os.environ.get("STPD_HUB_ADMIN_TOKEN", "")
-            app = HubApplication(service, secret, budget_limit=args.budget_units)
+            from .console_auth import configured_access
+
+            backup = os.environ.get("STPD_HUB_BACKUP_STATUS")
+            app = HubApplication(
+                service,
+                secret,
+                budget_limit=args.budget_units,
+                browser_access=configured_access(os.environ),
+                backup_status=Path(backup) if backup else None,
+            )
             if args.host not in {"localhost", "127.0.0.1", "::1"}:
                 raise BoundaryError("hub", "bind_loopback_use_tls_reverse_proxy")
             shutdown = threading.Event()

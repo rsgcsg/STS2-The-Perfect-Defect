@@ -234,11 +234,13 @@ class Operations:
 
     def request_verification(self, upload_id: str) -> None:
         with self.transaction() as db:
-            db.execute(
+            changed = db.execute(
                 "UPDATE uploads SET status='verification_pending' "
                 "WHERE id=? AND status='awaiting_upload'",
                 (upload_id,),
             )
+            if changed.rowcount == 1:
+                self._event(db, "receiver", "upload_verification_requested", upload_id, {})
 
     def verification_failure(self, upload_id: str, code: str, *, now: float) -> None:
         with self.transaction() as db:

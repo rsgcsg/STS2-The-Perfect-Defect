@@ -345,3 +345,22 @@ def test_provider_timeout_cannot_exceed_authorized_job_duration(pipeline):
         assert report["code"] == "provider_timeout_exceeds_job_budget"
     assert not provider.calls and ops.compute_state(job) is None
     assert ops.jobs()[0]["status"] == "failed"
+
+
+def test_console_index_failure_never_reopens_selected_compute(pipeline, monkeypatch):
+    from stpd.hub.console_index import ConsoleIndex
+
+    ops, store, provider, job = pipeline
+
+    def broken(*args):
+        raise OSError("projection unavailable")
+
+    monkeypatch.setattr(ConsoleIndex, "artifact_closure", broken)
+    with Scheduler(ops, store, provider, budget_limit=10) as scheduler:
+        assert scheduler.tick(1)["state"] == "submitted"
+        provider.ready = True
+        assert scheduler.tick(2)["state"] == "completed"
+        assert ops.jobs()[0]["status"] == "completed"
+        assert scheduler.tick(3)["state"] == "idle"
+        assert len(provider.calls) == 1
+    assert ConsoleIndex(ops).health()["last_artifact_index_issue_at"] is not None

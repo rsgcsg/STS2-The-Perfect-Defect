@@ -4,7 +4,10 @@
 }
 
 {$STPD_HUB_DOMAIN} {
-    # Remote clients use bearer headers. No tokens in URLs and no access-log body capture.
+    # /app and /app/* require a Cloudflare Access application assertion at Hub origin.
+    # Protect both paths at the edge; Hub still validates JWT signature/issuer/audience/expiry.
+    # /v1/* retains device Bearer and /health remains minimal public health.
+    # Remote clients use headers. No tokens in URLs and no access-log body capture.
     request_body {
         max_size 33554432
     }

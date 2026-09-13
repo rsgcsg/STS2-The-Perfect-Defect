@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cloud = ["waitress>=3,<4", "modal==1.5.5", "python-dotenv>=1.1,<2"]
+cloud = ["waitress>=3,<4", "modal==1.5.5", "python-dotenv>=1.1,<2", "PyJWT[crypto]>=2.10,<3"]
 research = [
   "boto3>=1.35,<2",
   "duckdb>=1.4,<2",
@@ -40,6 +40,9 @@ dev = [
   "ruff>=0.12,<1",
   "types-jsonschema>=4.23,<5",
 ]
+
+[tool.setuptools.package-data]
+"stpd.console" = ["*.css", "*.js"]
 
 [tool.setuptools.packages.find]
 where = ["."]

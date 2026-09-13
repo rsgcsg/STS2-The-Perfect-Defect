@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO, Protocol, cast
 
 from sts2_platform_evidence import DirectoryTransferManifest, verify_human_session_bundle
+from sts2_platform_evidence.human_session_bundle import VerifiedHumanSessionBundle
 
 from ..artifact_contracts import Manifest, Producer
 from ..json_boundary import BoundaryError, FrozenObject, digest, json_bytes, object_fields
@@ -186,6 +187,9 @@ class UploadService:
     def __init__(
         self, operations: Operations, staging: Staging, store: ArtifactStore, producer: Producer
     ) -> None:
+        from .console_index import ConsoleIndex
+
+        self.console_index = ConsoleIndex(operations)
         self.operations, self.staging, self.store, self.producer = (
             operations,
             staging,
@@ -208,6 +212,9 @@ class UploadService:
         row = self.operations.create_upload(
             device, transfer.content_id, transfer.manifest_sha256, intent
         )
+        # Do not overwrite an existing verified projection on an idempotent intent replay.
+        if row["status"] == "awaiting_upload":
+            self.console_index.collection(row["id"], size, None, status="not_indexed")
         url, headers = self.staging.authorize(row["id"], size)
         return {
             "upload_id": row["id"],
@@ -313,4 +320,73 @@ class UploadService:
             evidence_id = self.store.publish(evidence)
             receipt["evidence_id"] = evidence_id
             self.operations.finish_upload(row["id"], receipt)
+            if findings:
+                self.console_index.collection(
+                    row["id"], intent["archive_bytes"], None, status="quarantined"
+                )
+            else:
+                try:
+                    self.index_verified_bundle(row, verification.require_value())
+                except Exception:
+                    # A derived presentation failure never rewrites immutable verification.
+                    # Its explicit missing state is repaired by the owner console-refresh CLI.
+                    self.console_index.collection(
+                        row["id"], intent["archive_bytes"], None, status="unavailable"
+                    )
             return receipt
+
+    def index_verified_bundle(
+        self,
+        row: dict[str, Any],
+        bundle: VerifiedHumanSessionBundle,
+    ) -> None:
+        from sts2_platform_evidence import summarize_verified_human_bundle
+
+        summary = summarize_verified_human_bundle(bundle)
+        self.console_index.collection(
+            row["id"], json.loads(row["intent"])["archive_bytes"], summary
+        )
+
+    def refresh_console(self, *, upload_id: str | None = None) -> dict[str, int]:
+        """Explicit owner CLI repair/rebuild; immutable historical receipts stay unchanged."""
+        indexed = 0
+        offset = 0
+        while True:
+            rows = (
+                [self.operations.upload(upload_id)]
+                if upload_id
+                else self.operations.uploads(limit=100, offset=offset)
+            )
+            for metadata in rows:
+                if metadata["status"] != "verified":
+                    continue
+                row = self.operations.upload(metadata["id"])
+                receipt = json.loads(row["receipt"])
+                manifest = self.store.get_manifest(receipt["evidence_id"])
+                if manifest.kind != "evidence":
+                    raise BoundaryError("console", "received_artifact_kind_mismatch")
+                intent = json.loads(row["intent"])
+                transfer = transfer_from_json(intent["transfer_manifest"])
+                with tempfile.TemporaryDirectory() as tmp:
+                    archive, directory = Path(tmp) / "bundle.tar.gz", Path(tmp) / "bundle"
+                    directory.mkdir()
+                    with archive.open("xb") as target:
+                        for chunk in self.store.read_payload(manifest.payload("archive")):
+                            target.write(chunk)
+                    if manifest.payload("archive").sha256 != intent["archive_sha256"]:
+                        raise BoundaryError("console", "archive_identity_mismatch")
+                    unpack(archive, directory, transfer)
+                    verification = verify_human_session_bundle(directory)
+                    bundle = verification.require_value()
+                    if bundle.bundle_content_id != row["content_id"]:
+                        raise BoundaryError("console", "bundle_content_identity_mismatch")
+                    self.index_verified_bundle(row, bundle)
+                    indexed += 1
+            if upload_id or len(rows) < 100:
+                break
+            offset += 100
+        manifests = 0
+        for identity in self.store.manifest_ids():
+            self.console_index.artifact(self.store.get_manifest(identity))
+            manifests += 1
+        return {"collections_indexed": indexed, "manifests_checked": manifests}

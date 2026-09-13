@@ -17,6 +17,30 @@ from test_support import PosixPermissionFixture
 
 
 class PreflightTests(PosixPermissionFixture):
+    def test_browser_allowlist_is_optional_private_and_mounted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            self.assertEqual(preflight.check_console({}, root), {"browser_console": "disabled"})
+            fields = {"STPD_ACCESS_ISSUER": "https://team.cloudflareaccess.com"}
+            with self.assertRaisesRegex(preflight.PreflightError, "incomplete"):
+                preflight.check_console(fields, root)
+            fields.update(STPD_ACCESS_AUDIENCE="a" * 64,
+                          STPD_ACCESS_ALLOWLIST="/var/lib/stpd/access.json")
+            target = root / "access.json"
+            target.write_text(json.dumps({"schema": "stpd/console-access-v1", "principals": [
+                {"email": "test@example.org", "role": "collector", "devices": ["one"]}]}))
+            target.chmod(0o600)
+            with patch.object(preflight, "owner_uid", return_value=10001):
+                self.assertEqual(preflight.check_console(fields, root),
+                                 {"browser_console": "configured_not_live_qualified"})
+                target.chmod(0o644)
+                with self.assertRaisesRegex(preflight.PreflightError, "private_uid"):
+                    preflight.check_console(fields, root)
+                target.chmod(0o600)
+                fields["STPD_ACCESS_ALLOWLIST"] = "/etc/private.json"
+                with self.assertRaisesRegex(preflight.PreflightError, "mounted_state"):
+                    preflight.check_console(fields, root)
+
     def test_named_modal_environment_is_accepted_without_enabling_compute(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
