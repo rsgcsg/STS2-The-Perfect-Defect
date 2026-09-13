@@ -59,7 +59,7 @@ def test_portable_gate_includes_all_existing_checks_and_package() -> None:
     assert ("python", "-m", "mypy", "stpd", "tools") in commands
     assert ("npm", "run", "check:connector-sdk") in commands
     assert ("python", "-m", "pytest", "-q") in commands
-    assert ("python", "-m", "compileall", "-q", "stpd", "tests", "tools") in commands
+    assert ("python", "-m", "compileall", "-q", "stpd", "tests", "tools", "deploy") in commands
     assert ("python", "-m", "stpd.workbench", "e2e", "--output", ".local/cpu-e2e.json") in commands
     assert ("uv", "build") in commands
     assert ("git", "diff", "--check") in commands

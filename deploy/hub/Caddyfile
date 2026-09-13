@@ -1,0 +1,20 @@
+{
+    email {$STPD_ACME_EMAIL}
+    admin off
+}
+
+{$STPD_HUB_DOMAIN} {
+    # /app and /app/* require a Cloudflare Access application assertion at Hub origin.
+    # Protect both paths at the edge; Hub still validates JWT signature/issuer/audience/expiry.
+    # /v1/* retains device Bearer and /health remains minimal public health.
+    # Remote clients use headers. No tokens in URLs and no access-log body capture.
+    request_body {
+        max_size 33554432
+    }
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        -Server
+    }
+    reverse_proxy 127.0.0.1:8765
+}

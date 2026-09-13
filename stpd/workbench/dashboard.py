@@ -8,12 +8,14 @@ import re
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from ..artifact_contracts import Manifest
 from ..storage.registry import Registry
 from ..storage.store import ArtifactStore
-from .analysis import AnalysisReport, analyze
+
+if TYPE_CHECKING:
+    from .analysis import AnalysisReport
 
 SCHEMA = "stpd/local-dashboard-v1"
 SECTIONS = (
@@ -114,6 +116,8 @@ def project(
     analysis: AnalysisReport | None = None,
 ) -> DashboardProjection:
     """Build a deterministic dashboard projection from Registry/ArtifactStore interfaces."""
+    from .analysis import analyze
+
     manifests = registry.manifests()
     by_kind = Counter(manifest.kind for manifest in manifests)
     analysis_report = analysis or analyze(registry, store)

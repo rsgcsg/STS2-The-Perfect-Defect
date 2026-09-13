@@ -27,6 +27,7 @@ KINDS = frozenset(
         "dataset",
         "model_view",
         "feature_set",
+        "feature_job",
         "training_input",
         "experiment",
         "run",

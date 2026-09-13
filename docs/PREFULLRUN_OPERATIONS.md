@@ -23,8 +23,9 @@ uv run --locked python -m stpd.workbench worker --run <run-id> --resume <checkpo
 For admitted future data use `prepare --dataset <id> --config <file> --qwen-snapshot <path>`;
 `--control random --random-seed <seed>` uses the existing exact same-architecture frozen
 random Qwen backend. Real backend admission retains its CUDA/BF16 and weight-pin checks.
-Research purpose additionally requires `--protocol <id>` and qualified data. The final
-Platform adapter and final Standard freeze wait for the final qualified Platform bundle.
+Research purpose additionally requires `--protocol <id>` and qualified data. The pinned
+bundle3 adapter is installed; sufficient real corpus and final Standard profiling/freeze
+remain separately gated.
 Changing source or lock requires preparing a new TrainingInput; a worker rejects that drift.
 
 ## Artifacts and registry

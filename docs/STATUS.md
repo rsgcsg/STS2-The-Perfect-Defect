@@ -1,5 +1,23 @@
 # Current Status
 
+## Developer B pipeline
+
+The B workstream implements collection delivery, independent bundle3 ingestion/projection,
+a durable CPU Hub, frozen feature jobs, disposable Modal execution and one developer entry.
+[Operations](CLOUD_PIPELINE_B.md) describes exact commands and remaining gates. No real cloud
+service, GPU execution, sufficient real training corpus or new model quality is claimed by
+these source changes. Scoped real Hub/OCI/TLS/R2/backup/restore receipts at source
+`78896eee009e39933b5a1548da3567eda94bad6b` are retained in
+`refs/notes/stpd-hub-public-qualification` and `refs/notes/stpd-hub-live-qualification`.
+They used synthetic uploads and do not qualify a changed candidate, production Human
+collection, GPU execution or whole-host recovery. Read [current handoff](B_PIPELINE_HANDOFF.md)
+for terminal/distribution/maintenance and the ordered training-plan freeze gates.
+The first dedicated new Human campaign passed Close-to-R2 readback and 412-record
+research projection at source `99aa8199dbbcee7c600fcdb5b923168214e92635`; see the
+[bounded Human audit](evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md). Dataset
+admission correctly requires more independent runs. New repairs need their own
+current source/CI/service receipts. Historical qualification below remains tied to its original refs.
+
 ## Pre-Full-Run engineering closeout
 
 The coherent Local-First implementation is delivered through convergence PR #7. Its exact
@@ -21,7 +39,7 @@ integration target. No public history was rewritten. See
 GitHub branch enforcement is an operational fact and must be inspected directly;
 this source document does not by itself prove that repository rules are active.
 
-## Verdict
+## Historical combat-v0 verdict and evidence
 
 **STPD is pre-alpha; full-weight Qwen L2, bounded tiny-overfit engineering admission,
 the 1,962-record unified Human corpus Gate-0 lane, and the owner-run S1 behavior smoke are
@@ -231,7 +249,7 @@ exact environment identities, and therefore zero rank-eligible accepted rows (`0
 No AgenticSTS extractor or training dataset was created; the S1 smoke instead uses the
 strictly admitted unified Human corpus.
 
-## Non-claims and remaining work
+## Historical combat-v0 non-claims and remaining work
 
 - Tiny-overfit attempts prove neither pretrained advantage nor policy quality; they are
   optimizer/memorization-plumbing evidence only.

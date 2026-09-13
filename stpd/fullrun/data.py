@@ -12,7 +12,7 @@ from ..artifact_contracts import Manifest, Parent, Producer
 from ..canonical import canonical_json, semantic_hash
 from ..json_boundary import BoundaryError, FrozenObject, decode_json, json_bytes, unsigned
 from ..storage.store import ArtifactStore
-from .contracts import ResearchTransitionV1, SourceAdapter, SourceProjection
+from .contracts import ResearchTransitionV1, ResearchTransitionV2, SourceAdapter, SourceProjection
 from .representation import decision_fingerprint
 
 DATASET_SCHEMA = "stpd/fullrun-dataset-v1"
@@ -78,16 +78,68 @@ def split_whole_runs(records: tuple[ResearchTransitionV1, ...], seed: int) -> Fr
     return FrozenObject.of(assignments)
 
 
+def _adapter(adapter_id: str) -> SourceAdapter:
+    from .fixtures import SyntheticSourceAdapter
+    from .platform_bundle3 import ADAPTER_ID, PlatformBundle3SourceAdapter
+
+    if adapter_id == SyntheticSourceAdapter.adapter_id:
+        return SyntheticSourceAdapter()
+    if adapter_id == ADAPTER_ID:
+        return PlatformBundle3SourceAdapter()
+    raise BoundaryError("source", "uninstalled_source_adapter")
+
+
+def _verify_platform_projection(
+    projection: SourceProjection, *, require_admissible: bool = True
+) -> None:
+    if projection.scope != "platform_verified" or projection.source_bytes is None:
+        raise BoundaryError("admission", "unverified_platform_projection")
+    verified = _adapter(projection.adapter_id).project(projection.source_bytes)
+    if verified != projection:
+        raise BoundaryError("admission", "source_transition_projection_mismatch")
+    if not require_admissible:
+        return
+    accounting = projection.accounting.value()
+    occurrences = accounting.get("occurrences", [])
+    if any(
+        item["disposition"] == "transition_unknown"
+        or (item["disposition"] == "transition_proved" and item["canonical_record_id"] is None)
+        for item in occurrences
+    ):
+        raise BoundaryError("admission", "unresolved_or_unpersisted_occurrence")
+    if any(
+        item.get("disposition") == "failed_closed" for item in accounting.get("invalidations", [])
+    ):
+        raise BoundaryError("admission", "failed_closed_human_decision")
+    # Cancellation/abort and diagnostic dispositions stay in the source ledger;
+    # they are not fabricated committed training rows and are not real losses.
+    decisions = {
+        r.occurrence.value()["decision_id"]: r
+        for r in projection.transitions
+        if isinstance(r, ResearchTransitionV2)
+    }
+    for record in decisions.values():
+        parent_id = record.occurrence.value().get("parent_decision_id")
+        if parent_id is not None:
+            parent = decisions.get(parent_id)
+            if (
+                parent is None
+                or parent.run_id != record.run_id
+                or parent.step_index >= record.step_index
+                or parent.provenance.native_root_ref != record.provenance.native_root_ref
+            ):
+                raise BoundaryError("admission", "missing_or_inconsistent_canonical_parent")
+
+
 def admit(projections: tuple[SourceProjection, ...], *, seed: int = 0) -> AdmittedDataset:
     if not projections or any(not isinstance(p, SourceProjection) for p in projections):
         raise BoundaryError("admission", "no_verified_source_projection")
     scopes = {projection.scope for projection in projections}
     if len(scopes) != 1:
         raise BoundaryError("admission", "mixed_engineering_and_qualified_sources")
-    # Until the final owning Platform verifier/adapter is installed, no caller-created
-    # dataclass or scope flag may admit a qualified population, even only in memory.
-    if any(projection.scope != "engineering" for projection in projections):
-        raise BoundaryError("admission", "final_platform_adapter_not_installed")
+    for projection in projections:
+        if projection.scope != "engineering":
+            _verify_platform_projection(projection)
     unique: dict[str, ResearchTransitionV1] = {}
     positions: dict[tuple[str, int], str] = {}
     duplicates = 0
@@ -132,15 +184,27 @@ def admit(projections: tuple[SourceProjection, ...], *, seed: int = 0) -> Admitt
 
 
 def publish_source(
-    store: ArtifactStore, raw: bytes, adapter: SourceAdapter, producer: Producer
+    store: ArtifactStore,
+    raw: bytes,
+    adapter: SourceAdapter,
+    producer: Producer,
+    *,
+    parents: tuple[Parent, ...] = (),
 ) -> tuple[Manifest, SourceProjection]:
     projection = adapter.project(raw)
     if hashlib.sha256(raw).hexdigest() != projection.source_sha256:
         raise BoundaryError("source", "adapter_source_hash_mismatch")
-    payload = store.put_payload("source", io.BytesIO(raw), "application/json")
+    if projection.scope != "engineering":
+        _verify_platform_projection(projection, require_admissible=False)
+    payload = store.put_payload(
+        "source",
+        io.BytesIO(raw),
+        "application/gzip" if projection.scope == "platform_verified" else "application/json",
+    )
     manifest = Manifest(
         "evidence",
         producer,
+        parents=parents,
         payloads=(payload,),
         parameters=FrozenObject.of(
             {
@@ -149,6 +213,11 @@ def publish_source(
                 "scope": projection.scope,
                 "source_sha256": projection.source_sha256,
                 "run_proofs": projection.run_proofs.value(),
+                **(
+                    {"accounting": projection.accounting.value()}
+                    if projection.scope != "engineering"
+                    else {}
+                ),
             }
         ),
     )
@@ -156,11 +225,38 @@ def publish_source(
     return manifest, projection
 
 
+def publish_received_source(
+    store: ArtifactStore, received_id: str, producer: Producer
+) -> tuple[Manifest, SourceProjection]:
+    """Promote received bytes to a verified research source, not Dataset admission.
+
+    Preserve the Hub receipt/transport lineage as a parent. Independently rerun the
+    pinned source verifier rather than trusting the Hub's disposition or metadata.
+    """
+    from .platform_bundle3 import MAX_BYTES, PlatformBundle3SourceAdapter
+
+    received = store.get_manifest(received_id)
+    if (
+        received.kind != "evidence"
+        or received.parameters.value().get("schema") != "stpd/received-bundle-v1"
+    ):
+        raise BoundaryError("received_source", "unsupported_received_bundle")
+    payload = received.payload("archive")
+    if payload.size > MAX_BYTES:
+        raise BoundaryError("received_source", "source_bundle_size_limit")
+    raw = b"".join(store.read_payload(payload))
+    return publish_source(
+        store,
+        raw,
+        PlatformBundle3SourceAdapter(),
+        producer,
+        parents=(Parent("received", received_id),),
+    )
+
+
 def _projections_from_manifests(
     store: ArtifactStore, records: tuple[ResearchTransitionV1, ...], sources: tuple[Manifest, ...]
 ) -> tuple[SourceProjection, ...]:
-    from .fixtures import SyntheticSourceAdapter
-
     by_source = {source.payload("source").sha256: source for source in sources}
     if not sources or len(by_source) != len(sources):
         raise BoundaryError("dataset", "source_inventory_mismatch")
@@ -175,9 +271,7 @@ def _projections_from_manifests(
             or info.get("source_sha256") != source_hash
         ):
             raise BoundaryError("dataset", "invalid_source_manifest")
-        adapter = SyntheticSourceAdapter()
-        if info.get("adapter") != adapter.adapter_id:
-            raise BoundaryError("dataset", "final_platform_adapter_not_installed")
+        adapter = _adapter(info.get("adapter", ""))
         payload = source.payload("source")
         if payload.size > 256 * 1024 * 1024:
             raise BoundaryError("dataset", "source_bundle_size_limit")
@@ -186,6 +280,10 @@ def _projections_from_manifests(
             projected.source_sha256 != source_hash
             or projected.scope != info.get("scope")
             or projected.run_proofs.value() != info.get("run_proofs")
+            or (
+                projected.scope != "engineering"
+                and projected.accounting.value() != info.get("accounting")
+            )
         ):
             raise BoundaryError("dataset", "source_attestation_mismatch")
         expected = {record.transition_id: record.to_dict() for record in projected.transitions}

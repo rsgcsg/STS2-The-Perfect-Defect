@@ -132,5 +132,5 @@ def test_caller_scope_cannot_invent_platform_qualification() -> None:
             for record in projection.transitions
         ),
     )
-    with pytest.raises(BoundaryError, match="final_platform_adapter_not_installed"):
+    with pytest.raises(BoundaryError, match="unverified_platform_projection"):
         admit((forged,))

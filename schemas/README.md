@@ -27,3 +27,14 @@ Rules:
 - validate manifests before training or evaluation;
 - payload openness is not permission to add hidden state or runtime authority; executable
   leakage tests are the second line of defense.
+
+
+The separately versioned Full-Run V1/V2 transition and SourceProjection boundaries are owned
+by the executable strict codecs in `stpd/fullrun/contracts.py`, with round-trip and tamper
+regressions. V2 preserves exact native decision lineage and execution catalog authority;
+old V1 payloads/identities remain unchanged. Dataset loading also reruns the version-pinned
+source adapter; structural decoding alone is not source qualification or research admission.
+
+Developer combination/project v1 schemas bind installed public package identities and local
+paths/endpoints. They contain no credentials. Compute/upload/receipt contracts are strict
+executable codecs in cloud_jobs and hub; their IDs are separate from native evidence schemas.

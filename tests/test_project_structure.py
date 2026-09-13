@@ -61,6 +61,8 @@ class ProjectStructureTest(unittest.TestCase):
         self.assertEqual(
             {path.name for path in schema_paths},
             {
+                "developer-combination-v1.schema.json",
+                "developer-project-v1.schema.json",
                 "experiment-manifest-v0.schema.json",
                 "data-manifest-v0.schema.json",
                 "frozen-joint-feature-manifest-v1.schema.json",

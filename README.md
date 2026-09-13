@@ -25,16 +25,17 @@ shipped STS2 / qualified Platform Host Runtime
    data -> representation -> model -> training -> evaluation
 ```
 
-## Current Pre-Full-Run engineering
+## Current developer data and cloud pipeline
 
 The Local-First Full-Run lane is separate from historical combat-v0. Platform owns semantic
 state, complete `A_sem(S)`, Human choice/Commit and causal successor; STPD consumes that
-contract without reconstructing native authority. The only installed Full-Run source adapter
-is explicitly synthetic pending Platform's final qualified bundle.
+contract without reconstructing native authority. The pinned Platform bundle3 adapter preserves first-class occurrences, exact parent/root lineage,
+execution catalogs and Read/Commit/successor evidence. Synthetic input remains explicitly separate.
 
 The implemented flow is Dataset → provisional ModelView → frozen FeatureSet → TrainingInput
 → disposable Worker → Checkpoint/Model → OfflineEvaluation. Local/S3-compatible ArtifactStore
-owns immutable bytes/manifests, SQLite is rebuildable, and DuckDB plus a static local dashboard
+owns immutable bytes/manifests. The Registry SQLite is rebuildable; the Hub operations SQLite
+is durable and requires backup. DuckDB plus a local dashboard
 provide projections. One shared Linear/MLP candidate scorer spans all surfaces; Qwen never
 outputs native commands. Gold tooling and E0–E7 configuration do not imply Human labels or a
 scientific campaign.
@@ -43,7 +44,8 @@ scientific campaign.
 uv sync --locked --all-extras
 npm ci
 uv run --locked python tools/project.py check
-uv run --locked python -m stpd.workbench --help
+uv run --locked python -m stpd.workbench project setup
+uv run --locked python -m stpd.workbench project doctor
 ```
 
 The common gate includes a clean-source CPU E2E with replacement-process resume, store
@@ -51,9 +53,14 @@ transfer, Registry deletion/rebuild and dashboard/analysis. Hosted Linux and Win
 that same gate; latest exact-source evidence determines readiness.
 See [operations](docs/PREFULLRUN_OPERATIONS.md), [research](docs/FULLRUN_RESEARCH.md),
 [training](docs/FULLRUN_TRAINING.md), [Gold](docs/FULLRUN_GOLD.md), and
-[workbench](docs/LOCAL_WORKBENCH.md). The final qualified Platform adapter, real corpus/Standard
-freeze, Human Gold, storage/GPU account qualification and real STS2 live evaluation remain
-external or next-phase gates.
+[workbench](docs/LOCAL_WORKBENCH.md). The B lane adds close-to-outbox delivery, private evidence ingress, a CPU Hub and disposable
+Modal execution using existing research workers. Start with [release, terminal handoff and next gates](docs/B_PIPELINE_HANDOFF.md),
+then [B pipeline operations](docs/CLOUD_PIPELINE_B.md).
+The [shared project console](docs/PROJECT_CONSOLE.md) connects local delivery status with
+scoped cloud records, immutable Dataset/job/model lineage and operational evidence.
+Browser login is independent from the device credential; the cloud UI is read-only.
+Real corpus sufficiency, actual storage/GPU qualification, Human Gold and STS2 live evaluation
+remain separately gated; source/test success is not service or scientific qualification.
 
 ## Retained historical combat-v0 and integration evidence
 

@@ -51,11 +51,14 @@ No admin bypass, protected direct push, force update or unapproved destructive a
 
 ## Local-First target
 
-GitHub owns source; Local is control plane and real-world execution; generic S3-compatible
-Object Store holds durable bytes/manifests; SQLite is a rebuildable registry; DuckDB is local
-analysis; Cloud GPU is disposable training/offline compute. A future Research Hub adds
-adapters without redefining Dataset/TrainingInput/Run/Model/Evaluation identities. No V1 VPS,
-production Postgres, central lease service, cloud STS2, or public dashboard is required.
+GitHub owns source; Local owns developer control and real-world execution; generic S3-compatible
+Object Store holds durable bytes/manifests. Registry SQLite and DuckDB are rebuildable views.
+The B developer Hub adds a separate authoritative operations SQLite for device access,
+uploads, jobs and attempts; it requires consistent backups and must never be rebuilt from
+Registry. One CPU Hub coordinates disposable cloud workers without redefining
+Dataset/TrainingInput/Run/Model/Evaluation identities. See [ADR-0004](adr/0004-developer-cloud-hub.md).
+Service promotion requires exact deployment evidence; portable tests do not provision or
+qualify it. Production Postgres, cloud STS2 and a public multitenant dashboard remain outside B.
 
 Secrets, proprietary files, raw/private Human data, weights and large artifacts stay outside
 Git and manifests. Scope credentials narrowly. Publication must be immutable, integrity-

@@ -1,0 +1,10 @@
+{
+  "Rules": [
+    {
+      "ID": "abort-unfinished-ingress-multipart",
+      "Status": "Enabled",
+      "Filter": {"Prefix": "incoming/"},
+      "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1}
+    }
+  ]
+}

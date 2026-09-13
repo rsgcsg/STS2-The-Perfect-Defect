@@ -12,3 +12,7 @@ Current records:
 - [ADR-0002: versioned unified Human serialization](0002-versioned-unified-human-serialization.md)
 
 [ADR-0003: Local-First manifest research](0003-local-first-manifest-research.md)
+
+[ADR-0004: Developer cloud Hub](0004-developer-cloud-hub.md)
+
+[ADR-0005: one local/cloud project console](0005-local-cloud-console.md)
