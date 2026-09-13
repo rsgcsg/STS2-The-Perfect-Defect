@@ -268,3 +268,35 @@ def test_http_shell_and_assets_do_not_query_owners_or_accept_browser_mutations(
         server.server_close()
         thread.join(timeout=3)
         app.close()
+
+
+def test_upgrade_can_observe_and_stop_predecessor_but_cannot_start_it(
+    tmp_path, monkeypatch, capsys
+):
+    from stpd.workbench import developer_cli
+
+    cfg = config(tmp_path, delivery=False, hub=False)
+    previous = cfg.to_dict()
+    previous["combination"]["evidence_source_revision"] = "f" * 40
+    path = tmp_path / "project.json"
+    path.write_text(json.dumps(previous))
+    calls = []
+    monkeypatch.setattr(
+        developer_cli,
+        "status_project",
+        lambda c: calls.append(c.state_dir) or {"status": "running"},
+    )
+    monkeypatch.setattr(
+        developer_cli, "stop_project", lambda c: calls.append(c.state_dir) or {"status": "stopping"}
+    )
+    for command in ("status", "stop"):
+        assert developer_cli.main([command, "--config", str(path)]) == 0
+        capsys.readouterr()
+    assert calls == [cfg.state_dir, cfg.state_dir]
+    for command in ("open", "serve", "download", "doctor"):
+        assert developer_cli.main([command, "--config", str(path)]) == 1
+        assert json.loads(capsys.readouterr().out)["code"] == "combination_changed_rerun_setup"
+    previous["schema"] = "future-untrusted"
+    path.write_text(json.dumps(previous))
+    with pytest.raises(BoundaryError, match="unsupported_project_config"):
+        ProjectConfig.load(path, require_current_combination=False)

@@ -97,3 +97,9 @@ evaluation, cloud game/RL and scientific qualification have separate contracts a
 
 The system page is not an outside-host alerting service. A backup status is not the backup bytes,
 and an SQLite restore is not whole-host disaster recovery. Missing evidence is displayed explicitly.
+
+After upgrading checkout/dependencies, `project status` and `project stop` can still
+address the predecessor's validated local runtime even if its combination is old.
+Starting a new service, doctor and model downloads still require current setup.
+Stop first, run explicit replacement setup with the preserved campaign/configuration,
+rebuild summaries while delivery is stopped, then reopen. No manual process kill is needed.

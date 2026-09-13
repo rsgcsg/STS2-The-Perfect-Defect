@@ -215,7 +215,7 @@ function collectionTable(rows) {
       action,
       node(
         "span",
-        `${row.device_id || record.worker_id || "本机"} · ${short(record.session_id || row.session_id || collectionId(row))}`,
+        `${row.device_id || record.worker_id || row.worker_id || "本机"} · ${short(record.session_id || row.session_id || collectionId(row))}`,
         "subtext",
       ),
     );
@@ -451,6 +451,8 @@ function renderCollectionRows(data) {
         row.upload_id,
         row.content_id,
         row.device_id,
+        row.worker_id,
+        row.campaign_id,
         row.session_id,
         summary(row).session_id,
         summary(row).campaign_id,
@@ -513,8 +515,8 @@ function detail(data) {
   captureBody.append(
     facts([
       ["采集 ID", record.session_id || row.session_id],
-      ["设备", row.device_id || record.worker_id],
-      ["Campaign", record.campaign_id],
+      ["设备", row.device_id || record.worker_id || row.worker_id],
+      ["Campaign", record.campaign_id || row.campaign_id],
       ["被游戏接收", number(tally.accepted)],
       [
         "子决策 / canonical",
@@ -728,7 +730,7 @@ function catalog(data, kind) {
       body.append(
         node(
           "p",
-          `project download --artifact ${item.artifact_id}`,
+          `uv run --locked python -m stpd.workbench project download --config /ABS/project.json --artifact ${item.artifact_id}`,
           "command mono",
         ),
       );

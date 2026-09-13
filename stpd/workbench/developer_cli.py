@@ -89,7 +89,12 @@ def main(argv: list[str] | None = None) -> int:
                 raise BoundaryError("policy", "manifest_required")
             result = inspect_policy(args.manifest)
         else:
-            config = ProjectConfig.load(args.config)
+            # A source upgrade must not strand its still-running predecessor.
+            # Health-bound observation/stop needs only the validated local address;
+            # opening, serving and downloading retain exact current-combination gates.
+            config = ProjectConfig.load(
+                args.config, require_current_combination=args.command not in {"status", "stop"}
+            )
             if args.command == "doctor":
                 result = doctor(config)
             elif args.command == "open":

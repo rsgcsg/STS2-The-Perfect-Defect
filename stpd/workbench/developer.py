@@ -116,13 +116,15 @@ class ProjectConfig:
         }
 
     @classmethod
-    def load(cls, path: Path) -> ProjectConfig:
+    def load(cls, path: Path, *, require_current_combination: bool = True) -> ProjectConfig:
         obj = object_fields(
             decode_json(path.read_bytes()),
             {"schema", "state_dir", "hub_url", "platform_url", "delivery_config", "combination"},
             "project.config",
         )
-        if obj["schema"] != CONFIG_SCHEMA or obj["combination"] != combination():
+        if obj["schema"] != CONFIG_SCHEMA or not isinstance(obj["combination"], dict):
+            raise BoundaryError("project", "unsupported_project_config")
+        if require_current_combination and obj["combination"] != combination():
             raise BoundaryError("project", "combination_changed_rerun_setup")
         state = Path(text(obj["state_dir"], "project.state_dir"))
         delivery = obj["delivery_config"]
