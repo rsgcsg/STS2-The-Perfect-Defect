@@ -539,7 +539,7 @@ function detail(data) {
       ["验收收据", row.receipt?.receipt_id || "尚未收到"],
       ["错误代码", row.last_error || row.error || "无已报告错误"],
       ["本机投递尝试", row.attempts ?? "不在此端观测"],
-      ["云端验证尝试", row.verify_attempts ?? "未观测"],
+      ["云端验证处理异常（本轮）", row.verify_attempts ?? "未观测"],
     ]),
   );
   if (local && row.remote)
@@ -556,7 +556,7 @@ function detail(data) {
   deliveryBody.append(
     node(
       "p",
-      "阶段是最近观测，不证明后台仍在运行。尝试次数包含正常等待/状态检查，不等于失败或重复上传次数。",
+      "阶段是最近观测，不证明后台仍在运行。本机尝试含正常状态查询；云端仅累计本轮处理异常，成功验证不会增加，人工重新投递时归零。",
       "muted small",
     ),
   );

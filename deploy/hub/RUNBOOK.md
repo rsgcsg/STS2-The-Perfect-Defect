@@ -406,3 +406,26 @@ compromised device tokens or credentials explicitly; that is independent of imag
 Retirement disables the backup timer, stops services and confirms no paid compute remains. Archive operational receipts,
 images/config references and recovery material according to retention policy. Do not delete
 state volumes or immutable evidence merely to remove stopped containers.
+
+### Source-only image refresh with an unchanged dependency lock
+
+A full worker build temporarily retains downloaded, compressed and unpacked training
+libraries. Measure free disk before building on a small Hub; keep the running/rollback
+image and all operational/evidence state. Disposable build cache and unreferenced local
+image copies may be removed; their public immutable registry objects are separate.
+
+For a source-only update, `deploy/cloud-worker/refresh.Dockerfile` can reuse a previously
+qualified exact worker image. It checks a clean parent checkout, an exact new Git revision,
+an unchanged `uv.lock`, locked offline synchronization and a clean resulting source. It
+fails closed on a dependency change; use the normal full Dockerfile in that case.
+
+```bash
+docker build -f deploy/cloud-worker/refresh.Dockerfile \
+  --build-arg QUALIFIED_WORKER_IMAGE=ghcr.io/rsgcsg/stpd-worker@sha256:EXACT_PARENT_DIGEST \
+  --build-arg STPD_SOURCE_REVISION=EXACT_NEW_HEAD \
+  -t ghcr.io/rsgcsg/stpd-worker:EXACT_NEW_HEAD .
+```
+
+Record parent digest and recipe with the resulting digest. Rerun latest-head source/CI
+checks and independently verify fresh-container source/lock/assets, public service,
+R2 and backup/restore. Parent qualification never qualifies changed source automatically.

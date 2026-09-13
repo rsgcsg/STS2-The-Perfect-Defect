@@ -103,3 +103,8 @@ address the predecessor's validated local runtime even if its combination is old
 Starting a new service, doctor and model downloads still require current setup.
 Stop first, run explicit replacement setup with the preserved campaign/configuration,
 rebuild summaries while delivery is stopped, then reopen. No manual process kill is needed.
+
+The legacy Hub `verify_attempts` field counts operational verification exceptions
+within the current retry cycle, not all verification invocations. A successful
+verified receipt can correctly have zero. The UI labels it as processing anomalies;
+explicit operator re-delivery resets the counter. Quarantine is a separate disposition.
