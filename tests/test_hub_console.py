@@ -524,3 +524,123 @@ def test_sealed_evaluations_and_gold_do_not_enter_discovery(tmp_path: Path) -> N
     assert sealed.artifact_id not in json.dumps(result) and gold.artifact_id not in json.dumps(
         result
     )
+
+
+def test_optional_index_initialization_and_intent_failure_do_not_block_owner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from test_hub_uploads import fixture
+
+    def broken(*args: Any, **kwargs: Any) -> None:
+        raise OSError("optional index unavailable")
+
+    monkeypatch.setattr(ConsoleIndex, "initialize", broken)
+    owner, intent, _ = fixture(tmp_path)
+    # No console tables exist, so the optional intent projection write also fails.
+    result = owner.intent("one", intent)
+    assert result["status"] == "awaiting_upload"
+    assert owner.operations.upload(result["upload_id"])["content_id"] == "a" * 64
+    assert owner.operations.upload_counts() == {"awaiting_upload": 1}
+    with pytest.raises(OSError, match="optional index"):
+        owner.refresh_console()  # Explicit repair is allowed to fail visibly.
+
+
+@pytest.mark.parametrize("verified", [True, False])
+def test_both_summary_and_failure_marker_errors_preserve_terminal_upload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    verified: bool,
+) -> None:
+    from types import SimpleNamespace
+
+    from test_hub_uploads import fixture
+
+    owner, intent, raw = fixture(tmp_path)
+    result = owner.intent("one", intent)
+    upload_id = result["upload_id"]
+    assert isinstance(owner.staging, LocalStaging)
+    owner.staging.write(upload_id, io.BytesIO(raw), len(raw))
+    owner.operations.request_verification(upload_id)
+    verification = SimpleNamespace(
+        passed=verified,
+        findings=[] if verified else [SimpleNamespace(code="expected_fixture_rejection")],
+        require_value=lambda: SimpleNamespace(bundle_content_id="a" * 64),
+    )
+    monkeypatch.setattr("stpd.hub.uploads.verify_human_session_bundle", lambda *args: verification)
+
+    def broken(*args: Any, **kwargs: Any) -> None:
+        raise OSError("optional projection unavailable")
+
+    monkeypatch.setattr(owner, "index_verified_bundle", broken)
+    monkeypatch.setattr(owner.console_index, "collection", broken)
+    receipt = owner.verify(owner.operations.upload(upload_id))
+    expected = "verified" if verified else "quarantined"
+    assert receipt["status"] == expected
+    assert owner.operations.upload(upload_id)["status"] == expected
+    assert owner.operations.upload(upload_id)["verify_attempts"] == 0
+    assert json.loads(owner.operations.upload(upload_id)["receipt"]) == receipt
+
+
+def test_owner_receipt_failure_is_not_suppressed_with_optional_index(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from test_hub_uploads import fixture
+
+    owner, intent, raw = fixture(tmp_path)
+    upload_id = owner.intent("one", intent)["upload_id"]
+    assert isinstance(owner.staging, LocalStaging)
+    owner.staging.write(upload_id, io.BytesIO(raw), len(raw))
+    owner.operations.request_verification(upload_id)
+    verification = SimpleNamespace(passed=False, findings=[SimpleNamespace(code="rejected")])
+    monkeypatch.setattr("stpd.hub.uploads.verify_human_session_bundle", lambda *args: verification)
+
+    def failed_receipt(*args: Any) -> None:
+        raise BoundaryError("hub", "authoritative_receipt_unavailable")
+
+    monkeypatch.setattr(owner.operations, "finish_upload", failed_receipt)
+    with pytest.raises(BoundaryError, match="authoritative_receipt_unavailable"):
+        owner.verify(owner.operations.upload(upload_id))
+    row = owner.operations.upload(upload_id)
+    assert row["status"] == "verification_pending" and row["receipt"] is None
+
+
+def test_dataset_cli_retains_success_when_optional_catalogue_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: Any,
+) -> None:
+    from stpd.hub import __main__ as cli
+
+    owner = service(tmp_path)
+    manifest = Manifest("dataset", owner.producer)
+
+    def build(*args: Any, **kwargs: Any) -> dict:
+        owner.store.publish(manifest)
+        return {"dataset_id": manifest.artifact_id, "records": 3}
+
+    def broken(*args: Any, **kwargs: Any) -> None:
+        raise OSError("optional catalogue unavailable")
+
+    monkeypatch.setattr(cli, "configured_service", lambda args: owner)
+    monkeypatch.setattr("stpd.hub.pipeline.build_dataset", build)
+    monkeypatch.setattr(owner.console_index, "artifact_closure", broken)
+    monkeypatch.setattr("sys.argv", ["stpd.hub", "dataset", "--received", "a" * 64])
+    assert cli.main() == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report == {
+        "dataset_id": manifest.artifact_id,
+        "records": 3,
+        "console_index_status": "unavailable",
+    }
+    assert owner.store.get_manifest(manifest.artifact_id) == manifest
+
+    def rejected(*args: Any, **kwargs: Any) -> dict:
+        raise BoundaryError("dataset", "authoritative_admission_failure")
+
+    monkeypatch.setattr("stpd.hub.pipeline.build_dataset", rejected)
+    assert cli.main() == 2
+    assert json.loads(capsys.readouterr().out)["error"] == "authoritative_admission_failure"

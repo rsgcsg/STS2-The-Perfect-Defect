@@ -12,6 +12,7 @@ import tempfile
 import time
 import uuid
 import zlib
+from contextlib import suppress
 from importlib.metadata import version
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO, Protocol, cast
@@ -189,7 +190,11 @@ class UploadService:
     ) -> None:
         from .console_index import ConsoleIndex
 
-        self.console_index = ConsoleIndex(operations)
+        self.console_index = ConsoleIndex(operations, initialize=False)
+        # Projection storage is optional. Owner operations stay available; console
+        # GET fails visibly until an operator repairs/rebuilds the derived index.
+        with suppress(Exception):
+            self.console_index.initialize()
         self.operations, self.staging, self.store, self.producer = (
             operations,
             staging,
@@ -214,7 +219,7 @@ class UploadService:
         )
         # Do not overwrite an existing verified projection on an idempotent intent replay.
         if row["status"] == "awaiting_upload":
-            self.console_index.collection(row["id"], size, None, status="not_indexed")
+            self._index_collection_status(row["id"], size, "not_indexed")
         url, headers = self.staging.authorize(row["id"], size)
         return {
             "upload_id": row["id"],
@@ -321,19 +326,20 @@ class UploadService:
             receipt["evidence_id"] = evidence_id
             self.operations.finish_upload(row["id"], receipt)
             if findings:
-                self.console_index.collection(
-                    row["id"], intent["archive_bytes"], None, status="quarantined"
-                )
+                self._index_collection_status(row["id"], intent["archive_bytes"], "quarantined")
             else:
                 try:
                     self.index_verified_bundle(row, verification.require_value())
                 except Exception:
                     # A derived presentation failure never rewrites immutable verification.
                     # Its explicit missing state is repaired by the owner console-refresh CLI.
-                    self.console_index.collection(
-                        row["id"], intent["archive_bytes"], None, status="unavailable"
-                    )
+                    self._index_collection_status(row["id"], intent["archive_bytes"], "unavailable")
             return receipt
+
+    def _index_collection_status(self, upload_id: str, size: int, status: str) -> None:
+        # Even the failure marker is optional: never mask durable owner outcome.
+        with suppress(Exception):
+            self.console_index.collection(upload_id, size, None, status=status)
 
     def index_verified_bundle(
         self,
@@ -349,6 +355,9 @@ class UploadService:
 
     def refresh_console(self, *, upload_id: str | None = None) -> dict[str, int]:
         """Explicit owner CLI repair/rebuild; immutable historical receipts stay unchanged."""
+        # Unlike background telemetry, this command explicitly requests index repair;
+        # surface failures to its operator without changing any receiver receipt.
+        self.console_index.initialize()
         indexed = 0
         offset = 0
         while True:

@@ -178,7 +178,7 @@ class Scheduler:
             else:
                 self.operations.record_compute_cancel(job, token, attempt, fence, acknowledged=True)
 
-    def _index_result(self, receipt: ComputeReceipt) -> None:
+    def _index_result(self, receipt: ComputeReceipt) -> bool:
         from .console_index import ConsoleIndex
 
         try:
@@ -188,12 +188,19 @@ class Scheduler:
                     identity for identity in (receipt.output_id, receipt.checkpoint_id) if identity
                 ),
             )
+            return True
         except Exception:
             # Only the rebuildable console projection failed, not selected compute truth.
-            with self.operations.transaction() as db:
-                self.operations._event(
-                    db, "console", "artifact_index_unavailable", receipt.request_id, {}
-                )
+            try:
+                with self.operations.transaction() as db:
+                    self.operations._event(
+                        db, "console", "artifact_index_unavailable", receipt.request_id, {}
+                    )
+            except Exception:
+                # Failure telemetry is also optional. Do not let its write escape into
+                # the enclosing authoritative compute-state error handler.
+                pass
+            return False
 
     def _poll(self, row: dict[str, Any], now: float) -> dict[str, Any]:
         job, attempt, fence = row["id"], row["attempt_id"], row["fence"]
@@ -234,11 +241,12 @@ class Scheduler:
                 self.operations.accept_compute(job, token, attempt, fence, receipt.to_dict())
                 # Result selection is already durable. A disposable metadata index cannot
                 # turn completed compute back into uncertain or resubmit an invocation.
-                self._index_result(receipt)
+                indexed = self._index_result(receipt)
                 return self._reply(
                     "paused" if receipt.state == "paused" else "completed",
                     job,
                     request_id=request.request_id,
+                    console_index_status="available" if indexed else "unavailable",
                 )
         except (BoundaryError, OSError, ValueError) as error:
             code = error.code if isinstance(error, BoundaryError) else "result_unavailable"
