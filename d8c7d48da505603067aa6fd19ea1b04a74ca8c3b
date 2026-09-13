@@ -1,0 +1,48 @@
+# B workflow v1 final engineering closeout — 2026-09-13
+
+Status: B_WORKFLOW_V1_RELEASED. This is a qualified developer collection/operations workflow, not a model or scientific release.
+
+## Exact integration and publication
+
+- Platform develop `ce20a00e60ad8107cc505c346a4b22c83e617626`; main `3c0b6142308472aa7b06bfd732e432059d03979e`. PR26, corrective PR27, release PR28 normally merged; main CI34756791523 PASS (CodeQL34756789569 also PASS).
+- STPD develop `01e2f6d938c82096d1b03e9152d24a4bdafbf88d`; main `d8c7d48da505603067aa6fd19ea1b04a74ca8c3b`. PR8 and release PR9 normally merged; main CI34757310070 PASS.
+- Both main/develop trees are equal within each repository. Main/develop protections retain required PR/checks/no non-FF/no bypass. Temporary release branches retain equivalent active gates and may be retired after integration.
+- Public Platform release: https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/tag/collection-b/v1.0.0
+- Public STPD release: https://github.com/rsgcsg/STS2-The-Perfect-Defect/releases/tag/workbench-b/v1.0.0
+- Anonymous GitHub download readback: all4 STPD assets and2 Platform assets match approved local bytes. Kit14files /3089617bytes /SHA256 `d770851601748fcece1276be0401dfde5642bf65ea48e79749664c039e459ef0`.
+- Current distribution BOM FILE SHA256 `6eb029ba4c7172f44b71d53ac280d8f1251f35fbaa7ae57a67a46ff27f07f042`; tool component5e6addb differs from workspace d095521. Explicit corrective reports preserve historical reports and tool BOM.
+
+## Design and verification
+
+The canonical B_PIPELINE_HANDOFF owns release selection, light collector setup, invited account/computer binding, explicit campaign authorization, Recorder Close-to-receipt, views, upgrades and incidents. Both README/current/status/console/runbook routes point there. Platform owns native decisions/immutable evidence and transfer; STPD owns workbench/Hub, research admission and provider adapters. One shared local/cloud console and one game Mod; no second native authority, legality reconstruction, inference ownership or scheduler ledger.
+
+The maintained offline developer-kit builder replaces private assembly with independently pinned inputs, owning CollectionTool verification, original BOM/manifest preservation, full inventory, tamper/symlink/source-drift checks and deterministic exclusive publication.13 regression tests plus real repeat/extraction verification PASS. Packaging creates no Human/CI/runtime facts itself.
+
+STPD exact-main full portable gate:538pytestPASS/1skip; Ruff/Mypy/Node/package/hygiene and both synthetic CPU E2Es PASS. Platform exact-main complete root/component/BOM/closeout gates PASS. Actual-diff architecture/auth/owner-boundary, default-workflow, packager, branch-preservation and prepublication reviews PASS. No native source/gameplay modification in this closeout; the packaged Mod remains historical macOS-qualified bytes.
+
+## Actual cloud and local state
+
+- Hub exact OCI `ghcr.io/rsgcsg/stpd-worker@sha256:ad854cadbb2f23b846205afa8189b72fe3d7ca2c11336647fc7ef25b8d3c86da`, source `d8c7d48da505603067aa6fd19ea1b04a74ca8c3b`, lock422350fbafdf4b6b5938da87f00cce5222235e8846fd28fac5f3a32a9c4514d6. Published after exact-main CI/full local PASS; anonymous digest pull and fresh restricted clean source/assets check PASS. Dependency recipe/lock unchanged from qualified3555f09 parent; no cold network-layer rebuild claim.
+- Public TLS/machine APIs/owner receipts/auth negative tests PASS. Real Chrome rendered cloud and local views show the same2original collections:569+412canonical,0real failures, each1/1native run boundary complete, cloud verified, research not_checked.
+- Public browser landing links the exact deployed-source onboarding guide. BarePython presentation-root403 is retained as a scoped edge observation; realChrome presentation and ordinaryPython health/v1 pass. No broad edge exemption or User-Agent disguise was introduced.
+- Isolated final-image real R2 qualification: one verified synthetic bundle, replacement-client idempotency, one quarantined invalid archive, one transfer_failed missing object. Synthetic-only state retained; temporary service/tunnel stopped;0jobs/budget0.
+- Before upgrade, current post-Human3555f09/schema3 backup stored inR2 and restored with matching image. After upgrade, current-image R2 backup/restore and maintained backup service PASS; timer active. Full upload/device/user/session/flow/job row hashes preserved, including both restored states. Private remote config copies match exactly and remain0600.
+- Permanent local STPD main checkout successfully used the documented launcher with stored grants and no manual token environment. Doctor checks discover exactly2knownsessions. Existing project/campaign/account/device bytes unchanged; local/cloud personal/device boundaries PASS. Current local URL http://127.0.0.1:52822/ . Closing the browser does not stop delivery; reopening the saved configuration after reboot remains required.
+
+## Branch and evidence preservation
+
+Both repositories now have only actualmain/develop branch refs locally and atorigin; no open PR.27dated remote archive tags preserve retired tips, including the unintegrated historical STPD finish-v2 snapshot. No branch history was rewritten. Remote retirement used expected-old-tip delete-only guards; protected branches were never direct-pushed. All32worktree directories remain; all13modified/untrackedfile hashes across5dirtyworktrees and their tracked diffs remain unchanged.16existing.localdirectories remain intact. The two primary working copies are clean and on exactmain. Tags/notes/originHEAD are archival metadata, not extra development branches.
+
+## Default use and future maintenance
+
+Use the reviewed public developer release and docs/B_PIPELINE_HANDOFF.md, not a temporary candidate or chat-only recipe. New terminals still need prerequisites, operator-native install/load verification and a dedicated authorized campaign, then their own bounded firstClose-to-receipt check. Existing matching terminals need no native reinstall for this workflow release. Local queues remain local; the cloud shows received records for authorized computers. Login is not Human-origin or upload consent. Cloud receipt is not Dataset admission.
+
+Watch collection quality, delivery stage, last observation and typed errors in the console. Preserve original bytes/IDs/receipts; route first incorrect native/evidence facts toPlatform and accounts/Hub/research facts toSTPD. Fix the owning source, add a regression, gate/review/publish a new exact candidate, then canary before expanding distribution. CI and dependency advisories remain visible. Operators manually check health, queue age, disk, budget and backup freshness daily until an independent alert destination is configured and tested.
+
+Rollback retains the paired3555f09image/config and fresh post-Human schema3 recovery receipt. Always preserve current state and reconcile newer work; do not blindly overwrite a live DB with an old snapshot. Native rollback is separately owned. Credentials/rawHumanpayloads/signedURLs stay private; public reports contain identities and redacted findings.
+
+## Non-claims and next gates
+
+No player installer, OSautostart, all-OS native qualification, new Human/gameplay/upload gate, exhaustive content coverage, live logout/reconnect/new-user/device Human usability, external outage alert, high availability, whole-host disaster recovery or global security certification. Optional legacy Platform MCP/development-server dependency advisories remain outside the advertised kit/Hub runtime and visible separate maintenance work. No GPU/provider compute, model quality, training, cloud game/inference/RL qualification. Native/Human and earlier account approval remain bound to their original sources; retained account proof is not a new approval.
+
+Next: onboard each new terminal with its bounded canary; collect enough independently authorized complete runs and profile/admit a fixedDataset. Freeze the executable Full-Run research protocol only after that profiling and a separately authorized bounded worker engineering canary, before model selection/training/holdout inspection. Two uploaded runs/981canonical are valuable verified evidence, not an admitted training set or statistical adequacy claim.
