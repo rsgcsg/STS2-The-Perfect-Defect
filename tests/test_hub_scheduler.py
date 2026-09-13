@@ -11,7 +11,7 @@ from test_cloud_jobs import job_fixture
 from stpd.cloud_jobs.contracts import ComputeReceipt
 from stpd.cloud_jobs.execution import dispatch, prepare_feature_run
 from stpd.cloud_jobs.modal import ModalCall, ModalTarget
-from stpd.hub.database import Operations
+from stpd.hub.database import CURRENT_SCHEMA, Operations
 from stpd.hub.scheduler import Scheduler
 from stpd.json_boundary import BoundaryError
 
@@ -277,7 +277,8 @@ def test_schema_migration_keeps_requests_and_rejects_future_schema(pipeline, tmp
     with Scheduler(ops, store, provider, budget_limit=10) as scheduler:
         scheduler.tick(1)
     with sqlite3.connect(ops.path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == CURRENT_SCHEMA
+        connection.execute("PRAGMA user_version=2")
     assert Operations(ops.path).compute_state(job) == ops.compute_state(job)
     future = tmp_path / "future.sqlite"
     with sqlite3.connect(future) as connection:

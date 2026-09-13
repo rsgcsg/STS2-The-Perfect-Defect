@@ -53,6 +53,7 @@ def main() -> int:
             "verify",
             "register",
             "revoke",
+            "rotate-device",
             "status",
             "pause",
             "unpause",
@@ -120,6 +121,11 @@ def main() -> int:
                 raise BoundaryError("hub", "device_required")
             ops.revoke(args.device)
             print(json.dumps({"revoked": args.device}))
+        elif args.command == "rotate-device":
+            if not args.device or not os.environ.get("STPD_DEVICE_TOKEN"):
+                raise BoundaryError("hub", "device_and_env_token_required")
+            ops.rotate_device(args.device, os.environ["STPD_DEVICE_TOKEN"])
+            print(json.dumps({"rotated": args.device, "old_credential_revoked": True}))
         elif args.command in {"pause", "unpause"}:
             if args.command == "unpause" and any(
                 row["status"] in {"running", "uncertain", "submission_unknown", "cancelling"}
@@ -223,6 +229,7 @@ def main() -> int:
                 budget_limit=args.budget_units,
                 browser_access=configured_access(os.environ),
                 backup_status=Path(backup) if backup else None,
+                public_origin=args.public_url,
             )
             if args.host not in {"localhost", "127.0.0.1", "::1"}:
                 raise BoundaryError("hub", "bind_loopback_use_tls_reverse_proxy")

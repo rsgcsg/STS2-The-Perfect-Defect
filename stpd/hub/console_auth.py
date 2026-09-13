@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -9,7 +10,7 @@ import stat
 import threading
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
@@ -24,6 +25,12 @@ class ConsolePrincipal:
     role: str
     devices: tuple[str, ...]
     subject: str = "device"
+    email: str = ""
+    issuer: str = ""
+    access_subject: str = ""
+    expires_at: float = 0
+    session_binding: str = ""
+    enroll_devices: bool = False
 
     @property
     def research(self) -> bool:
@@ -35,6 +42,9 @@ class ConsolePrincipal:
             "device_ids": list(self.devices),
             "research_metadata": self.research,
             "read_only": True,
+            "subject": self.subject,
+            "email": self.email,
+            "enroll_devices": self.enroll_devices,
         }
 
 
@@ -57,7 +67,13 @@ class AccessVerifier:
             raise BoundaryError("console", "invalid_access_allowlist")
         self.principals: dict[str, tuple[str | None, ConsolePrincipal]] = {}
         for item in principals:
-            if not isinstance(item, dict) or set(item) - {"email", "subject", "role", "devices"}:
+            if not isinstance(item, dict) or set(item) - {
+                "email",
+                "subject",
+                "role",
+                "devices",
+                "enroll_devices",
+            }:
                 raise BoundaryError("console", "invalid_access_allowlist")
             email, subject = item.get("email"), item.get("subject")
             devices, role = item.get("devices"), item.get("role")
@@ -70,14 +86,20 @@ class AccessVerifier:
                 or not isinstance(role, str)
                 or role not in {"collector", "reviewer", "operator"}
                 or not isinstance(devices, list)
-                or not 1 <= len(devices) <= 128
+                or not 0 <= len(devices) <= 128
                 or any(not isinstance(d, str) or not d or len(d) > 128 or d == "*" for d in devices)
                 or len(set(devices)) != len(devices)
+                or type(item.get("enroll_devices", False)) is not bool
             ):
                 raise BoundaryError("console", "invalid_access_allowlist")
             self.principals[email.casefold()] = (
                 subject,
-                ConsolePrincipal(role, tuple(devices), email.casefold()),
+                ConsolePrincipal(
+                    role,
+                    tuple(devices),
+                    email=email.casefold(),
+                    enroll_devices=item.get("enroll_devices", False),
+                ),
             )
         self.issuer, self.audience = issuer, audience
         self.fetch_keys = fetch_keys or self._fetch_keys
@@ -130,14 +152,33 @@ class AccessVerifier:
                 audience=self.audience,
                 options={"require": ["exp", "iat", "iss", "aud", "sub", "email", "type"]},
             )
-            if claims["type"] != "app" or not isinstance(claims["email"], str):
+            if (
+                claims["type"] != "app"
+                or not isinstance(claims["email"], str)
+                or not isinstance(claims["sub"], str)
+                or not 1 <= len(claims["sub"]) <= 512
+            ):
                 raise ValueError("invalid application token")
-            required_subject, principal = self.principals[claims["email"].casefold()]
-            if required_subject is not None and claims["sub"] != required_subject:
-                raise ValueError("subject mismatch")
-            return principal
+            return replace(
+                self.member(self.issuer, claims["sub"], claims["email"]),
+                expires_at=float(claims["exp"]),
+                session_binding=hashlib.sha256(token.encode()).hexdigest(),
+            )
         except Exception:
             # Token, email and provider response must never enter error bodies/logs.
+            raise BoundaryError("console", "unauthorized") from None
+
+    def member(self, issuer: str, subject: str, email: str) -> ConsolePrincipal:
+        """Reevaluate current membership on every personal-session read."""
+        try:
+            required_subject, principal = self.principals[email.casefold()]
+            if issuer != self.issuer or (
+                required_subject is not None and subject != required_subject
+            ):
+                raise ValueError
+            stable = hashlib.sha256(json.dumps([issuer, subject]).encode()).hexdigest()
+            return replace(principal, subject=stable, issuer=issuer, access_subject=subject)
+        except (KeyError, ValueError):
             raise BoundaryError("console", "unauthorized") from None
 
 

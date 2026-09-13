@@ -17,6 +17,8 @@ from ..json_boundary import BoundaryError, decode_json, json_bytes
 from .access import RESULT_KINDS
 from .console_auth import AccessVerifier, ConsolePrincipal
 from .database import token_hash
+from .identity import PERSONAL_PREFIX, IdentityService, text
+from .identity import fields as identity_fields
 from .uploads import LocalStaging, UploadService
 
 
@@ -29,6 +31,7 @@ class HubApplication:
         budget_limit: int = 0,
         browser_access: AccessVerifier | None = None,
         backup_status: Path | None = None,
+        public_origin: str = "",
     ) -> None:
         if len(admin_token) < 32:
             raise BoundaryError("hub", "admin_token_too_short")
@@ -37,6 +40,12 @@ class HubApplication:
         self.capability_key = hashlib.sha256(("upload-capability:" + admin_token).encode()).digest()
         self.budget_limit = budget_limit
         self.browser_access = browser_access
+        self.identity = IdentityService(
+            service.operations,
+            browser_access,
+            hashlib.sha256(("personal-identity:" + admin_token).encode()).digest(),
+            public_origin,
+        )
         from .console_routes import ConsoleRoutes
 
         self.console = ConsoleRoutes(
@@ -76,6 +85,14 @@ class HubApplication:
                 "invalid_pagination": "400 Bad Request",
                 "unexpected_query": "400 Bad Request",
                 "status_filter_requires_collections": "400 Bad Request",
+                "identity_rate_limited": "429 Too Many Requests",
+                "identity_flow_capacity": "429 Too Many Requests",
+                "identity_flow_not_found": "404 Not Found",
+                "identity_origin_rejected": "403 Forbidden",
+                "identity_csrf_rejected": "403 Forbidden",
+                "identity_code_rejected": "403 Forbidden",
+                "identity_device_not_authorized": "403 Forbidden",
+                "invalid_identity_request": "400 Bad Request",
             }.get(error.code, "409 Conflict")
             kind, body = "application/json", json_bytes({"error": error.code})
         except (ValueError, KeyError, TypeError):
@@ -109,9 +126,9 @@ class HubApplication:
         return body
 
     @staticmethod
-    def body(environ: dict[str, Any]) -> Any:
+    def body(environ: dict[str, Any], *, maximum: int = 32 * 1024 * 1024) -> Any:
         length = int(environ.get("CONTENT_LENGTH") or "0")
-        if not 0 < length <= 32 * 1024 * 1024:
+        if not 0 < length <= maximum:
             raise BoundaryError("hub", "request_size_limit")
         raw = environ["wsgi.input"].read(length)
         if len(raw) != length:
@@ -121,6 +138,46 @@ class HubApplication:
     @staticmethod
     def response(value: Any, status: str = "200 OK") -> tuple[str, str, bytes]:
         return status, "application/json", json_bytes(value)
+
+    @staticmethod
+    def bearer(env: dict[str, Any]) -> str:
+        value = env.get("HTTP_AUTHORIZATION", "")
+        if not value.startswith("Bearer ") or not 1 <= len(value[7:]) <= 4096:
+            raise BoundaryError("identity", "unauthorized")
+        return text(value[7:], 4096)
+
+    def personal_route(self, env: dict[str, Any]) -> tuple[str, str, bytes]:
+        method, path = env["REQUEST_METHOD"], env["PATH_INFO"]
+        source = str(env.get("REMOTE_ADDR", "unknown"))[:128]
+        identity = self.identity
+        if path == "/v1/identity/flows" and method == "POST":
+            identity.rate(source, "create", 20)
+            return self.response(identity.create(self.body(env, maximum=8192)), "201 Created")
+        match = re.fullmatch(r"/v1/identity/flows/([a-f0-9]{32})/(poll|ack)", path)
+        if match and method == "POST":
+            identity.rate(source, "poll", 300)
+            return self.response(
+                identity.poll(match[1], self.body(env, maximum=1024), acknowledge=match[2] == "ack")
+            )
+        token = self.bearer(env)
+        if path == "/v1/identity/device" and method == "GET":
+            return self.response(identity.device(token))
+        if path == "/v1/identity/device/heartbeat" and method == "POST":
+            value = identity_fields(self.body(env, maximum=1024), set(), {"version"})
+            if "version" in value:
+                text(value["version"], 128)
+            return self.response(identity.device(token, heartbeat=True))
+        if path == "/v1/identity/logout" and method == "POST":
+            return self.response(identity.logout(token))
+        principal = identity.personal(token)
+        if path == "/v1/identity/me" and method == "GET":
+            return self.response(identity.me(principal))
+        if path.startswith("/v1/identity/console/") and method == "GET":
+            principal, query = identity.scoped_query(principal, env.get("QUERY_STRING", ""))
+            return self.response(
+                self.console.read(path.removeprefix("/v1/identity/console/"), query, principal)
+            )
+        return self.response({"error": "identity_route_not_allowed"}, "405 Method Not Allowed")
 
     @staticmethod
     def upload_status(row: dict[str, Any]) -> dict[str, Any]:
@@ -169,16 +226,32 @@ class HubApplication:
         if path == "/app" or path.startswith("/app/"):
             if self.browser_access is None:
                 raise BoundaryError("console", "browser_access_not_configured")
-            principal = self.browser_access.authenticate(
-                env.get("HTTP_CF_ACCESS_JWT_ASSERTION", "")
+            principal = self.identity.principal(
+                self.browser_access.authenticate(env.get("HTTP_CF_ACCESS_JWT_ASSERTION", ""))
             )
+            if path == "/app/api/identity" and method == "GET":
+                return self.response(self.identity.me(principal, browser=True))
+            flow = re.fullmatch(r"/app/api/identity/flows/([a-f0-9]{32})(?:/(approve|deny))?", path)
+            if flow:
+                if method == "GET" and flow[2] is None:
+                    return self.response(self.identity.flow_view(flow[1], principal))
+                if method == "POST" and flow[2] is not None:
+                    value = self.body(env, maximum=1024)
+                    identity_fields(value, {"csrf_token", "user_code"})
+                    self.identity.check_browser_write(
+                        principal, env.get("HTTP_ORIGIN", ""), value["csrf_token"]
+                    )
+                    return self.response(
+                        self.identity.decide(flow[1], value, principal, deny=flow[2] == "deny")
+                    )
             if method != "GET":
                 return self.response({"error": "console_read_only"}, "405 Method Not Allowed")
             if path.startswith("/app/api/"):
+                principal, console_query = self.identity.scoped_query(
+                    principal, env.get("QUERY_STRING", "")
+                )
                 return self.response(
-                    self.console.read(
-                        path[len("/app/api/") :], env.get("QUERY_STRING", ""), principal
-                    )
+                    self.console.read(path[len("/app/api/") :], console_query, principal)
                 )
             from ..console.page import asset, render_shell
 
@@ -193,6 +266,8 @@ class HubApplication:
                 if found is not None:
                     return "200 OK", found[0], found[1]
             return self.response({"error": "not_found"}, "404 Not Found")
+        if path.startswith("/v1/identity/"):
+            return self.personal_route(env)
         upload = re.fullmatch(r"/v1/uploads/([a-f0-9]{32})(?:/(body|complete))?", path)
         if method == "PUT" and upload and upload[2] == "body":
             self.validate_capability(upload[1], env.get("HTTP_X_UPLOAD_CAPABILITY", ""))
@@ -216,6 +291,8 @@ class HubApplication:
         if not authorization.startswith("Bearer "):
             raise BoundaryError("hub", "unauthorized")
         token = authorization[7:]
+        if token.startswith(PERSONAL_PREFIX):
+            raise BoundaryError("identity", "unauthorized")
         admin = secrets.compare_digest(self.admin_hash, token_hash(token))
         device = None if admin else ops.authenticate(token)
         if path.startswith("/v1/console/"):

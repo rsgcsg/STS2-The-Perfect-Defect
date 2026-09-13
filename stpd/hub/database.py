@@ -15,7 +15,7 @@ from typing import Any, cast
 
 from ..json_boundary import BoundaryError
 
-CURRENT_SCHEMA = 2
+CURRENT_SCHEMA = 3
 
 
 def token_hash(token: str) -> str:
@@ -30,7 +30,7 @@ class Operations:
         path.parent.mkdir(parents=True, exist_ok=True)
         with self.transaction() as db:
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in {0, 1, CURRENT_SCHEMA}:
+            if version not in {0, 1, 2, CURRENT_SCHEMA}:
                 raise BoundaryError("hub", "unsupported_operations_schema")
             schema = """
                 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -60,6 +60,22 @@ class Operations:
                     sequence INTEGER PRIMARY KEY AUTOINCREMENT, at REAL NOT NULL,
                     actor TEXT NOT NULL, operation TEXT NOT NULL, subject TEXT NOT NULL,
                     detail TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS identity_users(
+                    subject TEXT PRIMARY KEY, issuer TEXT NOT NULL,
+                    access_subject TEXT NOT NULL, email TEXT NOT NULL,
+                    UNIQUE(issuer,access_subject));
+                CREATE TABLE IF NOT EXISTS identity_flows(
+                    id TEXT PRIMARY KEY, client_hash TEXT NOT NULL, device_name TEXT NOT NULL,
+                    device_id TEXT, device_proof_hash TEXT, user_code TEXT NOT NULL,
+                    created_at REAL NOT NULL, expires_at REAL NOT NULL, status TEXT NOT NULL,
+                    key_id TEXT NOT NULL, subject TEXT, session_hash TEXT,
+                    session_expires_at REAL, new_device INTEGER NOT NULL DEFAULT 0);
+                CREATE TABLE IF NOT EXISTS identity_sessions(
+                    token_hash TEXT PRIMARY KEY, subject TEXT NOT NULL,
+                    expires_at REAL NOT NULL, created_at REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS identity_rates(
+                    source TEXT NOT NULL, bucket INTEGER NOT NULL, count INTEGER NOT NULL,
+                    PRIMARY KEY(source,bucket));
             """
             # These fixed statements contain no embedded semicolons. executescript would
             # implicitly commit our transaction and expose a partially applied migration.
@@ -69,6 +85,10 @@ class Operations:
             columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
             if "options" not in columns:
                 db.execute("ALTER TABLE jobs ADD COLUMN options TEXT NOT NULL DEFAULT '{}'")
+            device_columns = {row[1] for row in db.execute("PRAGMA table_info(devices)")}
+            for name, kind in (("name", "TEXT"), ("owner_subject", "TEXT"), ("last_seen", "REAL")):
+                if name not in device_columns:
+                    db.execute(f"ALTER TABLE devices ADD COLUMN {name} {kind}")
             db.execute(f"PRAGMA user_version={CURRENT_SCHEMA}")
 
     @contextmanager
@@ -118,6 +138,27 @@ class Operations:
         with self.transaction() as db:
             db.execute("UPDATE devices SET active=0 WHERE id=?", (device,))
             self._event(db, "admin", "device_revoked", device, {})
+
+    def rotate_device(self, device: str, token: str) -> None:
+        """Explicit operator rotation preserves device/upload identity and restores access."""
+        if len(token) < 32 or any(c in token for c in "\r\n"):
+            raise BoundaryError("hub", "invalid_device_credential")
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT token_hash,active FROM devices WHERE id=?", (device,)
+            ).fetchone()
+            if row is None or row["token_hash"] == token_hash(token):
+                raise BoundaryError("hub", "device_rotation_not_applicable")
+            db.execute(
+                "UPDATE devices SET token_hash=?,active=1 WHERE id=?", (token_hash(token), device)
+            )
+            self._event(
+                db,
+                "admin",
+                "device_credential_rotated",
+                device,
+                {"previously_active": bool(row["active"])},
+            )
 
     def create_upload(
         self, device: str, content_id: str, manifest_sha: str, intent: dict[str, Any]
