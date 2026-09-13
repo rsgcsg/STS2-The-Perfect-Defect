@@ -1146,8 +1146,8 @@ wheels = [
 
 [[package]]
 name = "rsgcsg-sts2-platform-evidence"
-version = "0.1.0rc5"
-source = { git = "https://github.com/rsgcsg/STS2-AI-PLATFORM.git?subdirectory=components%2Fevidence&rev=a647f11609ee083adef64217faecfc612c522585#a647f11609ee083adef64217faecfc612c522585" }
+version = "0.1.0rc6"
+source = { git = "https://github.com/rsgcsg/STS2-AI-PLATFORM.git?subdirectory=components%2Fevidence&rev=0f44946c1c951f45191e70eb4b5f314eb4d0d0ed#0f44946c1c951f45191e70eb4b5f314eb4d0d0ed" }
 
 [[package]]
 name = "ruff"
@@ -1305,7 +1305,7 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=18,<24" },
     { name = "pyjwt", extras = ["crypto"], marker = "extra == 'cloud'", specifier = ">=2.10,<3" },
     { name = "python-dotenv", marker = "extra == 'cloud'", specifier = ">=1.1,<2" },
-    { name = "rsgcsg-sts2-platform-evidence", git = "https://github.com/rsgcsg/STS2-AI-PLATFORM.git?subdirectory=components%2Fevidence&rev=a647f11609ee083adef64217faecfc612c522585" },
+    { name = "rsgcsg-sts2-platform-evidence", git = "https://github.com/rsgcsg/STS2-AI-PLATFORM.git?subdirectory=components%2Fevidence&rev=0f44946c1c951f45191e70eb4b5f314eb4d0d0ed" },
     { name = "safetensors", marker = "extra == 'l2'", specifier = ">=0.5,<1" },
     { name = "tokenizers", marker = "extra == 'l1'", specifier = ">=0.21,<1" },
     { name = "torch", marker = "sys_platform == 'win32' and extra == 'ml'", specifier = ">=2.7,<3", index = "https://download.pytorch.org/whl/cu128" },

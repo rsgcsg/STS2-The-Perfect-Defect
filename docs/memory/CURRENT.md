@@ -25,3 +25,9 @@ B_PIPELINE_HANDOFF.md. Never point a newly attested campaign at a historical rec
 First dedicated Human Close-to-R2 and 412-record V2 projection passed at historical
 99aa819; see evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md. One run is not
 a Dataset. Preserve existing tool/outbox/receipts during Python diagnostic upgrades.
+
+The shared [project console](../PROJECT_CONSOLE.md) implements local/cloud read-only
+visibility. Platform rc.6 supplies safe owner summaries and bounded outbox queries;
+Cloudflare Access application JWTs gate browser pages with explicit role/device scopes.
+Missing browser configuration fails closed; source tests do not qualify actual login.
+Device uploads keep their existing independent authentication and consent boundary.

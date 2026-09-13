@@ -167,3 +167,13 @@ and 20,000 files. A structurally verified receipt can therefore precede a size-r
 projection rejection. Expose both stages; measure the first real complete-run bundles before
 changing limits, and rerun resource/abuse regressions for any increase. Do not turn a transport
 success or an automatic retry into research admission.
+
+## Read-only local and cloud visibility
+
+Use the [project console guide](PROJECT_CONSOLE.md) for daily operation and
+[ADR-0005](adr/0005-local-cloud-console.md) for ownership. The same console serves
+local device status and the protected cloud portal. Local setup retains a device
+credential; cloud browser login is separate and cannot control a collector.
+Deployment of code does not qualify a Cloudflare Access application or an actual
+browser login. The Hub runbook records that external activation gate. No GPU is
+started by opening any console page.

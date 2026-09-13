@@ -168,6 +168,9 @@ class LocalConsole:
         fields = (
             "id",
             "session_id",
+            "worker_id",
+            "campaign_id",
+            "enrolled_at",
             "upload_id",
             "content_id",
             "status",
@@ -218,11 +221,16 @@ class LocalConsole:
         if isinstance(upload_id, str) and re.fullmatch(r"[a-f0-9]{32}", upload_id):
             cloud = self.remote("collections/" + upload_id)
             remote_row = cloud.get("item", {})
-            if remote_row and remote_row.get("content_id") != row.get("content_id"):
+            if remote_row and (
+                remote_row.get("content_id") != row.get("content_id")
+                or remote_row.get("upload_id") != upload_id
+            ):
                 raise BoundaryError("console", "remote_identity_mismatch")
             row["remote"] = {
                 "status": cloud.get("status", "available"),
                 "observed_at": cloud.get("observed_at"),
+                "delivery_status": remote_row.get("status"),
+                "receipt": remote_row.get("receipt"),
             }
             for name in (
                 "timeline",
@@ -252,7 +260,7 @@ class LocalConsole:
             "schema": "stpd/console-v1",
             "observed_at": local.get("observed_at"),
             "status": local.get("status", "available"),
-            "counts": {"pending": statuses.get("pending"), "verified": statuses.get("verified")},
+            "counts": statuses,
             "quality": quality,
             "quality_coverage": ("统计来自全部已建立的可信摘要；缺失摘要不被当作零失败。"),
             "recent": local["items"],
@@ -319,6 +327,15 @@ class LocalConsole:
             return self.collection_detail(match[1])
         if path in {"datasets", "models", "jobs"}:
             return self.catalog(path, limit, offset)
+        if re.fullmatch(r"(datasets|models)/[a-f0-9]{64}", path):
+            if query:
+                raise BoundaryError("console", "unexpected_query")
+            result = self.remote(path)
+            if path.startswith("models/") and result.get("item"):
+                result["item"]["local_download"] = self.local_download(
+                    result["item"].get("artifact_id")
+                )
+            return result
         if path == "system":
             return self.system()
         raise BoundaryError("console", "route_not_found")

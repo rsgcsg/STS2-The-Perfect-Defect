@@ -186,6 +186,51 @@ def test_local_detail_requires_exact_remote_content_and_preserves_offline_receip
     assert result["item"]["remote"]["status"] == "unavailable"
 
 
+def test_local_detail_keeps_local_and_remote_delivery_observations(tmp_path, monkeypatch):
+    console = LocalConsole(config(tmp_path), None, lambda: {}, lambda: "running", {})
+    row = {
+        "id": "a" * 64,
+        "upload_id": "b" * 32,
+        "content_id": "c" * 64,
+        "status": "pending",
+        "stage": "verification_pending",
+    }
+    monkeypatch.setattr(console, "local_status", lambda **kw: {"sessions": [row]})
+    remote = {
+        "item": {
+            "upload_id": "b" * 32,
+            "content_id": "c" * 64,
+            "status": "verified",
+            "receipt": {"receipt_id": "b" * 32},
+        },
+        "observed_at": "2026-09-13T00:00:00Z",
+    }
+    monkeypatch.setattr(console, "remote", lambda *a, **kw: remote)
+    value = console.collection_detail("a" * 64)["item"]
+    assert value["status"] == "pending"
+    assert value["remote"]["delivery_status"] == "verified"
+    assert value["remote"]["receipt"]["receipt_id"] == "b" * 32
+    remote["item"]["upload_id"] = "d" * 32
+    with pytest.raises(BoundaryError, match="remote_identity_mismatch"):
+        console.collection_detail("a" * 64)
+
+
+def test_local_catalog_detail_uses_authorized_route_and_rejects_query(tmp_path, monkeypatch):
+    console = LocalConsole(config(tmp_path), None, lambda: {}, lambda: "running", {})
+    paths = []
+
+    def remote(path):
+        paths.append(path)
+        return {"item": {"artifact_id": "a" * 64}}
+
+    monkeypatch.setattr(console, "remote", remote)
+    item = console.route("models/" + "a" * 64, "")["item"]
+    assert item["local_download"] is False
+    assert paths == ["models/" + "a" * 64]
+    with pytest.raises(BoundaryError, match="unexpected_query"):
+        console.route("models/" + "a" * 64, "limit=25")
+
+
 def test_http_shell_and_assets_do_not_query_owners_or_accept_browser_mutations(
     tmp_path, monkeypatch
 ):

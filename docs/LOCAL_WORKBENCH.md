@@ -55,3 +55,7 @@ computes counts, grouped metrics, token proxies, performance and failure-stage a
 Default discovery omits sealed-test evaluation metrics from tuning projections. Missing
 measurements are explicit. The API has one typed order: analyze(registry, store) and
 project(registry, store).
+
+The current developer `project open` entry now serves the shared
+[local/cloud project console](PROJECT_CONSOLE.md). Its data views are read-only
+projections; legacy diagnostic CLI/API contracts remain independently available.

@@ -69,6 +69,9 @@ not copied source trees, shared branches or submodules.
 
 ## Developer cloud B pipeline
 
+- [Shared local/cloud project console](PROJECT_CONSOLE.md)
+- [ADR-0005: console authority and authentication](adr/0005-local-cloud-console.md)
+
 - [Release, terminal handoff, maintenance and training-plan freeze](B_PIPELINE_HANDOFF.md)
 
 - [B operations and external gates](CLOUD_PIPELINE_B.md)

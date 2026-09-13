@@ -183,3 +183,12 @@ policy source closure, not only the process entrypoint.
 - Identity/schema/model/data drift: invalidate the affected cache/evidence.
 - Unknown external data rights or provenance: exclude from training.
 - Final-test leakage: invalidate the experiment, not merely the metric.
+
+## Project console boundary
+
+`console/` owns a shared dependency-free browser shell. Local `workbench/console.py`
+composes the public Platform delivery projection and device-authenticated Hub reads;
+`hub/console_*` owns scoped cloud metadata, signed browser identity and rebuildable
+indexes. Browser GET never verifies raw evidence, runs admission or launches compute.
+Existing immutable artifacts and durable operations remain the authorities. See
+[ADR-0005](adr/0005-local-cloud-console.md) and the [console guide](PROJECT_CONSOLE.md).
