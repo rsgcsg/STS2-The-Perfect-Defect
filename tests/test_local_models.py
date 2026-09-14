@@ -147,6 +147,25 @@ def test_runtime_client_accepts_current_environment_and_binds_exact_identity(run
     assert all(body is None for _, body in requests)
 
 
+@pytest.mark.parametrize("session_status", ["loaded", "command_unknown"])
+def test_recovered_exact_observation_clears_only_observation_error(
+    service, runtime_http, session_status
+):
+    client, runtime, requests = runtime_http
+    service.client = client
+    service.state.update(status=session_status, loaded=True, error_code="runtime_command_unknown")
+    runtime["run_id"] = "replacement-runtime"
+    assert service.status()["observation_error"] == "runtime_status_unavailable_or_identity_drift"
+    runtime["run_id"] = startup()["run_id"]
+    runtime["tainted"] = True
+    observed = service.status()
+    assert "observation_error" not in observed
+    assert observed["status"] == session_status
+    assert observed["error_code"] == "runtime_command_unknown"
+    assert observed["runtime"]["tainted"] is True
+    assert all(body is None for _, body in requests)
+
+
 @pytest.mark.parametrize(
     "address",
     ["http://public.example:15527", "https://127.0.0.1:15527", "http://127.0.0.1:15527/path"],

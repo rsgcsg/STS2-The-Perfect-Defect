@@ -640,10 +640,13 @@ class LocalModelService:
             try:
                 runtime = client.request("/status")["status"]
                 with self.lock:
-                    self.state["runtime"] = runtime
+                    if self.client is client:
+                        self.state["runtime"] = runtime
+                        self.state.pop("observation_error", None)
             except BoundaryError as error:
                 with self.lock:
-                    self.state["observation_error"] = error.code
+                    if self.client is client:
+                        self.state["observation_error"] = error.code
         with self.lock:
             return cast(dict[str, Any], json.loads(json.dumps(self.state)))
 
