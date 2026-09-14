@@ -56,6 +56,12 @@ def signed() -> Any:
             "email": "owner@example.org",
         }
         claims.update(overrides)
+        if (
+            "email" in overrides
+            and "sub" not in overrides
+            and str(overrides["email"]).casefold() != "owner@example.org"
+        ):
+            claims["sub"] = str(overrides["email"]).casefold()
         return jwt.encode(claims, key, algorithm="RS256", headers={"kid": "test-key"})
 
     return verifier, token, calls
@@ -214,10 +220,10 @@ def test_scoped_summary_pagination_never_reads_intent_or_raw_store(
     assert len(page2["items"]) == 55 and page2["next_offset"] is None
     own = call(app, "/v1/console/collections", bearer="one" * 16, query="limit=100")[1]
     assert own["total"] == 77 and {r["device_id"] for r in own["items"]} == {"one"}
-    denied = call(
+    shared = call(
         app, "/app/api/collections/" + f"{0:032x}", token=token(email="collector@example.org")
     )
-    assert denied[0] == "404 Not Found"
+    assert shared[0] == "200 OK"  # Both Human roles share project collection metadata.
     details = call(app, "/v1/console/collections/" + f"{1:032x}", bearer="one" * 16)[1]["item"]
     assert details["summary"]["counts"]["real_failures"] == 1
     assert details["status"] == "verified" and details["summary_status"] == "available"
@@ -256,12 +262,9 @@ def test_safe_artifact_metadata_roles_and_unknown_lineage(tmp_path: Path, signed
         call(app, "/v1/artifacts/" + dataset.artifact_id, bearer="one" * 16)[0]
         == "401 Unauthorized"
     )
-    assert (
-        call(app, "/app/api/models", token=token(email="collector@example.org"))[1]["items"][0][
-            "parents"
-        ]
-        == []
-    )
+    assert call(app, "/app/api/models", token=token(email="collector@example.org"))[1]["items"][0][
+        "parents"
+    ] == [{"role": "dataset", "artifact_id": dataset.artifact_id}]
     models = call(app, "/app/api/models", token=token())[1]
     assert models["items"][0]["parents"] == [
         {"role": "dataset", "artifact_id": dataset.artifact_id}
@@ -400,7 +403,7 @@ def test_bundle_summary_refresh_preserves_receipt_and_uses_verified_owner(
     assert owner.verify_pending() == 1 and len(called) == 1
     before = owner.operations.upload(upload_id)
     original_manifests = owner.store.manifest_ids()
-    principal = ConsolePrincipal("operator", ("one",))
+    principal = ConsolePrincipal("admin", ("one",))
     row = owner.console_index.collections(principal, limit=1, offset=0)["items"][0]
     assert row["summary"] == summary and row["status"] == "verified"
     assert owner.intent("one", intent)["upload_id"] == upload_id
@@ -436,7 +439,7 @@ def test_dataset_usage_links_exact_received_identity_without_raw_closure(tmp_pat
         },
     )
     result = owner.console_index.collections(
-        ConsolePrincipal("reviewer", ("one",)), limit=1, offset=0, upload_id=upload["id"]
+        ConsolePrincipal("member", ("one",)), limit=1, offset=0, upload_id=upload["id"]
     )["item"]
     assert result["research"]["dataset_ids"] == [dataset.artifact_id]
     assert result["research"]["status"] == "dataset_references_present"
@@ -545,7 +548,7 @@ def test_sealed_evaluations_and_gold_do_not_enter_discovery(tmp_path: Path) -> N
     for manifest in (sealed, gold, dev):
         owner.console_index.artifact(manifest)
     result = owner.console_index.artifacts(
-        ConsolePrincipal("operator", ("one",)), "models", limit=25, offset=0
+        ConsolePrincipal("admin", ("one",)), "models", limit=25, offset=0
     )
     assert [row["artifact_id"] for row in result["items"]] == [dev.artifact_id]
     assert sealed.artifact_id not in json.dumps(result) and gold.artifact_id not in json.dumps(
