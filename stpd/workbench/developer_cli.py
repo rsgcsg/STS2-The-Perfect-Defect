@@ -60,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
             "policy",
             "model",
             "credential",
+            "collection-tool",
         ),
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
@@ -108,6 +109,15 @@ def main(argv: list[str] | None = None) -> int:
         help="local model action; requires an open workbench",
     )
     parser.add_argument("--credential-file", type=Path)
+    parser.add_argument(
+        "--tool-directory", type=Path, help="absolute public CollectionTool directory"
+    )
+    parser.add_argument("--tool-release-id", help="exact trusted CollectionTool release ID")
+    parser.add_argument(
+        "--replace-tool",
+        action="store_true",
+        help="explicitly replace a previous private CollectionTool registration",
+    )
     args = parser.parse_args(argv)
     try:
         result: Any
@@ -141,6 +151,14 @@ def main(argv: list[str] | None = None) -> int:
                     selection=args.selection,
                     artifact=args.artifact,
                     runtime_archive=args.runtime_archive,
+                )
+            elif args.command == "collection-tool":
+                from .collection_tool_registration import register_collection_tool
+
+                if args.tool_directory is None or args.tool_release_id is None:
+                    raise BoundaryError("collection_tool", "tool_directory_and_release_id_required")
+                result = register_collection_tool(
+                    config, args.tool_directory, args.tool_release_id, replace=args.replace_tool
                 )
             elif args.command == "credential":
                 if args.credential_file is None:
