@@ -1,0 +1,20 @@
+{
+  "schema": "stpd/local-policy-registry-v1",
+  "runtime_package": {
+    "package": "@rsgcsg/sts2-policy-runtime",
+    "version": "0.1.0-rc.2",
+    "source_revision": "87fd6efbc157c77f6c1887d6a41765cef105b8d1",
+    "component_tree_revision": "0812ad584502161f08a86856de44835cce267842",
+    "release_asset_sha256": "affe81802ddca54b6093afeebd9bd158b80c5ec917cbfc42c81fe86d4b28840d",
+    "package_content_sha256": "6d393e1791848fcc89b143b78cee007bcae3c3119c568436924fcc95a0cdbd25"
+  },
+  "policies": [
+    {
+      "id": "s1-human-combat-v3",
+      "label": "S1 · Defect A0 普通战斗",
+      "adapter": "s1-v1",
+      "manifest": "policy-manifests/s1-policy-adapter-v3.json",
+      "config": "configs/v0/experiments/s1-human-combat-live-v2.json"
+    }
+  ]
+}

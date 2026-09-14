@@ -58,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
             "serve",
             "download",
             "policy",
+            "model",
             "credential",
         ),
     )
@@ -82,6 +83,24 @@ def main(argv: list[str] | None = None) -> int:
         "--role", action="append", help="own payload role, repeat for multiple roles"
     )
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--selection", help="reviewed local policy registry selection")
+    parser.add_argument(
+        "--action",
+        default="catalog",
+        choices=(
+            "catalog",
+            "status",
+            "readiness",
+            "download",
+            "start",
+            "human",
+            "shadow",
+            "one_step",
+            "auto",
+            "stop",
+        ),
+        help="local model action; requires an open workbench",
+    )
     parser.add_argument("--credential-file", type=Path)
     args = parser.parse_args(argv)
     try:
@@ -107,7 +126,13 @@ def main(argv: list[str] | None = None) -> int:
             config = ProjectConfig.load(
                 args.config, require_current_combination=args.command not in {"status", "stop"}
             )
-            if args.command == "credential":
+            if args.command == "model":
+                from .local_model_cli import model_command
+
+                result = model_command(
+                    config, args.action, selection=args.selection, artifact=args.artifact
+                )
+            elif args.command == "credential":
                 if args.credential_file is None:
                     raise BoundaryError("identity", "private_credential_file_required")
                 with instance_lock(config.state_dir / "instance.lock"):
