@@ -118,8 +118,16 @@ terminal's unuploaded queue. There is no cloud-to-local game control or browser 
 
 Use one Cloudflare Access self-hosted application for exact `/app` and `/app/*` (including
 `/app/api/*` and assets); leave `/v1/*` and `/health` outside this browser application.
-Use an allow policy for explicitly approved email identities and email one-time PIN or the
-team's existing identity provider. Do not create a Bypass policy. Configure no paid plan.
+Enable One-time PIN for the application and configure **Allow → Include → Login Methods →
+One-time PIN**. Remove the per-email project roster from the Access policy; Hub membership is
+the only project authorization list. This intentionally admits any successfully OTP-authenticated
+email to the Hub, whose JWT and current-membership checks must reject nonmembers on every
+protected route. Cloudflare recommends email/domain restrictions for apps relying on Access
+alone; this project instead performs authorization in Hub. Never create a Bypass policy. See
+[common policies](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/common-policies/)
+and [OTP setup](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/).
+Configure no paid plan. Apply this edge policy only after the exact Hub candidate enforces its
+member checks and negative origin tests pass; a docs change does not activate the policy.
 Before enabling browser access, confirm the Cloudflare zone is proxied and TLS is Full (strict).
 Keep browser-only edge checks off the machine API through one narrowly scoped Configuration
 Rule (`set_config`, only `bic: false`). For this deployment the expression is:
@@ -145,8 +153,8 @@ The account owner supplies the team domain and application AUD after creating th
 The runtime env has `STPD_ACCESS_ISSUER` and `STPD_ACCESS_AUDIENCE`. Hub Operations schema 4 is
 now the sole project-membership authority. Administrators invite and manage `member`/`admin`
 accounts through the authenticated console; Cloudflare establishes signed identity, not a
-project role. Existing per-email edge restrictions must also admit the intended login identity,
-but do not maintain a second project-role/permission list there. Keep operator credentials out
+project role. The authentication-method policy above replaces the former per-email edge roster
+once the exact membership-enforcing Hub is qualified. Keep operator credentials out
 of the console and collectors. Device tokens remain independent background-upload credentials.
 
 `STPD_ACCESS_ALLOWLIST` is retired as runtime configuration, even when set to an empty value.

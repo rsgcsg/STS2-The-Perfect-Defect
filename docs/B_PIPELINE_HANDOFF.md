@@ -13,15 +13,21 @@ reviewed release notes, then follow this guide. A branch name or an old private 
 is not a release identity. Current bounded qualification is recorded in
 [the unified workflow release report](evidence/B_UNIFIED_WORKFLOW_RELEASE_2026-09-13.md).
 
+The member/admin, activity, export and local-model changes described here are a source candidate
+until their exact release, deployed schema-4 migration and browser/Human gates pass. An existing
+v1 release remains qualified only for its published scope. Select a release that explicitly
+includes these capabilities; do not treat this document or an older successful receipt as a
+production rollout. [ADR-0006](adr/0006-project-members-and-local-models.md) records the design.
+
 ## The everyday path
 
 | When | What to do | What confirms success |
 |---|---|---|
 | first install | obtain the approved Mod/tool and exact STPD checkout; run the launcher below | local workbench opens; project doctor passes |
-| first connection | log in with an invited email, compare the pairing code, approve this computer | the same named computer appears locally and in the cloud |
-| before first recording | obtain the operator's dedicated campaign configuration and explicitly authorize its upload/Human origin | delivery preflight checks the intended recording root and outbox |
+| first connection | log in with an invited email; then separately compare the pairing code and approve this computer | the profile is visible immediately after verified login; the same named computer appears after approval |
+| before first recording | select an approved activity, declare Human/upload/project-sharing consent and prepare its fresh local paths | exact native root/identity binding and delivery doctor pass; preparation alone is insufficient |
 | each collection | open the same campaign, record in the game, press Recorder **Close** | collection detail reaches **云端已验收** with an exact remote receipt |
-| inspect data | use **采集记录** locally or in the cloud; use **这台电脑** for the local queue | recorded/failed counts, upload stage and research use are shown separately |
+| inspect data | use **采集记录／数据统计／数据下载**; use **这台电脑** for the local queue | counts/coverage, upload receipt, explicit sharing and research use remain separate |
 | finish or reboot | use `project stop` when stopping delivery; open the same configuration after reboot | retained sealed work resumes under the same device and IDs |
 | upgrade or report a problem | follow the upgrade/incident procedure below | old evidence is retained and a new exact candidate has its own checks |
 
@@ -52,12 +58,15 @@ research gates below remain explicit, with compute launch budget zero until auth
    select a Git revision, install the game Mod, attach a recording directory or authorize a
    campaign. It preserves existing configuration. Collectors need no model weights, Torch,
    Platform checkout, R2 keys, Cloudflare account or admin token.
-4. Open **账号与电脑 → 登录并绑定这台电脑**. Use the invited email and verification code,
+4. An administrator first adds the member email in the cloud **成员管理** page; no invitation
+   mail is sent automatically. Open **账号与电脑 → 登录并绑定这台电脑**. Use that email and verification code,
    compare the displayed computer name/pairing code and approve in the cloud. Return to the
-   local page; it stores credentials privately without copying tokens. Public self-signup
-   is disabled. Login authorizes account views; the separate device grant permits background
+   local page; it stores credentials privately without copying tokens. The account profile
+   appears at verified login, independently of device approval. Public self-signup is disabled.
+   Hub is the only project membership roster. Login authorizes account views; the separate device grant permits background
    upload even after personal logout. It does not authorize recording or attest Human origin.
-5. Have the operator attach the dedicated campaign as described below. Save the approved
+5. Select the approved activity and complete the dedicated campaign preparation below. Native
+   Mod installation and the current exact recording-root activation gate remain operator responsibilities. Save the approved
    launcher command with its exact `--config` path as this terminal's normal entry. Each new
    terminal performs a bounded first Close-to-receipt check before routine collection.
 
@@ -66,10 +75,33 @@ Developers changing code and researchers running the full gate still use
 
 ## Attach a campaign once; reopen it thereafter
 
-The operator supplies a private Platform delivery configuration bound to the approved tool,
-device, Human attestation and initially empty recording root. This is the remaining deliberate
-setup step; account pairing alone is insufficient. Follow the version-pinned Platform
-Evidence DELIVERY guide for those fields. Do not point a new campaign at a historical archive.
+The administrator publishes a versioned activity with exact game/Mod/tool identities and consent
+scope. In **采集活动**, select the reviewed version and this owned active device. Explicitly
+declare Human origin for this dedicated campaign, permission to upload and permission to share
+with project members. These are declarations, not machine verification of Human gameplay.
+Login, an older campaign and past upload consent do not make these declarations for you.
+
+On the first terminal, register the trusted tool once using the release's independently approved
+ID and complete fixed directory. No delivery configuration has to exist yet:
+
+```bash
+uv run --locked python -m stpd.workbench project collection-tool --config /ABS/project.json \
+  --tool-directory /ABS/kit/collection-tool --tool-release-id EXACT_APPROVED_ID
+```
+
+This verifies and registers the tool; it starts neither the game nor upload. Paths and credentials
+are not accepted from the cloud browser. The local preparation uses this registered tool and
+Platform `DeliveryConfig` codec. It creates new private recording/outbox paths and an inactive
+config; repeating the same enrollment preserves its ID. It never scans/enrolls an old archive, starts upload, launches the
+game or changes the native configuration. Missing or drifted tool registration is an explicit
+setup blocker, not permission to trust a browser-provided release ID.
+
+Preparation reports `native_binding_required`. The operator binds those fresh paths through
+the supported Platform Mod/profile configuration and checks the actual loaded native identity
+and recording destination, then runs the owning delivery doctor. A checkbox or configuration
+file alone is not native binding evidence. Only then attach the prepared delivery config as
+below. Preserve incomplete preparation for inspection; never clear a directory that could
+contain Human evidence. A changed policy or game/Mod/tool identity requires a new activity version.
 
 Stop an existing workbench before changing its configuration. Preserve its exact state directory
 so its personal session and device credential remain in place. Replace all placeholders with
@@ -87,6 +119,10 @@ uv run --locked python -m stpd.workbench project open --config /ABS/project.json
 Omit `--platform-url` only when it was deliberately unconfigured. Setup with replacement uses
 the supplied values; it does not merge omitted settings. Never move a retained outbox into a
 different device/campaign to clear an error. A failed doctor blocks collection startup.
+
+An enrollment alone does not prove which remote upload belongs to it. Shared-download admission
+requires the exact verified upload/device and bundle campaign identity, or a separately reviewed
+explicit historical sharing grant. Timestamps and a guessed current activity cannot grant access.
 
 For daily reuse, run the saved launcher command or `project open --config /ABS/project.json`.
 Pressing Recorder **Close** seals the session; the running delivery service packages and sends
@@ -127,10 +163,10 @@ A reviewable terminal handoff contains:
   inventory/release ID and required .NET runtime; never the game binaries;
 - exact STPD commit/lock and developer combination, public Evidence dependency pin;
 - public Hub URL and explicit HTTPS upload-host allowlist;
-- project email invitation and browser-approved device enrollment (legacy private token
+- Hub project membership invitation and browser-approved device enrollment (legacy private token
   provisioning remains an operator recovery route);
-- private campaign config, dedicated recording and outbox paths, startup/stop/status commands,
-  and the campaign's explicit Human-origin attestation scope;
+- immutable activity/enrollment and explicit Human/upload/project-sharing declarations; private
+  campaign config, dedicated recording/outbox paths and startup/stop/status commands;
 - supported OS and tested gate, known limitations, rollback and incident instructions.
 
 Do not distribute a developer's `.local`, `.env`, home directory, SQLite or outbox. Never give
@@ -198,7 +234,8 @@ A corrected release uses a new tag/asset identity; never overwrite the previous 
 4. Run project setup and the owning read-only delivery preflight through `project doctor`.
    Inspect source/tool/pin/.NET/config/token checks and the discovered-session count. A failed
    preflight blocks open. No automatic collection starts merely because setup ran.
-5. The Human explicitly authorizes this campaign's upload and attests its origin. Start the
+5. The Human explicitly declares this campaign's Human origin, upload permission and
+   project-member sharing scope. Start the
    exact workbench/delivery process, then the Human records a new bounded session and presses
    Recorder Close. The agent never supplies gameplay, console actions or attestation.
 6. Verify the local seal, immutable outbox/archive IDs, public Hub receipt and R2 manifest/bytes.
@@ -321,46 +358,14 @@ projection rejection. Expose both stages; measure the first real complete-run bu
 changing limits, and rerun resource/abuse regressions for any increase. Do not turn a transport
 success or an automatic retry into research admission.
 
-## Read-only local and cloud visibility
+## Shared local and cloud workflow
 
 Use the [project console guide](PROJECT_CONSOLE.md) for screen interpretation and
-[ADR-0005](adr/0005-local-cloud-console.md) for ownership. The same console serves
+[ADR-0006](adr/0006-project-members-and-local-models.md) for current permissions and ownership. The same console serves
 local device status and the protected cloud portal. The invited account gives both shells the
 same authorized project view; an independently retained device credential owns background
 upload. The cloud cannot control the collector or inspect its unuploaded local queue.
 Deployment of code does not qualify a Cloudflare Access application or an actual
-browser login. The Hub runbook records that external activation gate. No GPU is
-started by opening any console page.
-
-## Member activity preparation
-
-The Hub stores administrator-created `stpd/collection-activity-v1` templates. Each activity
-version is immutable and identified by its content hash; a changed policy or game/Mod/tool
-combination requires the next version. The template supplies reviewed exact game and Mod
-identity, consumer/tool pins, upload-host allowlist and the project-member sharing statement.
-It contains no terminal paths or credentials. Hub membership authorizes current member/admin
-operations; device ownership must be exact and active when enrolling.
-
-A member selects one version and explicitly declares all three: Human origin for this dedicated
-campaign, permission to upload, and permission to share with project members. These are the
-operator's declarations, not machine verification of gameplay origin. Login, device approval,
-old recordings and previous campaigns never imply this consent. Repeating the same enrollment
-returns its original ID rather than creating a second campaign.
-
-Local preparation verifies the exact Platform collection tool and consumer pins, then creates
-fresh dedicated recording/outbox directories beneath the workbench's private state directory.
-The installed Platform `DeliveryConfig` codec validates the generated inactive configuration.
-Preparation does not scan old recording directories, attach an active delivery worker, start
-upload, launch the game or alter native configuration. Interrupted preparation retains its files
-and fails closed; it never clears a directory that might contain Human evidence.
-
-`native_binding_required` is an explicit remaining step. The operator must bind the new recording
-root through the supported Platform Mod/profile configuration and verify the actual loaded
-native identity and destination. Reading a configuration file or checking a confirmation box is
-not proof of that binding. Only after that owning check and delivery doctor can the application
-activate the prepared configuration; the first Human Close-to-receipt gate remains separate.
-
-An enrollment alone does not prove which remote uploads belong to it. The current Platform
-upload intent has no enrollment field. Shared-download admission therefore requires an exact
-owned upload/device and verified bundle campaign identity match; timestamps, directory names
-or a guessed current activity cannot grant access to historical uploads.
+browser login. The Hub runbook records that external activation gate. Deliberate member exports,
+activity enrollment and local model controls are separate from viewing pages; none bypasses
+consent, native compatibility or compute authorization. Opening a page never starts a GPU.

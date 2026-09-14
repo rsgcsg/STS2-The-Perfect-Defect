@@ -71,7 +71,8 @@ not copied source trees, shared branches or submodules.
 ## Default project workflow and cloud B implementation
 
 - [Shared local/cloud project console](PROJECT_CONSOLE.md)
-- [ADR-0005: console authority and authentication](adr/0005-local-cloud-console.md)
+- [ADR-0005: original console authority and authentication](adr/0005-local-cloud-console.md)
+- [ADR-0006: Hub members, sharing and local model boundaries](adr/0006-project-members-and-local-models.md)
 
 - [Download, collect, view, maintain and freeze the training plan](B_PIPELINE_HANDOFF.md)
 
@@ -86,6 +87,8 @@ not copied source trees, shared branches or submodules.
 - [Unified workflow release and bounded account/service qualification](evidence/B_UNIFIED_WORKFLOW_RELEASE_2026-09-13.md)
 
 [Account and device protocol](IDENTITY_PROTOCOL.md) defines invited membership, approval,
-personal sessions, scoped devices, credential recovery and operations schema migration.
+personal sessions, current member/admin permissions, scoped devices, credential recovery and
+operations schema-4 migration. The [Hub runbook](../deploy/hub/RUNBOOK.md) owns explicit bootstrap,
+Access identity policy, exact deployment, backups and compatible rollback.
 
 [Packaging identity correction](evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md) records exact BOM file bytes and distinct tool revisions.

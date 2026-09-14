@@ -3,33 +3,66 @@
 This protocol connects a Human-approved browser identity to a local workbench. It does
 not attest gameplay, enroll recordings, grant a campaign's upload consent, run a game or
 change a Dataset. Cloudflare Access owns Human authentication. The Hub operations database
-owns device credentials, stable ownership, approval flows and personal read sessions.
+owns live project membership, device credentials, stable ownership, approval flows and personal
+sessions. [ADR-0006](adr/0006-project-members-and-local-models.md) defines the current member/admin
+design. This document describes current source; migration, deployed identity and new-member
+Human usability require their own exact qualification before a release is recommended.
 The local workbench keeps credentials outside browser JavaScript and calls these APIs.
 
 ## Three separate authorities
 
-- Browser: the Hub verifies the Access application JWT signature, issuer, audience, time,
-  email and subject. Stable `principal.subject` is SHA256 of the JSON `[issuer, sub]` pair.
-  Current allowlist membership grants role, explicitly shared devices and permission to enroll.
-- Device: a revocable credential belongs to one logical device. It permits existing uploads,
-  own receipts and the existing shared developer-result reads. Website logout does not revoke it.
-- Personal local session: an opaque expiring token grants the same scoped console metadata
-  available to its Human principal, plus its own logout. It never authorizes uploads, raw
-  payload downloads, jobs, admin operations or a device heartbeat.
+- Browser: Hub verifies the Access application JWT signature, issuer, audience, time, email
+  and subject. Stable `principal.subject` is SHA256 of the JSON `[issuer, sub]` pair. Signed
+  identity alone grants no project data. Current Hub membership grants `member` or `admin`.
+- Device: a revocable credential belongs to one logical computer. It permits its delivery
+  and receipt operations and explicitly allowed artifact access, not personal membership or
+  another computer's evidence. Website logout does not revoke it.
+- Personal local session: an opaque expiring token permits the current member's shared
+  project views and supported member operations. It cannot upload recordings, grant itself
+  administrator rights, impersonate a device heartbeat or make browser-admin mutations.
 
-The private Access allowlist keeps schema `stpd/console-access-v1`. Each entry accepts
-`email`, optional exact provider `subject`, `role`, `devices` (now allowed to be empty), and
-optional `enroll_devices` (strict boolean, default false). Operator role alone does not enroll.
-For example, an explicitly approved new collector can have `devices: []` and
-`enroll_devices: true`. This is an account permission, not campaign consent.
+## Hub membership and first login
 
-Effective personal device visibility is the union of the current explicit device list and
-devices already owned by that stable subject. Disabling enrollment stops future enrollment;
-it does not erase existing ownership or evidence. Removing membership invalidates personal
-reads; a role change changes research metadata visibility. The configured allowlist is loaded
-at Hub startup, so changes require its controlled restart. Device revocation is independent
-and affects subsequent device authentication immediately. Existing accepted uploads and
-immutable records remain intact. A previously signed R2 PUT grant retains its bounded lifetime.
+There are two Human console roles. Members can inspect shared project data, select explicitly
+shareable exports, review research lineage and use supported local model workflows. Job
+submission remains with existing CLI and budget controls; member API writes are limited to
+explicit activity enrollment and export selection. Administrators additionally
+manage members, device enrollment quotas and activity templates. Native control remains local
+and separate. Membership grants neither sealed-test access nor unlimited compute.
+
+An administrator adds an email in **成员管理**, with role, enrollment permission and device
+quota. No invitation email is sent automatically; the administrator shares the project entry
+through the project's ordinary channel. The invited member logs in using that email and a
+verification code. The first verified browser request activates and binds the account profile;
+creating a device is not required to see the profile. There is no separate project password or
+open self-registration. Matching email cannot silently replace a previously bound provider subject.
+
+Member requests revalidate current membership through the owning Operations service. Disabling
+someone immediately rejects subsequent personal requests, clears personal sessions and revokes
+owned devices. Re-enabling membership does not reactivate those credentials. Existing accepted
+uploads and immutable records remain intact. Previously issued R2 grants may remain usable for
+their bounded lifetime; revocation does not recall bytes already delivered. Last-active-admin
+protection rejects disabling or demoting the final administrator.
+
+Members see project metadata without becoming owners of other computers. Device filters select
+a view; they grant no control. Existing imported claim scopes only allow a proved legacy device
+binding. Administrator writes require a fresh browser Access session, exact Origin and CSRF,
+plus live administrator authorization. A local personal token is never an admin credential.
+
+For this candidate, configure the Cloudflare application with **Allow → Include → Login Methods → One-time PIN**, with OTP
+enabled as an identity provider; there is no second per-email project roster. This deliberately
+allows any email holder who completes OTP to reach Hub authentication: Hub must then reject
+nonmembers on every protected route. Cloudflare recommends email/domain restrictions for
+applications relying on Access alone, so this project-specific split is not that default policy.
+Never use Bypass. See [common Access policies](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/common-policies/)
+and [OTP setup](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/).
+The exact edge change and negative origin checks are separate deployment gates in the
+[Hub runbook](../deploy/hub/RUNBOOK.md#browser-console-login-and-local-connection).
+
+The old `stpd/console-access-v1` file is archival/explicit migration input only.
+`STPD_ACCESS_ALLOWLIST` is rejected in runtime configuration. It cannot grant or revive
+membership. Current browser configuration uses only `STPD_ACCESS_ISSUER` and
+`STPD_ACCESS_AUDIENCE`; no Cloudflare administration credential is installed in the Hub.
 
 ## Local connection flow
 
@@ -77,21 +110,24 @@ do not infer that an unacknowledged device was never created or erase its eviden
 An existing unclaimed device can be bound only when the approving Human has current explicit
 device scope and the flow proved its active device credential. An already owned device can
 reconnect only to the same stable owner. Account switching cannot steal or relabel a device.
-New enrollment requires `enroll_devices: true`; ownership alone permits later reconnection.
+New enrollment requires current `enroll_devices: true` and remaining `device_quota`; ownership
+alone permits later reconnection to an active device. Project visibility does not grant this proof.
 
 ## Reads, logout and device observations
 
 `GET /v1/identity/me` uses the personal Bearer token and returns the identity projection without
-CSRF. `principal` has `{subject, email, role, device_ids, research_metadata, enroll_devices,
-read_only}`. `devices` contains `{device_id, name, active, last_seen, presence, ownership}`.
-Missing registration/activity observations are null, never assumed current. Email is exposed
-only to that authenticated principal; another device's owner identity is not returned.
+CSRF. `principal` includes subject/email, role, member ID/status, project/member-action flags,
+device scopes, enrollment permission and quota. `devices` includes ID/name, active status, last
+observation, ownership and permitted revocation. Missing observations are null, never assumed
+current. Account email is private to its principal and authorized member administration; shared
+device metadata does not expose another owner's email.
 
 `GET /v1/identity/console/{overview|collections|collections/ID|datasets|datasets/ID|jobs|models|models/ID|system}`
 uses the same safe `stpd/console-v1` projections as the browser. Both personal and browser
 console reads accept `device=DEVICE_ID`, which must be a subset of the current principal's
-devices; unknown/duplicate filters fail closed. Collection scope changes; shared project
-Dataset/job/model permissions do not become per-device research admission.
+project-visible computers; unknown/duplicate filters fail closed. Project members may view
+shared metadata beyond personally owned devices. Filters do not grant ownership, raw payload
+access or per-device research admission.
 
 Personal sessions expire no later than 24 hours or the approving Access JWT, whichever is
 earlier. Current membership, role and owned/shared scopes are evaluated on each read.
@@ -102,22 +138,28 @@ revoke a device, stop a local worker or sign out the separate browser Access ses
 `{device_id, name, active: true, last_seen, presence}`. A personal token cannot substitute.
 `POST /v1/identity/device/heartbeat` accepts `{}` or `{version: STRING}` and records the
 observation time, not a promised online state. Version is bounded metadata, not build proof.
-The existing `/v1/*` upload and artifact permissions remain separate and unchanged.
+The `/v1/*` delivery contract remains separate; artifact reads additionally follow the current
+project-sharing/lineage policy. A device ID or known artifact ID cannot bypass sealed access.
 
 ## Bounds, maintenance and validation
 
 Identity request bodies are at most 8 KiB for create and 1 KiB for approval/poll/heartbeat.
 The Hub keeps at most 1,000 unexpired flow rows, 32 current personal sessions per Human and
-128 owned devices per Human. Public creation is limited to 20 requests/minute and polling/
-acknowledgement to 300/minute per actual socket source; all requests behind a single trusted
+at most the current member quota (default 3, maximum 128) owned devices per Human. Public creation
+is limited to 20 requests/minute and polling/acknowledgement to 300/minute per actual socket source; all requests behind a single trusted
 reverse proxy share its socket-source limit. Arbitrary forwarded IP headers never relax it.
 Rate storage is bounded to 2,048 keys in the current minute. No public endpoint lists flows.
 
-Operations schema 3 adds identity tables and device metadata atomically to schema 1/2. Original
-device IDs, token hashes, uploads, receipts, jobs and audit records are preserved. Back up with
-the qualified predecessor image before migration and preserve that snapshot plus exact image.
-Never point schema-2 software at schema-3 live state. Current backup/restore uses schema 3;
-whole-host recovery still includes the separate private allowlist, master key and deployment.
+Operations schema 4 adds durable membership, enrollment scopes and collection activities to
+the existing identity/operations store. Explicit `members-bootstrap` imports reviewed schema-3
+identity configuration and names the administrator separately. Keep original subjects, device
+IDs/owners/token hashes, uploads, receipts, jobs and audit records. Back up with the qualified
+predecessor image before any new Operations command can migrate schema, then retain that exact
+paused snapshot/image/private-config pair. Current backup/restore requires schema 4; old code
+must not open the migrated live DB. See [migration and fresh-admin activation](../deploy/hub/RUNBOOK.md#migrate-schema-3-identities-to-hub-membership-schema-4).
+Whole-host recovery includes the separately retained identity master key and deployment config.
+A fresh explicit bootstrap's one-time pending-admin marker never substitutes for an existing
+site's administrator. Browser activation clears it; preflight cannot manufacture that event.
 
 `python -m stpd.hub rotate-device --device EXACT_DEVICE_ID` reads the replacement credential
 only from `STPD_DEVICE_TOKEN`. This explicit operator operation replaces the credential hash,
@@ -128,5 +170,6 @@ transport-file deletion are supported recovery mechanisms.
 
 Portable regressions exercise actual signed JWTs, expiry, origin/CSRF/replay, same-device proof,
 account switching, concurrent approval, rollback, response-loss recovery, token confusion,
-scope changes, logout, rate limits and legacy schema/credential/upload preservation. They do
+scope changes, logout, rate limits, member revocation, last-admin protection and legacy
+schema/credential/upload preservation. They do
 not establish real Access login, production TLS, terminal usability or Human-origin evidence.

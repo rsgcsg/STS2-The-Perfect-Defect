@@ -45,8 +45,8 @@ python tools/open_workbench.py --config /ABS/project.json --hub-url https://hub.
 
 The launcher installs the locked lightweight `cloud` dependencies and opens the workbench.
 Use the same private `--config` path on every launch. First-time collectors still need the
-qualified Mod/tool, invited login, device approval and operator-prepared campaign; opening
-the page alone does not start recording or authorize uploads. Models are separate downloads.
+qualified Mod/tool, invited login, device approval, explicit activity consent and verified native
+recording-root setup; opening the page alone does not start recording or authorize uploads. Models are separate downloads.
 See [the console guide](docs/PROJECT_CONSOLE.md) for screen meanings and
 [scoped release evidence](docs/evidence/B_UNIFIED_WORKFLOW_RELEASE_2026-09-13.md) for what has
 actually been tested. Uploaded evidence, an admitted Dataset and trained model quality are
@@ -84,9 +84,15 @@ then [B pipeline operations](docs/CLOUD_PIPELINE_B.md).
 The [shared project console](docs/PROJECT_CONSOLE.md) connects local delivery status with
 scoped cloud records, immutable Dataset/job/model lineage and operational evidence.
 One invited account can view the same authorized project data in both shells and explicitly
-bind its computers. Personal sessions remain separate from background device uploads. Project
-data views are read-only; identity approval and local recovery are deliberate actions. The
+bind its computers. Hub owns the current `member`/`admin` roster; login shows the profile before
+device setup. Members see actual coverage and select explicitly shareable immutable downloads.
+Administrators manage invitations/quotas in the cloud browser; personal sessions remain separate
+from background device uploads. Activity consent and native setup remain deliberate actions. The
 lightweight collector launcher above uses the same workbench implementation.
+The new member/activity/export/local-model UI is a source candidate until the exact schema-4
+service rollout and Human gates pass; use the capability scope in published release notes.
+Model download, optional Runtime installation and readiness are separate. The retained S1
+combat adapter is narrow; Full-Run online model/input parity remains blocked.
 Real corpus sufficiency, actual storage/GPU qualification, Human Gold and STS2 live evaluation
 remain separately gated; source/test success is not service or scientific qualification.
 

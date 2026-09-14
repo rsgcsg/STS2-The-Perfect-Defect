@@ -2,6 +2,16 @@
 
 ## Default workflow and B pipeline
 
+Current source adds Hub-owned `member`/`admin` membership (Operations schema 4), explicit
+activity consent and fresh local preparation, immutable sharing-gated exports, actual summary
+coverage statistics, and optional local model catalog/Runtime controls. The
+[account protocol](IDENTITY_PROTOCOL.md), [console guide](PROJECT_CONSOLE.md) and
+[ADR-0006](adr/0006-project-members-and-local-models.md) describe that candidate. This is not yet
+a claim of deployed schema-4 migration or a passed new-member/browser/Human gate. Select a
+published exact combination and its own current service receipts before adoption. Predecessor
+service evidence below cannot qualify these changes. S1 remains a narrow historical combat
+adapter; Full-Run online input parity and compatible model evaluation remain **BLOCKED**.
+
 The B workstream implements collection delivery, independent bundle3 ingestion/projection,
 a durable CPU Hub, frozen feature jobs, disposable Modal execution and one developer entry.
 [The project workflow](B_PIPELINE_HANDOFF.md) is the default entry for approved downloads,
@@ -281,9 +291,10 @@ interpret future live parity as Core/B6 or open Gold-test. See the
 
 The unified account path implements invited login, browser-approved computer binding, private
 local personal sessions, matching local/cloud project scope and typed same-device upload
-recovery. Identity operations use Hub schema3. The scoped release report above owns actual
-login/service evidence; source implementation alone does not establish it. Each deployment
-retains a compatible backup/image pair and verifies its current account/receipt continuity.
+recovery. The preceding deployed account lane used schema 3; current source uses explicitly
+migrated Hub schema 4 with member/admin authority. The scoped release report above owns only
+its actual login/service evidence; source implementation alone does not qualify migration.
+Each deployment retains a compatible backup/image pair and verifies its current account/receipt continuity.
 
 For release artifact checks use the [packaging identity correction](evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md). It corrects an unsupported
 BOM digest and distinguishes the fixed tool component revision from its workspace provenance.
