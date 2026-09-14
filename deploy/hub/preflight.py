@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import platform
@@ -14,6 +15,7 @@ import stat
 import subprocess
 from contextlib import closing
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -34,10 +36,42 @@ REQUIRED_SECRET_KEYS = SECRET_KEYS - {
     "STPD_ACCESS_ISSUER", "STPD_ACCESS_AUDIENCE", "STPD_ACCESS_ALLOWLIST", "STPD_HUB_BACKUP_STATUS",
 }
 IMAGE_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}"
+SAFE_STATUS_DIRECTORY = Path("/var/lib/stpd-maintenance/safe-status")
 
 
 class PreflightError(ValueError):
     pass
+
+
+def operational_owner(name: str) -> ModuleType:
+    # This command runs under host Python without numpy/Torch or an installed STPD.
+    # Load the one stdlib-only owner from this exact checkout, not a second policy.
+    if name not in {"capacity", "backup_status"}:
+        raise PreflightError("unknown_operational_owner")
+    path = Path(__file__).resolve().parents[2] / "stpd/hub" / (name + ".py")
+    spec = importlib.util.spec_from_file_location("stpd_host_" + name, path)
+    if spec is None or spec.loader is None:
+        raise PreflightError("capacity_owner_unavailable")
+    owner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(owner)
+    return owner
+
+
+def capacity_owner() -> ModuleType:
+    return operational_owner("capacity")
+
+
+def check_capacity(
+    config: Path, image_store: Path, *, additional_bytes: int, additional_inodes: int,
+) -> dict[str, Any]:
+    values = read_env(config, PUBLIC_KEYS)
+    state = Path(values.get("STPD_HUB_STATE_DIR", ""))
+    if not state.is_absolute() or not image_store.is_absolute():
+        raise PreflightError("capacity_requires_absolute_state_and_image_store")
+    return dict(capacity_owner().host_capacity(
+        state, image_store, additional_bytes=additional_bytes,
+        additional_inodes=additional_inodes,
+    ))
 
 
 def read_env(path: Path, allowed: set[str], *, private: bool = False) -> dict[str, str]:
@@ -279,6 +313,14 @@ def host_checks() -> dict[str, Any]:
         raise PreflightError("deployment_requires_qualified_amd64_image_host")
     if not shutil.which("docker"):
         raise PreflightError("docker_engine_and_compose_required")
+    safe_status = SAFE_STATUS_DIRECTORY
+    private = safe_status.parent
+    if (not private.is_dir() or private.is_symlink()
+            or private.stat().st_mode & 0o777 != 0o700 or owner_uid(private) != 0):
+        raise PreflightError("private_backup_status_directory_requires_root_mode_0700")
+    if (not safe_status.is_dir() or safe_status.is_symlink()
+            or safe_status.stat().st_mode & 0o777 != 0o755 or owner_uid(safe_status) != 0):
+        raise PreflightError("safe_backup_status_directory_requires_preparation_mode_0755")
     result = subprocess.run(
         ["docker", "compose", "version", "--short"], capture_output=True, text=True,
         check=False, timeout=10,
@@ -298,14 +340,39 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path)
     parser.add_argument("--backup", type=Path)
     parser.add_argument("--host", action="store_true")
+    parser.add_argument("--capacity", action="store_true",
+                        help="capacity-only check; run normal configuration preflight separately")
+    parser.add_argument("--image-store", type=Path,
+                        help="actual host filesystem containing Docker/containerd image data")
+    parser.add_argument("--additional-bytes", type=int,
+                        help="reviewed peak extra bytes; explicit 0 for already present images")
+    parser.add_argument("--additional-inodes", type=int,
+                        help="reviewed peak extra inode allocation; unknown is not zero")
     parser.add_argument("--allow-compute", action="store_true",
                         help="validate an explicitly authorized nonzero compute budget")
     args = parser.parse_args(argv)
     try:
-        if not (args.config or args.backup or args.host):
+        if not (args.config or args.backup or args.host or args.capacity):
             raise PreflightError("select_config_backup_or_host_checks")
         report: dict[str, Any] = {"schema": "stpd/hub-preflight-v1", "read_only": True}
-        if args.config:
+        if args.capacity:
+            if not args.config or not args.image_store:
+                raise PreflightError("capacity_requires_config_and_image_store")
+            if (args.additional_bytes is None or args.additional_inodes is None
+                    or args.additional_bytes < 0 or args.additional_inodes < 0):
+                raise PreflightError("explicit_nonnegative_additional_capacity_required")
+            capacity = check_capacity(args.config, args.image_store,
+                                      additional_bytes=args.additional_bytes,
+                                      additional_inodes=args.additional_inodes)
+            report["capacity"] = capacity
+            report["checks_not_performed"] = [
+                "configuration validity", "OCI identity", "capacity reservation", "image cleanup",
+            ]
+            if capacity["status"] != "ok":
+                report["error"] = "capacity_attention_required"
+                print(json.dumps(report))
+                return 2
+        if args.config and not args.capacity:
             report.update(check_configuration(args.config, allow_compute=args.allow_compute))
         if args.backup:
             report.update(check_backup(args.backup))

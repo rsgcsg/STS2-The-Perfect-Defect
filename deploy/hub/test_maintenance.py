@@ -17,6 +17,12 @@ RECEIPT = "d" * 64
 
 
 class MaintenanceTests(PosixPermissionFixture):
+    def setUp(self) -> None:
+        super().setUp()
+        owner = patch.object(maintenance, "owner_uid", return_value=0)
+        owner.start()
+        self.addCleanup(owner.stop)
+
     def config(self, root: Path) -> tuple[Path, Path, Path]:
         root.chmod(0o700)
         config, secrets = root / "deployment.env", root / "backup.env"
@@ -45,7 +51,10 @@ class MaintenanceTests(PosixPermissionFixture):
             self.assertEqual(result["worker_image"], IMAGE)
             self.assertEqual(result["last_backup_receipt"], RECEIPT)
             self.assertEqual(maintenance.health(result)["backup_health"], "PASS")
-            self.assertEqual(json.loads(status.read_bytes()), result)
+            self.assertEqual(json.loads(status.read_bytes()),
+                             {key: value for key, value in result.items()
+                              if key != "status_projection"})
+            self.assertEqual(result["status_projection"], "published")
             self.assertEqual(status.stat().st_mode & 0o777, 0o600)
             self.assertNotIn("private-sdk", status.read_text())
 

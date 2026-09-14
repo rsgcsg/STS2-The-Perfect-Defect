@@ -40,6 +40,7 @@ services:
       OMP_NUM_THREADS: "1"
       OPENBLAS_NUM_THREADS: "1"
       MKL_NUM_THREADS: "1"
+      STPD_HUB_BACKUP_STATUS: /var/lib/stpd-status/backup-status.json
     read_only: true
     init: true
     cap_drop: [ALL]
@@ -53,6 +54,12 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m,mode=1777
     volumes:
+      - type: bind
+        source: /var/lib/stpd-maintenance/safe-status
+        target: /var/lib/stpd-status
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         source: ${STPD_HUB_STATE_DIR:?Supply the private persistent state directory}
         target: /var/lib/stpd

@@ -268,7 +268,7 @@ def main() -> int:
         else:
             from waitress import serve  # type: ignore[import-untyped]
 
-            from .verification_worker import run_verifier
+            from .verification_worker import supervise_pending_upload
 
             secret = os.environ.get("STPD_HUB_ADMIN_TOKEN", "")
             from .console_auth import configured_access
@@ -333,12 +333,12 @@ def main() -> int:
                         "--upload",
                         pending["id"],
                     ]
-                    if not run_verifier(arguments, shutdown=shutdown) and not shutdown.is_set():
-                        ops.verification_failure(
-                            pending["id"], "verifier_resource_or_process_limit", now=time.time()
-                        )
+                    disposition = supervise_pending_upload(
+                        ops, pending["id"], arguments, shutdown,
+                    )
+                    if disposition in {"retry_pending", "capacity_deferred"}:
                         print(
-                            json.dumps({"stage": "verification", "state": "retry_pending"}),
+                            json.dumps({"stage": "verification", "state": disposition}),
                             flush=True,
                         )
                     shutdown.wait(5)

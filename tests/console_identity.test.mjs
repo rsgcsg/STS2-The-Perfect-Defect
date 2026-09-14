@@ -4,7 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 class Element {
-  constructor(tag) { this.tag = tag; this.children = []; this.value = ''; }
+  constructor(tag) { this.tag = tag; this.children = []; this.value = ''; this.dataset = {}; }
   append(...items) { this.children.push(...items); }
   replaceChildren(...items) { this.children = items; }
   get options() { return this.children; }
@@ -69,7 +69,8 @@ function pageSetup(view, identity, connectContent = async () => 'connection fact
   let scope = 'owner';
   const context = vm.createContext({
     document: {body: {dataset: {mode: 'cloud'}}, getElementById: get,
-      createElement: element, querySelectorAll: () => [], addEventListener() {}},
+      createElement: element, createDocumentFragment: element, querySelectorAll: () => [], addEventListener() {}},
+    Node: Element,
     window: {addEventListener() {}, SpireProject: {}, SpireIdentity: {
       context: () => scope, isLocal: () => false, refresh: async () => identity,
       renderDevices: () => 'account facts', renderConnect: connectContent, connect() {},
@@ -129,4 +130,23 @@ test('switching connection flow removes the previous approval panel before its r
   assert.equal(get('content').children.includes('approval for first flow'), false);
   finish('approval for second flow'); await loading;
   assert.deepEqual(get('content').children, ['approval for second flow']);
+});
+
+
+test('system preserves capacity attention and missing observations without claiming backup success', async () => {
+  const {context} = pageSetup('devices', {status: 'signed_in'});
+  await settled();
+  const flatten = element => [element.textContent || '', ...(element.children || []).map(
+    child => typeof child === 'string' ? child : flatten(child))].join(' ');
+  for (const [status, phrase] of [['attention', '容量不足'], ['unknown', '容量未完整观测']]) {
+    context.capacityFixture = {storage: {free_bytes: null, total_bytes: null,
+      capacity: {status, free_inodes: null, reserve_bytes: 6442450944, reserve_inodes: 100000}},
+      backup: {availability: 'unavailable'}};
+    const rendered = flatten(vm.runInContext('system(capacityFixture)', context)).replace(/\s+/g, ' ');
+    assert.match(rendered, new RegExp(phrase));
+    assert.match(rendered, /可用 \/ 总容量 未观测 \/ 未观测/);
+    assert.match(rendered, /备份新鲜度 未观测/);
+    assert.match(rendered, /不会自动删除数据或镜像/);
+    assert.doesNotMatch(rendered, /运行余量充足|在有效期内/);
+  }
 });

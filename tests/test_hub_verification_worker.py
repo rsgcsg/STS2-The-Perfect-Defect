@@ -30,7 +30,10 @@ def test_supervisor_reaps_actual_child_on_deadline_or_shutdown(cancel: bool) -> 
     if cancel:
         shutdown.set()
     started = time.monotonic()
-    with patch("stpd.hub.verification_worker.subprocess.Popen", side_effect=spawn):
+    with (
+        patch("stpd.hub.verification_worker.subprocess.Popen", side_effect=spawn),
+        patch("stpd.hub.verification_worker.filesystem_capacity", return_value={"status": "ok"}),
+    ):
         assert not run_verifier([], timeout=0.15, shutdown=shutdown)
     assert time.monotonic() - started < 5
     assert len(children) == 1 and children[0].poll() is not None

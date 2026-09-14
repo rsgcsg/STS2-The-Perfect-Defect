@@ -847,6 +847,8 @@ function system(data) {
     identity = data.identity || data.producer || {};
   const compute = data.compute || data.cloud?.compute || {},
     backup = data.backup || data.cloud?.backup || {};
+  const storage = data.storage || data.cloud?.storage || {},
+    capacity = storage.capacity || {};
   evidenceBody.append(
     facts([
       ["Source", identity.source_revision],
@@ -883,10 +885,25 @@ function system(data) {
           "此接口尚未观测；查看运维收据",
       ],
       ["最近成功备份", date(backup.last_success_at)],
+      ["备份新鲜度", {ok: "在有效期内", attention: "需要检查", unknown: "未观测"}[backup.freshness] || "未观测"],
+      ["距成功备份", Number.isFinite(backup.age_seconds) ? `${(backup.age_seconds / 3600).toFixed(1)} 小时` : "未观测"],
       ["外部告警", "未在此界面验证"],
       ["完整主机恢复", "不由数据库备份或页面可用推断"],
     ]),
   );
+  if (storage.capacity) {
+    opsBody.append(
+      node("h3", "Hub 数据所在文件系统"),
+      facts([
+        ["容量状态", {ok: "运行余量充足", attention: "容量不足 · 暂缓新部署和批量处理", unknown: "容量未完整观测"}[capacity.status] || "未观测"],
+        ["可用 / 总容量", `${bytes(storage.free_bytes)} / ${bytes(storage.total_bytes)}`],
+        ["运行保留空间", bytes(capacity.reserve_bytes)],
+        ["可用 inode / 保留", `${number(capacity.free_inodes)} / ${number(capacity.reserve_inodes)}`],
+        ["观测时间", date(capacity.observed_at)],
+      ]),
+      node("p", "此处仅观察 Hub 数据所在文件系统。Docker 镜像若在其他盘，需运行主机容量检查；未统计可回收缓存，不会自动删除数据或镜像。", "small muted"),
+    );
+  }
   const list = node("ul", null, "help-list");
   for (const text of [
     "关闭浏览器不停止本机后台；project stop 才停止该项目服务。",

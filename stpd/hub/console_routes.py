@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 from pathlib import Path
 from typing import Any
 
 from ..json_boundary import BoundaryError
+from .backup_status import freshness as backup_freshness
+from .backup_status import project as project_backup_status
+from .capacity import filesystem_capacity
 from .console_auth import ConsolePrincipal
 from .console_index import SCHEMA, pagination, timestamp
 from .uploads import UploadService
@@ -46,11 +48,12 @@ class ConsoleRoutes:
             "whole_host_recovery": "not_qualified",
         }
         if principal.role in {"operator", "admin"}:
-            disk = shutil.disk_usage(self.service.operations.path.parent)
+            capacity = filesystem_capacity(self.service.operations.path.parent)
             result["storage"] = {
-                "total_bytes": disk.total,
-                "free_bytes": disk.free,
+                "total_bytes": capacity["total_bytes"],
+                "free_bytes": capacity["free_bytes"],
                 "scope": "hub_state_filesystem",
+                "capacity": capacity,
             }
             result["backup"] = self.backup()
             result["projection"] = self.service.console_index.health()
@@ -64,23 +67,13 @@ class ConsoleRoutes:
             if path.is_symlink() or not path.is_file() or path.stat().st_size > 16384:
                 raise ValueError
             value = json.loads(path.read_bytes())
-            if value.get("schema") != "stpd/hub-backup-status-v1":
-                raise ValueError
+            safe = project_backup_status(value)
             return {
-                "availability": "available",
-                "scope": "operations_database_backup",
-                **{
-                    key: value[key]
-                    for key in (
-                        "last_attempt_at",
-                        "last_success_at",
-                        "last_status",
-                        "last_backup_receipt",
-                    )
-                    if key in value and isinstance(value[key], str)
-                },
+                "availability": "available", "scope": "operations_database_backup",
+                **safe, **backup_freshness(safe),
                 "external_notification": "not_configured_by_this_tool",
             }
+
         except (OSError, ValueError, TypeError, AttributeError):
             return {"availability": "unavailable", "error": "backup_status_unreadable"}
 
