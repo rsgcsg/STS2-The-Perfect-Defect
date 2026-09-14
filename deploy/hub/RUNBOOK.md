@@ -11,6 +11,9 @@ combination from its reviewed release notes before applying this runbook. A main
 does not deploy the Hub, update a collector or qualify a new runtime. This is the one host
 procedure; campaigns link here rather than copying a second deployment recipe.
 
+[Daily host operations](OPERATIONS.md) covers SSH access, safe network changes, lost access
+and capacity inspection. It is this runbook's operator companion, not a second deployment flow.
+
 ## Bootstrap the authorized Linux host
 
 Prepare Docker Engine and Compose >=2.30 using the host vendor's supported installation path.
@@ -25,6 +28,8 @@ sudo install -d -m 0700 /etc/stpd
 sudo install -d -m 0700 -o 10001 -g 10001 /srv/stpd/hub
 sudo install -d -m 0700 -o 10001 -g 10001 /srv/stpd/hub/work /srv/stpd/hub/backups
 sudo install -d -m 0700 /srv/stpd/caddy /srv/stpd/caddy/data /srv/stpd/caddy/config
+sudo install -d -m 0700 /var/lib/stpd-maintenance
+sudo install -d -m 0755 /var/lib/stpd-maintenance/safe-status
 sudo install -m 0600 deploy/hub/deployment.env.example /etc/stpd/deployment.env
 sudo install -m 0600 deploy/hub/runtime.env.example /etc/stpd/hub-runtime.env
 sudo install -m 0600 deploy/hub/backup.env.example /etc/stpd/hub-backup.env
@@ -36,6 +41,12 @@ print it in shell history or share it in chat. Keep the initial budget at zero. 
 R2 buckets (ingress, artifacts, operator backups) and exact immutable OCI references. Leave optional Modal variables unset for this initial upload-only load.
 Record reviewed source SHA, lock hash, both image digests and a hash of the non-secret config.
 Keep the previous deployment config/image identities for rollback; never log the secret file.
+
+The empty `safe-status` directory is valid before the first database/backup exists. Compose
+requires it for a read-only directory mount; `preflight --host` checks its preparation. Do not
+create a placeholder success JSON. Fresh installation creates the directory, performs the
+explicit membership/database bootstrap below, then runs and verifies a real backup before
+claiming backup readiness. `maintenance.py status` is read-only and cannot initialize it.
 
 Define command helpers in the operator shell; these read the external files through Compose:
 
@@ -62,10 +73,16 @@ Pull only the configured digest references, then validate Caddy without starting
 dc pull
 dc run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 dc run --rm --no-deps hub status --root /opt/stpd --state /var/lib/stpd --store s3 --staging s3
+sudo python3 /opt/stpd-deploy/source/deploy/hub/maintenance.py backup
 dc up -d
 dc ps
 curl --fail --silent --show-error http://127.0.0.1:8765/health
 ```
+
+Review each result before continuing. The database bootstrap must already be complete for
+that exact schema/image, and the backup must report verified off-host success and published
+status before starting the service. Complete the separate retrieval drill below as well;
+the safe-status display alone is not a restore qualification.
 
 Verify `https://<owned-hostname>/health` from a separate machine and inspect the certificate.
 An unauthenticated request to `/v1/status` must be rejected. Check the actual listening sockets
@@ -194,11 +211,13 @@ scheduler completion reports expose `console_index_status` separately; optional 
 change success into a publication/compute failure. Explicit `console-refresh` itself fails visibly
 when its requested repair cannot complete; do not suppress failures of that operator command.
 
-The backup panel optionally consumes the existing maintenance owner's bounded status file via
-`STPD_HUB_BACKUP_STATUS`; make only that safe projection readable inside mounted state. Do not
-mount backup credentials or whole host directories. Absent projection means `not_configured`,
-not a claim that backups are failing or passing. Whole-host recovery and external alert delivery
-remain unqualified until their own exact evidence exists.
+The supported Compose configuration sets `STPD_HUB_BACKUP_STATUS` to
+`/var/lib/stpd-status/backup-status.json` and mounts only the host's
+`/var/lib/stpd-maintenance/safe-status` directory read-only. The maintenance owner publishes
+an allowlisted projection there; the private parent remains mode 0700, the projection directory
+0755 and its JSON 0644. Missing/unreadable projection means backup visibility is unavailable,
+not evidence that a backup passed or failed. Do not mount backup credentials or the private
+parent directory. Whole-host recovery and external alert delivery remain separately qualified.
 
 Before real browser qualification, exercise missing/expired/wrong-audience/tampered JWT,
 plain email-header spoofing, direct-origin bypass, collector cross-device access, and preserved
@@ -384,6 +403,12 @@ runner parses raw values without shell expansion; it reads the current exact ima
 ephemeral backup container has only the separate backup credential and the state mount; it
 has no Docker socket, Modal credentials or compute scheduling command.
 
+For an existing site, the new host maintenance script can first run with the **old exact
+deployment image/config** to preserve its compatible pre-upgrade backup and publish the safe
+status projection. Then perform the runbook's schema/image migration and qualify a new backup.
+On a fresh site, prepare the empty directory during bootstrap and create the Operations
+database before requesting a backup; do not reverse those prerequisites.
+
 After a manual backup and retrieval pass, install and exercise the actual service once:
 
 ```bash
@@ -410,6 +435,14 @@ failed, interrupted, future-dated or more-than-26-hour-old success. Immutable of
 remain the authority; this status file is not itself a backup. Copy each verified receipt to
 the protected off-host operator recovery inventory; do not depend on this host-local projection
 to find the recovery point after host loss.
+
+Each `maintenance.py backup` also atomically publishes the narrow safe-status copy consumed
+by Compose; ordinary `status` never writes it. If publication fails, `status_projection` is
+`unavailable` and the command exits nonzero so visibility is repaired. This does not rewrite a
+verified remote backup receipt or make its independent `backup_health` fail. Inspect both
+outcomes. `status` also reports read-only host capacity using the configured state and actual
+image-store filesystems; see [daily operations](OPERATIONS.md#daily-check-and-before-any-deployment-or-build)
+for the explicit image-store argument and separate capacity/configuration admission checks.
 
 ```bash
 sudo python3 /opt/stpd-deploy/source/deploy/hub/maintenance.py status

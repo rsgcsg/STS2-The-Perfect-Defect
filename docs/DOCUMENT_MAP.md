@@ -90,5 +90,7 @@ not copied source trees, shared branches or submodules.
 personal sessions, current member/admin permissions, scoped devices, credential recovery and
 operations schema-4 migration. The [Hub runbook](../deploy/hub/RUNBOOK.md) owns explicit bootstrap,
 Access identity policy, exact deployment, backups and compatible rollback.
+Its [host operations companion](../deploy/hub/OPERATIONS.md) covers operator-only SSH,
+verified source-IP changes, lost access and daily capacity/backup inspection.
 
 [Packaging identity correction](evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md) records exact BOM file bytes and distinct tool revisions.

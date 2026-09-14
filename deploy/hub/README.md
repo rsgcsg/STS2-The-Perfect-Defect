@@ -49,6 +49,8 @@ cannot impersonate the loopback API. Host firewall exposes only SSH to administr
 - `ingress-lifecycle.json`: proposed ingress-only rule aborting unfinished multipart uploads.
   Completed ingress objects do not expire automatically; see the lifecycle section below.
 - `RUNBOOK.md`: exact bootstrap, operation, backup, restore and rollback steps.
+- `OPERATIONS.md`: saved operator SSH access, verified source-IP changes, loss-of-access
+  diagnosis and daily capacity/backup inspection; project members do not need SSH.
 
 Docker Compose >=2.30 is required for `env_file: format: raw`, preventing interpolation of
 credential characters. `docker compose config -q` validates silently. Never paste the output
