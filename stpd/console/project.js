@@ -1237,6 +1237,38 @@ window.SpireProject = (() => {
     }
     return box;
   }
+  function preparationResult(prepared) {
+    const result = panel("本机配置准备结果");
+    result.append(
+      fields([
+        [
+          "状态",
+          prepared.status === "native_binding_required"
+            ? "需要精确原生绑定"
+            : show(prepared.status),
+        ],
+        [
+          "原生绑定验证",
+          prepared.native_binding_verified === true
+            ? "服务报告已验证"
+            : "尚未验证",
+        ],
+        [
+          "后台投递",
+          prepared.delivery_started === true ? "服务报告已启动" : "尚未启动",
+        ],
+      ]),
+    );
+    result.append(
+      el(
+        "p",
+        "准备会建立新的活动目录，不收编历史录制。活动声明不是已验证的真人来源或完整局证据。",
+        "banner",
+      ),
+      technical(prepared, "本机准备记录（路径由服务确定）"),
+    );
+    return result;
+  }
   function prepareButton(ctx, enrollment) {
     return command(
       ctx,
@@ -1304,6 +1336,8 @@ window.SpireProject = (() => {
               "muted",
             ),
           );
+        const prepared = drafts.get(`prepared:${enrollment.template_id}`);
+        if (prepared) result.append(preparationResult(prepared));
         history.append(result);
       }
       history.append(pager(ctx, "enrollments", previous));
@@ -1465,40 +1499,7 @@ window.SpireProject = (() => {
         row.append(result);
       }
       const prepared = drafts.get(`prepared:${record.template_id}`);
-      if (prepared) {
-        const result = panel("本机配置准备结果");
-        result.append(
-          fields([
-            [
-              "状态",
-              prepared.status === "native_binding_required"
-                ? "需要精确原生绑定"
-                : show(prepared.status),
-            ],
-            [
-              "原生绑定验证",
-              prepared.native_binding_verified === true
-                ? "服务报告已验证"
-                : "尚未验证",
-            ],
-            [
-              "后台投递",
-              prepared.delivery_started === true
-                ? "服务报告已启动"
-                : "尚未启动",
-            ],
-          ]),
-        );
-        result.append(
-          el(
-            "p",
-            "准备会建立新的活动目录，不收编历史录制。活动声明不是已验证的真人来源或完整局证据。",
-            "banner",
-          ),
-          technical(prepared, "本机准备记录（路径由服务确定）"),
-        );
-        row.append(result);
-      }
+      if (prepared) row.append(preparationResult(prepared));
       box.append(row);
     }
     box.append(pager(ctx, "campaigns", data));
@@ -1637,6 +1638,7 @@ window.SpireProject = (() => {
     const changing = operation?.status === "pending";
     const safe =
       data.loaded === true &&
+      runtime?.lifecycle === "running" &&
       !changing &&
       !data.observation_error &&
       !runtime?.tainted &&

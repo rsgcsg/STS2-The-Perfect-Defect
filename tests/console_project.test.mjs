@@ -677,7 +677,11 @@ test("game-changing requests require confirmation and network ambiguity never au
       view: "local-models",
       handler: (url, options) => {
         if (url === "/api/local-models/status")
-          return { status: "loaded", loaded: true, runtime: { mode: "human" } };
+          return {
+            status: "loaded",
+            loaded: true,
+            runtime: { mode: "human", lifecycle: "running" },
+          };
         if (options.method === "POST") throw new Error("network lost");
         return modelHandler(url, options);
       },
@@ -750,4 +754,40 @@ test("research category read failures preserve other categories and do not becom
   assert.match(text(page), /离线评估/);
   assert.match(text(page), /暂无已索引记录/);
   assert.equal(env.calls.length, 3);
+});
+
+test("a loaded service flag without a running Runtime observation cannot enable decisions", async () => {
+  for (const runtime of [null, { lifecycle: "stopped", mode: "human" }]) {
+    const env = setup({
+      view: "local-models",
+      handler: (url, options) =>
+        url === "/api/local-models/status"
+          ? { status: "loaded", loaded: true, runtime }
+          : modelHandler(url, options),
+    });
+    const page = await env.render();
+    assert.equal(action(page, "model-command-one_step").disabled, true);
+    assert.equal(action(page, "model-command-human").disabled, false);
+  }
+});
+
+test("prepared persisted enrollment remains visible when its older template is outside the current template page", async () => {
+  const env = setup({
+    view: "campaigns",
+    handler: (url, options) => {
+      if (url.includes("/enrollments?"))
+        return { items: [enrollment], total: 1 };
+      if (url.endsWith("/prepare"))
+        return {
+          status: "native_binding_required",
+          native_binding_verified: false,
+          delivery_started: false,
+        };
+      return { templates: [], total: 0 };
+    },
+  });
+  let page = await env.render();
+  await action(page, "prepare-" + enrollmentId).onclick();
+  page = await env.render();
+  assert.match(text(page), /需要精确原生绑定/);
 });
