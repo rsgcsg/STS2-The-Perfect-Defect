@@ -331,3 +331,36 @@ upload. The cloud cannot control the collector or inspect its unuploaded local q
 Deployment of code does not qualify a Cloudflare Access application or an actual
 browser login. The Hub runbook records that external activation gate. No GPU is
 started by opening any console page.
+
+## Member activity preparation
+
+The Hub stores administrator-created `stpd/collection-activity-v1` templates. Each activity
+version is immutable and identified by its content hash; a changed policy or game/Mod/tool
+combination requires the next version. The template supplies reviewed exact game and Mod
+identity, consumer/tool pins, upload-host allowlist and the project-member sharing statement.
+It contains no terminal paths or credentials. Hub membership authorizes current member/admin
+operations; device ownership must be exact and active when enrolling.
+
+A member selects one version and explicitly declares all three: Human origin for this dedicated
+campaign, permission to upload, and permission to share with project members. These are the
+operator's declarations, not machine verification of gameplay origin. Login, device approval,
+old recordings and previous campaigns never imply this consent. Repeating the same enrollment
+returns its original ID rather than creating a second campaign.
+
+Local preparation verifies the exact Platform collection tool and consumer pins, then creates
+fresh dedicated recording/outbox directories beneath the workbench's private state directory.
+The installed Platform `DeliveryConfig` codec validates the generated inactive configuration.
+Preparation does not scan old recording directories, attach an active delivery worker, start
+upload, launch the game or alter native configuration. Interrupted preparation retains its files
+and fails closed; it never clears a directory that might contain Human evidence.
+
+`native_binding_required` is an explicit remaining step. The operator must bind the new recording
+root through the supported Platform Mod/profile configuration and verify the actual loaded
+native identity and destination. Reading a configuration file or checking a confirmation box is
+not proof of that binding. Only after that owning check and delivery doctor can the application
+activate the prepared configuration; the first Human Close-to-receipt gate remains separate.
+
+An enrollment alone does not prove which remote uploads belong to it. The current Platform
+upload intent has no enrollment field. Shared-download admission therefore requires an exact
+owned upload/device and verified bundle campaign identity match; timestamps, directory names
+or a guessed current activity cannot grant access to historical uploads.
