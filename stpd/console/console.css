@@ -845,3 +845,36 @@ select, .onboarding input { font: inherit; color: inherit; background: transpare
 .landing { max-width: 950px; margin: 6vh auto; padding: 1.5rem; }
 .landing .brand { margin-bottom: 2rem; }
 .landing li { padding: .4rem 0; line-height: 1.6; }
+
+/* Project member views share the existing console hierarchy and palette. */
+.project-page { min-width: 0; }
+.project-panel { padding: 22px 24px; }
+.project-panel > h2 { margin-bottom: 8px; }
+.project-panel > p:first-of-type { margin-top: 4px; }
+.project-panel .project-panel { box-shadow: none; margin-top: 18px; }
+.project-form { display: flex; align-items: end; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
+.project-form .form-field { display: flex; flex-direction: column; gap: 6px; flex: 1 1 190px; color: var(--muted); font-size: 12px; }
+.project-form .form-field input, .project-form .form-field select, .project-form textarea { width: 100%; border-color: var(--border); background: #fff; }
+.project-form textarea { min-width: 280px; padding: 12px; font: 12px/1.6 ui-monospace, monospace; resize: vertical; border-radius: 7px; color: var(--ink); }
+.project-check { display: flex; align-items: start; gap: 9px; color: var(--ink); font-size: 13px; margin: 10px 0; }
+.project-check input { margin-top: 5px; accent-color: var(--accent); }
+.project-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 4px; }
+.button.danger { color: var(--bad); border-color: #e5c7c4; }
+.button.danger:hover { background: #fff4f3; }
+.project-facets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.project-facets .project-panel { margin: 0; min-width: 0; padding: 16px; }
+.project-facets table { white-space: normal; }
+.project-panel td { white-space: normal; overflow-wrap: anywhere; }
+.project-selection { background: var(--accent-light); padding: 12px 16px; border-radius: 8px; color: var(--accent); }
+.project-consent { padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: #f8fbfc; white-space: pre-wrap; }
+.project-form[data-project-editor="campaign"] { align-items: stretch; flex-direction: column; }
+.project-form[data-project-editor="campaign"] .form-field { flex-basis: auto; max-width: 450px; }
+.project-panel > .button { margin: 4px 8px 4px 0; }
+@media (max-width: 760px) {
+  .project-panel { padding: 17px; }
+  .project-facets { grid-template-columns: 1fr; }
+  .project-form { align-items: stretch; }
+  .project-form .form-field { flex-basis: 100%; }
+  .project-form textarea { min-width: 0; }
+  .project-panel .metric-value { font-size: 27px; }
+}
