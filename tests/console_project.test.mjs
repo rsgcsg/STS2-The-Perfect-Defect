@@ -791,3 +791,54 @@ test("prepared persisted enrollment remains visible when its older template is o
   page = await env.render();
   assert.match(text(page), /需要精确原生绑定/);
 });
+
+test("in-page project navigation preserves selected export identities and leaves file downloads untouched", async () => {
+  const artifact = id("5");
+  const env = setup({
+    view: "research",
+    handler: (url) =>
+      url.includes("/training?")
+        ? {
+            availability: "available",
+            items: [{ artifact_id: artifact, kind: "training_input" }],
+            total: 1,
+          }
+        : url.endsWith("/download-status")
+          ? { status: "idle" }
+          : emptyList(),
+  });
+  const transitions = [];
+  env.ui.navigate = (view, identity) => {
+    transitions.push({ view, identity });
+    env.navigate(view, identity ? "&id=" + identity : "");
+  };
+  let page = await env.render();
+  await action(page, "research-export-" + artifact).onclick();
+  const link = find(
+    page,
+    (node) => node.tag === "a" && node.textContent === "打开数据下载",
+  );
+  let prevented = false;
+  assert.equal(typeof link.onclick, "function");
+  link.onclick({
+    button: 0,
+    preventDefault() {
+      prevented = true;
+    },
+  });
+  assert.equal(prevented, true);
+  assert.deepEqual(transitions, [{ view: "downloads", identity: null }]);
+  page = await env.render();
+  assert.match(text(page), /1 个产物/);
+  const other = setup({
+    mode: "cloud",
+    view: "downloads",
+    query: "&id=" + id("c"),
+    handler: () => exportManifest,
+  });
+  page = await other.render();
+  assert.equal(
+    find(page, (node) => node.textContent === "下载此文件").onclick,
+    undefined,
+  );
+});

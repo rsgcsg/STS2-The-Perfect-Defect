@@ -134,6 +134,22 @@ window.SpireProject = (() => {
   const link = (label, target) => {
     const item = el("a", label, "button");
     item.href = target;
+    if (target.startsWith("?view=")) {
+      item.onclick = (event) => {
+        if (
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey ||
+          !window.SpireProject.navigate
+        )
+          return;
+        const query = new URLSearchParams(target);
+        event.preventDefault();
+        window.SpireProject.navigate(query.get("view"), query.get("id"));
+      };
+    }
     return item;
   };
   const route = (view, id) =>
