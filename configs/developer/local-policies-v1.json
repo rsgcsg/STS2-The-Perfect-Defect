@@ -14,10 +14,10 @@
   },
   "policies": [
     {
-      "id": "s1-human-combat-v3",
+      "id": "s1-human-combat-v4",
       "label": "S1 · Defect A0 普通战斗",
       "adapter": "s1-v1",
-      "manifest": "policy-manifests/s1-policy-adapter-v3.json",
+      "manifest": "policy-manifests/s1-policy-adapter-v4.json",
       "config": "configs/v0/experiments/s1-human-combat-live-v2.json"
     }
   ]

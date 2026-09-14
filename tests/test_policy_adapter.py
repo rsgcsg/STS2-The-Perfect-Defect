@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -168,7 +169,6 @@ def _adapter_fixture(
             "id": "stpd-fixture",
             "version": "1",
             "protocol": "sts2.policy-runtime/decision-only-ndjson-1",
-            "code_digest_scope": ADAPTER_CODE_DIGEST_SCOPE,
             "code_sha256": adapter_code_sha256(),
         },
         "artifact": {
@@ -208,6 +208,7 @@ def _adapter_fixture(
         },
         "adapter_config": {
             "s1": {
+                "code_digest_scope": ADAPTER_CODE_DIGEST_SCOPE,
                 "config": {
                     "path": config_path.as_posix(),
                     "sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
@@ -256,9 +257,7 @@ def _decision_request(snapshot: dict[str, Any], manifest: dict[str, Any]) -> dic
         "manifest": manifest,
         "bundle": {"observation": snapshot, "reads": []},
         "candidate_count": len(identities),
-        "candidate_digest": hashlib.sha256(
-            canonical_json(identities).encode("utf-8")
-        ).hexdigest(),
+        "candidate_digest": hashlib.sha256(canonical_json(identities).encode("utf-8")).hexdigest(),
     }
 
 
@@ -297,15 +296,17 @@ def test_checked_in_policy_manifest_pins_current_source_and_frozen_config() -> N
     config = json.loads(config_path.read_text(encoding="utf-8"))
 
     assert manifest["adapter"]["code_sha256"] == adapter_code_sha256()
-    assert manifest["adapter"]["code_digest_scope"] == ADAPTER_CODE_DIGEST_SCOPE
+    assert set(manifest["adapter"]) == {"id", "version", "protocol", "code_sha256"}
+    assert manifest["adapter_config"]["s1"]["code_digest_scope"] == ADAPTER_CODE_DIGEST_SCOPE
     assert "stpd/data/training_handoff.py" not in ADAPTER_SOURCE_CLOSURE
     assert config_pin["sha256"] == hashlib.sha256(config_path.read_bytes()).hexdigest()
     assert manifest["artifact"]["sha256"] == config["checkpoint_sha256"]
     assert manifest["support"]["game_versions"] == [config["live_identity"]["game_version"]]
     assert manifest["support"]["game_commits"] == [config["live_identity"]["game_commit"]]
-    assert manifest["requirements"]["environment"]["modset_fingerprint"] == config[
-        "live_identity"
-    ]["modset_fingerprint"]
+    assert (
+        manifest["requirements"]["environment"]["modset_fingerprint"]
+        == config["live_identity"]["modset_fingerprint"]
+    )
 
 
 def test_policy_digest_scope_matches_fresh_runtime_import_closure() -> None:
@@ -331,9 +332,105 @@ print(json.dumps(paths))
     assert set(loaded) == set(ADAPTER_SOURCE_CLOSURE) - {"tools/policy_adapter.py"}
 
 
+def test_v4_preserves_trained_policy_and_versions_public_identity_fix() -> None:
+    root = DEFAULT_MANIFEST.parents[1]
+    current = json.loads(DEFAULT_MANIFEST.read_text())
+    old = json.loads((root / "policy-manifests/s1-policy-adapter-v3.json").read_text())
+    assert DEFAULT_MANIFEST.name == "s1-policy-adapter-v4.json"
+    assert current["manifest_id"] != old["manifest_id"]
+    assert current["adapter"]["code_sha256"] == adapter_code_sha256()
+    assert "code_digest_scope" not in current["adapter"]
+    assert current["adapter_config"]["s1"]["code_digest_scope"] == ADAPTER_CODE_DIGEST_SCOPE
+    for field in ("policy", "artifact", "representation", "requirements", "support", "claims"):
+        assert current[field] == old[field]
+    for field in ("config", "qwen", "serializer", "admission"):
+        assert current["adapter_config"]["s1"][field] == old["adapter_config"]["s1"][field]
+
+
+def test_installed_public_package_accepts_manifest_ready_and_evidence(tmp_path: Path) -> None:
+    """Optional exact-package gate: real public decoder/port/verifier, synthetic CPU model only."""
+    from stpd.workbench.developer import ProjectConfig, combination
+    from stpd.workbench.local_models import LocalModelService
+    from stpd.workbench.runtime_install import validate_runtime_install
+
+    location = os.environ.get("STPD_TEST_POLICY_RUNTIME_NODE_MODULES")
+    if not location:
+        pytest.skip("install exact optional Runtime and set STPD_TEST_POLICY_RUNTIME_NODE_MODULES")
+    node_modules = Path(location).resolve()
+    root = DEFAULT_MANIFEST.parents[1]
+    registry = json.loads((root / "configs/developer/local-policies-v1.json").read_text())
+    connector = next(
+        p for p in combination()["node_packages"] if p["package"] == "@rsgcsg/sts2-connector-client"
+    )
+    observed = validate_runtime_install(node_modules, registry["runtime_package"], connector)
+    adapter = _adapter_fixture(tmp_path)
+    output = io.StringIO()
+    serve_ndjson(adapter, input_lines=iter(()), output=output)
+    manifest_path = tmp_path / "fixture-policy.json"
+    manifest_path.write_text(canonical_json(adapter.manifest))
+    ready_path = tmp_path / "ready.ndjson"
+    ready_path.write_text(output.getvalue())
+    script = """
+import assert from 'node:assert/strict';
+import {mkdir,readFile} from 'node:fs/promises';
+const [moduleUri,manifestPath,readyPath,evidenceRoot,currentPath,version,code]
+  =process.argv.slice(1);
+const {validatePolicyManifest,NdjsonPolicyPort,AgentRunEvidence}=await import(moduleUri);
+validatePolicyManifest(JSON.parse(await readFile(currentPath,'utf8')));
+const manifest=validatePolicyManifest(JSON.parse(await readFile(manifestPath,'utf8')));
+assert.throws(()=>validatePolicyManifest({...manifest,adapter:{...manifest.adapter,
+  code_digest_scope:'runtime-import-closure-v1'}}));
+const replay="const fs=require('node:fs');"
+  +"process.stdout.write(fs.readFileSync(process.argv[1]));process.stdin.resume();";
+const port=NdjsonPolicyPort.spawn(process.execPath,['-e',replay,readyPath]);
+let actual;
+try {actual=await port.attest(manifest.adapter,3000);} finally {port.close();}
+await mkdir(evidenceRoot,{recursive:true});
+const evidence=await AgentRunEvidence.create({root:evidenceRoot,
+  runId:'run-synthetic-public-port',policyManifest:manifest,runtimeVersion:version,
+  runtimeCodeSha256:code,mode:'human'});
+await evidence.attestAdapter(actual);
+await evidence.append('stopped',{});
+await evidence.finalize({status:'stopped',tainted:false,mode:'human'});
+"""
+    service = LocalModelService(ProjectConfig(tmp_path / "state", "", "", None, combination()))
+    result = subprocess.run(
+        [
+            "node",
+            "--input-type=module",
+            "-e",
+            script,
+            (node_modules / "@rsgcsg/sts2-policy-runtime/dist/index.js").as_uri(),
+            str(manifest_path),
+            str(ready_path),
+            str(service.directory / "agent-runs"),
+            str(DEFAULT_MANIFEST),
+            observed["version"],
+            observed["code_sha256"],
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    startup = json.loads(
+        (service.directory / "agent-runs/run-synthetic-public-port/manifest.json").read_text()
+    )
+    service.state.update(selection_id="synthetic-cpu-fixture", startup=startup)
+    service._evaluation_handoff()
+    report = service.evaluations()[0]
+    assert report["evidence_verification"] == "pass", report
+    assert report["event_counts"] == {"stopped": 1}
+    assert report["game_outcome"] == "not_measured"
+    assert report["training_admission"] == "not_claimed"
+
+
 def test_unified_platform_v3_binding_preserves_the_frozen_s1_policy() -> None:
     root = DEFAULT_MANIFEST.parents[1]
-    v2 = json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    v2 = json.loads(
+        (root / "policy-manifests/s1-policy-adapter-v2.json").read_text(encoding="utf-8")
+    )
     v3_path = root / "policy-manifests" / "s1-policy-adapter-v3.json"
     v3 = json.loads(v3_path.read_text(encoding="utf-8"))
     config_pin = v3["adapter_config"]["s1"]["config"]
@@ -341,7 +438,10 @@ def test_unified_platform_v3_binding_preserves_the_frozen_s1_policy() -> None:
     config = json.loads(config_path.read_text(encoding="utf-8"))
 
     assert config_pin["sha256"] == hashlib.sha256(config_path.read_bytes()).hexdigest()
-    assert v3["adapter"]["code_sha256"] == adapter_code_sha256()
+    assert (
+        v3["adapter"]["code_sha256"]
+        == "6472f5b7bcfa004dbba607adf6e2f74689740293c940de5e799d39e6cbf9c54b"
+    )
     assert v3["artifact"] == v2["artifact"]
     assert v3["representation"] == v2["representation"]
     assert v3["adapter_config"]["s1"]["qwen"] == v2["adapter_config"]["s1"]["qwen"]
@@ -366,9 +466,7 @@ def test_unified_platform_v3_binding_preserves_the_frozen_s1_policy() -> None:
         ),
         "connector_module_version_id": "6f4e58b7-f55e-46d2-8d4f-d1d37f29fd99",
         "modset_status": "exact_platform_modset",
-        "modset_fingerprint": (
-            "5a21659597de401d2ce34bc3205be3d535f92aba74538548a6e6145376af8149"
-        ),
+        "modset_fingerprint": ("5a21659597de401d2ce34bc3205be3d535f92aba74538548a6e6145376af8149"),
         "loaded_mod_ids": ["STS2_PLATFORM"],
     }
     assert v2["requirements"]["environment"]["loaded_mod_ids"] == [
@@ -395,6 +493,18 @@ def test_legacy_live_s1_runner_has_no_action_capable_command() -> None:
     ("mutate", "message"),
     [
         (
+            lambda manifest: manifest["adapter"].__setitem__(
+                "code_digest_scope", ADAPTER_CODE_DIGEST_SCOPE
+            ),
+            "public adapter identity fields drift",
+        ),
+        (
+            lambda manifest: manifest["adapter_config"]["s1"].__setitem__(
+                "code_digest_scope", "entrypoint-only"
+            ),
+            "code digest scope drift",
+        ),
+        (
             lambda manifest: manifest["requirements"]["environment"].__setitem__(
                 "connector_artifact_sha256", "c" * 64
             ),
@@ -419,9 +529,7 @@ def test_legacy_live_s1_runner_has_no_action_capable_command() -> None:
             "loaded Mod IDs differ",
         ),
         (
-            lambda manifest: manifest["support"].__setitem__(
-                "game_commits", ["different-commit"]
-            ),
+            lambda manifest: manifest["support"].__setitem__("game_commits", ["different-commit"]),
             "game commit differs",
         ),
         (
@@ -515,9 +623,7 @@ def test_policy_adapter_rejects_semantic_action_envelope_reordering(tmp_path: Pa
             *args: Any,
             **kwargs: Any,
         ) -> tuple[Any, list[str], list[float], float]:
-            decision, action_texts, scores, latency = self._base.project_and_score(
-                *args, **kwargs
-            )
+            decision, action_texts, scores, latency = self._base.project_and_score(*args, **kwargs)
             reordered = decision.__class__(
                 decision.state,
                 tuple(reversed(decision.actions)),
@@ -544,9 +650,7 @@ def test_policy_adapter_rejects_serialized_action_reordering(tmp_path: Path) -> 
             *args: Any,
             **kwargs: Any,
         ) -> tuple[Any, list[str], list[float], float]:
-            decision, action_texts, scores, latency = self._base.project_and_score(
-                *args, **kwargs
-            )
+            decision, action_texts, scores, latency = self._base.project_and_score(*args, **kwargs)
             return decision, list(reversed(action_texts)), scores, latency
 
     adapter = _adapter_fixture(tmp_path, _TextReorderingModel())  # type: ignore[arg-type]

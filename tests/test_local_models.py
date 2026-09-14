@@ -109,7 +109,7 @@ def runtime_http():
 
 def test_registry_is_trusted_code_selection_not_downloaded_command(service, tmp_path):
     report = service.catalog()
-    assert report["policies"][0]["selection_id"] == "s1-human-combat-v3"
+    assert report["policies"][0]["selection_id"] == "s1-human-combat-v4"
     with pytest.raises(BoundaryError, match="unregistered_policy"):
         service.start("../../downloaded/evil.json")
     root = tmp_path / "untrusted"
@@ -127,12 +127,12 @@ def test_readiness_reports_real_missing_prerequisites_without_loading(service, m
     monkeypatch.setattr(
         local_models, "_backend_check", lambda: {"status": "blocked", "code": "no_cuda"}
     )
-    result = service.readiness("s1-human-combat-v3")
+    result = service.readiness("s1-human-combat-v4")
     assert result["status"] == "blocked" and result["loaded"] is False
     assert result["checks"]["policy_identity"]["status"] == "pass"
     assert result["checks"]["backend"]["code"] == "no_cuda"
     assert service.process is None
-    service.start("s1-human-combat-v3")
+    service.start("s1-human-combat-v4")
     result = finished(service)
     assert result["error_code"] == "model_readiness_blocked"
     assert service.process is None
@@ -222,7 +222,7 @@ def test_restarted_service_does_not_guess_pid_or_activate(service):
     assert replacement.status()["status"] == "recovery_required"
     assert replacement.client is None and replacement.process is None
     with pytest.raises(BoundaryError, match="requires_recovery"):
-        replacement.start("s1-human-combat-v3")
+        replacement.start("s1-human-combat-v4")
 
 
 def test_shutdown_during_readiness_cannot_launch_a_late_runtime(service, monkeypatch):
@@ -237,7 +237,7 @@ def test_shutdown_during_readiness_cannot_launch_a_late_runtime(service, monkeyp
     monkeypatch.setattr(service, "readiness", readiness)
     monkeypatch.setattr(service, "_runtime_package", lambda: {"version": "fixture"})
     monkeypatch.setattr(local_models.subprocess, "Popen", lambda *a, **k: calls.append(a))
-    service.start("s1-human-combat-v3")
+    service.start("s1-human-combat-v4")
     assert checking.wait(timeout=2)
     service.close()
     release.set()
@@ -271,7 +271,7 @@ def test_start_uses_fixed_command_human_and_rejects_foreign_attestation(service,
 
     monkeypatch.setattr(local_models.subprocess, "Popen", Process)
     monkeypatch.setenv("STPD_HUB_TOKEN", "must-not-reach-inference-child")
-    service.start("s1-human-combat-v3")
+    service.start("s1-human-combat-v4")
     result = finished(service)
     assert result["error_code"] == "runtime_load_or_attestation_failed"
     command, options = calls[0]

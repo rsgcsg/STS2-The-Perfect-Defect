@@ -15,7 +15,6 @@ from typing import Any, Protocol, cast
 
 from ..canonical import canonical_json
 from .s1 import (
-    DEFAULT_CONFIG,
     ResidentS1Model,
     S1PolicyError,
     admit_snapshot,
@@ -25,7 +24,8 @@ from .s1 import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MANIFEST = ROOT / "policy-manifests" / "s1-policy-adapter-v2.json"
+DEFAULT_CONFIG = ROOT / "configs/v0/experiments/s1-human-combat-live-v2.json"
+DEFAULT_MANIFEST = ROOT / "policy-manifests" / "s1-policy-adapter-v4.json"
 MANIFEST_SCHEMA = "sts2.policy-runtime/policy-manifest-1"
 PORT_SCHEMA = "sts2.policy-runtime/policy-port-1"
 ADAPTER_PROTOCOL = "sts2.policy-runtime/decision-only-ndjson-1"
@@ -98,10 +98,7 @@ def adapter_code_sha256() -> str:
     paths = [ROOT / relative for relative in ADAPTER_SOURCE_CLOSURE]
     if paths[-1] != ADAPTER_ENTRYPOINT or any(not path.is_file() for path in paths):
         raise PolicyAdapterError("policy adapter source closure is missing or inconsistent")
-    files = [
-        {"path": path.relative_to(ROOT).as_posix(), "sha256": _sha256(path)}
-        for path in paths
-    ]
+    files = [{"path": path.relative_to(ROOT).as_posix(), "sha256": _sha256(path)} for path in paths]
     return hashlib.sha256(canonical_json(files).encode("utf-8")).hexdigest()
 
 
@@ -144,9 +141,11 @@ def _validate_manifest_config(
     if manifest.get("schema") != MANIFEST_SCHEMA:
         raise PolicyAdapterError("unsupported policy manifest schema")
     adapter = _object(manifest.get("adapter"), "manifest.adapter")
+    if set(adapter) != {"id", "version", "protocol", "code_sha256"}:
+        raise PolicyAdapterError("policy manifest public adapter identity fields drift")
     if adapter.get("protocol") != ADAPTER_PROTOCOL:
         raise PolicyAdapterError("policy manifest protocol drift")
-    if adapter.get("code_digest_scope") != ADAPTER_CODE_DIGEST_SCOPE:
+    if _s1_config(manifest).get("code_digest_scope") != ADAPTER_CODE_DIGEST_SCOPE:
         raise PolicyAdapterError("policy manifest code digest scope drift")
     expected_code_sha256 = adapter.get("code_sha256")
     if expected_code_sha256 != adapter_code_sha256():
@@ -179,9 +178,7 @@ def _validate_manifest_config(
         raise PolicyAdapterError("policy manifest Connector protocol differs from S1 config")
     for manifest_field, config_field in exact_environment_fields.items():
         if environment.get(manifest_field) != live_identity.get(config_field):
-            raise PolicyAdapterError(
-                f"policy manifest {manifest_field} differs from S1 config"
-            )
+            raise PolicyAdapterError(f"policy manifest {manifest_field} differs from S1 config")
     if environment.get("loaded_mod_ids") != live_identity.get("loaded_mod_ids"):
         raise PolicyAdapterError("policy manifest loaded Mod IDs differ from S1 config")
 

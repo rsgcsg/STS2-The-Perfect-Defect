@@ -1,6 +1,6 @@
 # Experimental Live S1 Operations
 
-> Current direction: `policy-manifests/s1-policy-adapter-v3.json` plus
+> Current direction: `policy-manifests/s1-policy-adapter-v4.json` plus
 > `tools/policy_adapter.py` is the thin STPD boundary consumed by the Platform
 > Policy Runtime. The monolithic runner documented below is retained as a golden
 > regression only until Shadow, One-Step and bounded Auto parity pass. Future
@@ -10,7 +10,13 @@
 ordered `STS2_HUMAN_ANNOTATOR`, `STS2_MCP`, `STS2_PLATFORM_LIVE_UI` observer
 Modset. It must not be used to admit the current unified Game Mod. V3 binds the
 same frozen checkpoint and policy semantics to the one-Mod `STS2_PLATFORM`
-runtime using its cold-loaded exact SHA, MVID and Modset fingerprint.
+runtime using its cold-loaded exact SHA, MVID and Modset fingerprint. V2 and V3
+are historical manifests and retain their recorded bytes and code identities.
+V4 preserves V3's checkpoint, configuration, serializer, admission and exact
+environment requirements. It moves the STPD code-digest scope into
+`adapter_config.s1`, leaving the public adapter identity at its exact four fields.
+V4 has a new adapter source digest and manifest identity; earlier loaded/runtime
+evidence does not qualify it. See [the package compatibility gate](LOCAL_POLICY_PACKAGE_COMPATIBILITY.md).
 
 This lane connects one exact trained behavior S1 checkpoint to the shipped UI
 through the official versioned Connector TypeScript SDK package. It is an experimental
@@ -107,14 +113,14 @@ npm --prefix ..\STS2-AI-PLATFORM run game-mod:deploy
 npm --prefix ..\STS2-AI-PLATFORM run game-mod:launch
 npm --prefix ..\STS2-AI-PLATFORM run game-mod:verify-loaded
 node ..\STS2-AI-PLATFORM\components\policy-runtime\dist\cli.js `
-  --manifest policy-manifests\s1-policy-adapter-v3.json `
+  --manifest policy-manifests\s1-policy-adapter-v4.json `
   --adapter-command .venv\Scripts\python.exe `
   --adapter-cwd . `
   --adapter-arg tools\policy_adapter.py `
   --adapter-arg=--config `
   --adapter-arg configs\v0\experiments\s1-human-combat-live-v2.json `
   --adapter-arg=--manifest `
-  --adapter-arg policy-manifests\s1-policy-adapter-v3.json
+  --adapter-arg policy-manifests\s1-policy-adapter-v4.json
 ```
 
 The STPD policy source closure, exact environment, frozen config, and policy

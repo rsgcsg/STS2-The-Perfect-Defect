@@ -248,6 +248,35 @@ class LocalModelService:
             raise BoundaryError("local_model", "runtime_install_path_unsafe")
         return private / "node_modules" if private.exists() else self.root / "node_modules"
 
+    def _public_manifest_contract(self, manifest_path: Path) -> None:
+        self._runtime_package()
+        script = (
+            "import {readFile} from 'node:fs/promises';"
+            "const {validatePolicyManifest}=await import(process.argv[1]);"
+            "validatePolicyManifest(JSON.parse(await readFile(process.argv[2],'utf8')));"
+        )
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key in {"PATH", "SYSTEMROOT", "SystemRoot", "TMPDIR", "TEMP", "TMP"}
+        }
+        result = subprocess.run(
+            [
+                "node",
+                "--input-type=module",
+                "-e",
+                script,
+                (self._node_modules() / RUNTIME_PACKAGE / "dist/index.js").as_uri(),
+                str(manifest_path),
+            ],
+            env=environment,
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise BoundaryError("local_model", "public_policy_manifest_incompatible")
+
     def install_runtime(self) -> dict[str, Any]:
         if self.client is not None or (self.process is not None and self.process.poll() is None):
             raise BoundaryError("local_model", "stop_runtime_before_install")
@@ -336,7 +365,13 @@ class LocalModelService:
             try:
                 operation()
                 checks[name] = {"status": "pass"}
-            except (OSError, ValueError, KeyError, BoundaryError) as error:
+            except (
+                OSError,
+                ValueError,
+                KeyError,
+                BoundaryError,
+                subprocess.SubprocessError,
+            ) as error:
                 checks[name] = {
                     "status": "blocked",
                     "code": error.code
@@ -362,6 +397,7 @@ class LocalModelService:
 
         check("policy_identity", manifest_check)
         check("runtime_package", lambda: self._runtime_package() and None)
+        check("public_contract", lambda: self._public_manifest_contract(manifest_path))
         check(
             "checkpoint",
             lambda: exact_file(
@@ -376,7 +412,7 @@ class LocalModelService:
             ),
         )
         check(
-            "checkpoint_identity",
+            "checkpoint_sidecar",
             lambda: (
                 _object_file(
                     _inside(self.root, policy_config["checkpoint_path"] + ".manifest.json")
@@ -398,6 +434,7 @@ class LocalModelService:
             "loaded": False,
             "environment_compatible": "checked_by_runtime_before_decision",
             "qwen_weights": "checked_by_adapter_during_loading",
+            "checkpoint_identity": "checked_by_adapter_during_loading",
             "support": manifest["support"],
         }
 
