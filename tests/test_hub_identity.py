@@ -7,14 +7,13 @@ import io
 import json
 import sqlite3
 import time
-from dataclasses import replace
 
 import pytest
 from test_hub_console import service
 from test_hub_console import signed as signed
 
 from stpd.hub.application import HubApplication
-from stpd.hub.console_auth import AccessVerifier
+from stpd.hub.console_auth import verified_identity
 from stpd.hub.database import CURRENT_SCHEMA, Operations, token_hash
 from stpd.json_boundary import BoundaryError
 
@@ -26,8 +25,6 @@ ADMIN = "admin" * 16
 @pytest.fixture
 def hub(tmp_path, signed):
     access, token, _ = signed
-    pin, principal = access.principals["owner@example.org"]
-    access.principals["owner@example.org"] = (pin, replace(principal, enroll_devices=True))
     return (
         HubApplication(service(tmp_path), ADMIN, browser_access=access, public_origin=ORIGIN),
         token,
@@ -253,6 +250,7 @@ def test_concurrent_approval_issues_one_device_and_one_session(hub):
 
 def test_owner_transaction_failure_rolls_back_entire_approval(hub, monkeypatch):
     app, token, _ = hub
+    assert request(app, "/app/api/identity", jwt=token())[0] == 200
     flow = create(app)
     with monkeypatch.context() as scoped:
         scoped.setattr(
@@ -262,7 +260,7 @@ def test_owner_transaction_failure_rolls_back_entire_approval(hub, monkeypatch):
     assert poll(app, flow)[1] == {"status": "pending"}
     with app.service.operations.transaction() as db:
         assert db.execute("SELECT COUNT(*) FROM devices").fetchone()[0] == 2
-        assert db.execute("SELECT COUNT(*) FROM identity_users").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM identity_users").fetchone()[0] == 1
         assert db.execute("SELECT COUNT(*) FROM identity_sessions").fetchone()[0] == 0
     assert decision(app, token(), flow)[0] == 200
 
@@ -299,20 +297,14 @@ def test_personal_membership_role_and_enrollment_are_rechecked(hub):
     app, token, access = hub
     _, approved = connected(hub)
     personal, device = approved["session_token"], approved["device"]["token"]
-    pin, principal = access.principals["owner@example.org"]
-    access.principals["owner@example.org"] = (
-        pin,
-        replace(principal, role="collector", enroll_devices=False),
-    )
-    assert (
-        request(app, "/v1/identity/console/datasets", bearer=personal)[1]["availability"]
-        == "not_authorized"
-    )
+    browser = app.identity.principal(access.authenticate(token()))
+    app.identity.membership.update(browser, browser.member_id, {"enroll_devices": False})
     me = request(app, "/v1/identity/me", bearer=personal)[1]
-    assert me["principal"]["enroll_devices"] is False
+    assert me["principal"]["role"] == "admin" and me["principal"]["enroll_devices"] is False
     assert approved["device"]["device_id"] in me["principal"]["device_ids"]
     assert decision(app, token(), create(app))[0] == 403
-    del access.principals["owner@example.org"]
+    # Revoking a personal session remains independent from the owned device grant.
+    app.identity.membership.revoke_sessions(browser, browser.member_id)
     assert request(app, "/v1/identity/me", bearer=personal)[0] == 401
     assert request(app, "/v1/identity/device", bearer=device)[0] == 200
     assert request(app, "/v1/identity/logout", method="POST", bearer=personal)[0] == 200
@@ -403,16 +395,13 @@ def test_device_scope_filter_is_identical_for_browser_and_personal_reads(hub):
         assert request(app, path, query="device=one&arbitrary=1", **kwargs)[0] == 400
 
 
-def test_empty_scope_is_allowed_without_implicitly_granting_enrollment(hub):
-    _, _, access = hub
-    current = AccessVerifier(
-        access.issuer,
-        access.audience,
-        [{"email": "new@example.org", "devices": [], "role": "collector"}],
-    )
-    value = current.member(current.issuer, "stable", "new@example.org")
-    assert value.devices == () and value.enroll_devices is False
-    assert value.subject != current.member(current.issuer, "other", "new@example.org").subject
+def test_verified_identity_does_not_itself_grant_project_access(hub):
+    app, _, _ = hub
+    value = verified_identity("https://test-team.cloudflareaccess.com", "stable", "new@example.org")
+    assert value.devices == () and value.enroll_devices is False and not value.project_shared
+    assert value.subject != verified_identity(value.issuer, "other", value.email).subject
+    with pytest.raises(BoundaryError, match="membership_not_authorized"):
+        app.identity.principal(value)
 
 
 def test_public_flow_bounds_ignore_forged_forwarded_ip_and_reject_callback(hub):
@@ -471,7 +460,7 @@ def test_schema2_migration_keeps_legacy_credentials_uploads_and_backup(tmp_path)
     assert restored.authenticate("legacy" * 8) == "legacy"
     assert restored.upload(upload["id"]) == before
     with restored.transaction() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == CURRENT_SCHEMA == 3
+        assert db.execute("PRAGMA user_version").fetchone()[0] == CURRENT_SCHEMA == 4
         assert db.execute("SELECT owner_subject,last_seen FROM devices").fetchone()[:] == (
             None,
             None,
