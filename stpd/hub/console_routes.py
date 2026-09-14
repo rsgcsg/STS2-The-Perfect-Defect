@@ -40,12 +40,12 @@ class ConsoleRoutes:
             "browser_auth": "cloudflare_access_application_jwt",
             "browser_access_configured": self.browser_enabled,
             "terminal_presence": "not_observed",
-            "raw_downloads": "not_available_in_console",
+            "raw_downloads": "explicit_project_sharing_grant_required",
             "backup": {"availability": "not_authorized"},
             "external_alerting": "not_qualified",
             "whole_host_recovery": "not_qualified",
         }
-        if principal.role == "operator":
+        if principal.role in {"operator", "admin"}:
             disk = shutil.disk_usage(self.service.operations.path.parent)
             result["storage"] = {
                 "total_bytes": disk.total,
@@ -95,13 +95,17 @@ class ConsoleRoutes:
             return index.collections(principal, limit=1, offset=0, upload_id=resource.split("/")[1])
         if status is not None:
             raise BoundaryError("console", "status_filter_requires_collections")
-        if re.fullmatch(r"(datasets|models)/[a-f0-9]{64}", resource):
+        if re.fullmatch(r"(datasets|models|training|evaluations|analyses)/[a-f0-9]{64}", resource):
             if query:
                 raise BoundaryError("console", "unexpected_query")
             kind, artifact_id = resource.split("/")
             return index.artifacts(principal, kind, limit=1, offset=0, artifact_id=artifact_id)
-        if resource in {"datasets", "models"}:
+        if resource in {"datasets", "models", "training", "evaluations", "analyses"}:
             return index.artifacts(principal, resource, limit=limit, offset=offset)
+        if resource == "statistics":
+            if query:
+                raise BoundaryError("console", "unexpected_query")
+            return index.statistics(principal)
         if resource == "jobs":
             return index.jobs(limit=limit, offset=offset)
         if resource == "system":

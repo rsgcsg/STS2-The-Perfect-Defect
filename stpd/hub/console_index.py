@@ -14,12 +14,12 @@ from urllib.parse import parse_qs
 from ..artifact_contracts import Manifest
 from ..json_boundary import BoundaryError
 from ..storage.store import ArtifactStore
-from .access import RESULT_KINDS
+from .access import PROJECT_KINDS, RESULT_KINDS, discoverable, project_member, sealed_reason
 from .console_auth import ConsolePrincipal
 from .database import Operations
 
 SCHEMA = "stpd/console-v1"
-ARTIFACT_KINDS = RESULT_KINDS | {"dataset"}
+ARTIFACT_KINDS = PROJECT_KINDS
 STATUSES = frozenset(
     {"awaiting_upload", "verification_pending", "verified", "quarantined", "transfer_failed"}
 )
@@ -77,6 +77,15 @@ class ConsoleIndex:
                 "indexed_at REAL NOT NULL)"
             )
             db.execute(
+                "CREATE TABLE IF NOT EXISTS console_artifact_policy("
+                "artifact_id TEXT PRIMARY KEY, sealed INTEGER NOT NULL)"
+            )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS console_decision_profiles("
+                "subject TEXT NOT NULL,kind TEXT NOT NULL,source_id TEXT NOT NULL,"
+                "profile TEXT NOT NULL,indexed_at REAL NOT NULL,PRIMARY KEY(subject,kind))"
+            )
+            db.execute(
                 "CREATE TABLE IF NOT EXISTS console_lineage("
                 "child TEXT NOT NULL,parent TEXT NOT NULL,PRIMARY KEY(child,parent))"
             )
@@ -119,23 +128,8 @@ class ConsoleIndex:
             )
 
     def artifact(self, manifest: Manifest) -> None:
-        with self.operations.transaction() as db:
-            db.executemany(
-                "INSERT OR IGNORE INTO console_lineage VALUES(?,?)",
-                [(manifest.artifact_id, parent.artifact_id) for parent in manifest.parents],
-            )
-        if manifest.kind not in ARTIFACT_KINDS:
-            return
         parameters = manifest.parameters.value()
-        if manifest.kind == "offline_evaluation" and parameters.get("partition") == "test":
-            # Preserve the research owner's sealed-evaluation discovery boundary.
-            with self.operations.transaction() as db:
-                db.execute(
-                    "DELETE FROM console_artifacts WHERE artifact_id=?", (manifest.artifact_id,)
-                )
-            return
-        # No arbitrary parameters, labels, metrics or payload descriptors cross the boundary.
-        # This explicitly excludes sealed test/Gold content even inside result parameters.
+        # Explicit safe metadata, never arbitrary evaluation rows or model parameters.
         summary = {
             "artifact_id": manifest.artifact_id,
             "id": manifest.artifact_id,
@@ -144,13 +138,35 @@ class ConsoleIndex:
             "parents": [parent.to_dict() for parent in manifest.parents],
             "metadata": {
                 key: parameters[key]
-                for key in ("schema", "scope", "records")
+                for key in ("schema", "scope", "records", "runs", "partition")
                 if key in parameters and isinstance(parameters[key], (str, int))
             },
             "payload_bytes": sum(payload.size for payload in manifest.payloads),
             "metrics": {"status": "not_exposed"},
         }
         with self.operations.transaction() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO console_artifact_policy VALUES(?,?)",
+                (manifest.artifact_id, int(sealed_reason(manifest) is not None)),
+            )
+            db.executemany(
+                "INSERT OR IGNORE INTO console_lineage VALUES(?,?)",
+                [(manifest.artifact_id, parent.artifact_id) for parent in manifest.parents],
+            )
+            # A later parent projection closes discovery for already indexed descendants.
+            # Policy checking and publication share one transaction: a concurrent sealed
+            # parent cannot be overwritten by an older in-flight descendant projection.
+            sealed = (
+                "WITH RECURSIVE blocked(id) AS (SELECT artifact_id "
+                "FROM console_artifact_policy WHERE sealed=1 UNION SELECT child "
+                "FROM console_lineage JOIN blocked ON parent=id) "
+            )
+            db.execute(sealed + "DELETE FROM console_artifacts WHERE artifact_id IN blocked")
+            blocked = db.execute(
+                sealed + "SELECT 1 FROM blocked WHERE id=?", (manifest.artifact_id,)
+            ).fetchone()
+            if blocked or not discoverable(manifest):
+                return
             db.execute(
                 "INSERT OR REPLACE INTO console_artifacts VALUES(?,?,?,?)",
                 (manifest.artifact_id, manifest.kind, json.dumps(summary), time.time()),
@@ -180,6 +196,9 @@ class ConsoleIndex:
 
     @staticmethod
     def _scope(principal: ConsolePrincipal, alias: str = "u") -> tuple[str, tuple[str, ...]]:
+        if project_member(principal):
+            device = getattr(principal, "data_device", None)
+            return (f"{alias}.device=?", (device,)) if device else ("1=1", ())
         return f"{alias}.device IN ({','.join('?' for _ in principal.devices)})", principal.devices
 
     @staticmethod
@@ -262,7 +281,7 @@ class ConsoleIndex:
                 ]
                 result["item"]["timeline_truncated"] = len(events) > 100
                 item = result["item"]
-                if principal.research and item["evidence_id"]:
+                if (principal.research or project_member(principal)) and item["evidence_id"]:
                     descendants = db.execute(
                         "WITH RECURSIVE downstream(id) AS (SELECT ? UNION "
                         "SELECT child FROM console_lineage JOIN downstream "
@@ -306,6 +325,148 @@ class ConsoleIndex:
             },
         }
 
+    def statistics(self, principal: ConsolePrincipal) -> dict[str, Any]:
+        """Aggregate stored owner projections with per-field coverage, never raw archives.
+
+        The unit is an upload occurrence: the same immutable content can be received
+        from two devices. Unique content IDs are reported separately, not confused with
+        unique decisions or uninterrupted runs.
+        """
+        where, values = self._scope(principal)
+        joined = (
+            " FROM uploads u LEFT JOIN console_collections c ON c.upload_id=u.id WHERE " + where
+        )
+        with closing(self.read()) as db:
+            total, unique = db.execute(
+                "SELECT COUNT(*),COUNT(DISTINCT u.content_id)" + joined, values
+            ).fetchone()
+            fields = {
+                **{
+                    name: "$.counts." + name
+                    for name in (
+                        "accepted",
+                        "proved",
+                        "canonical",
+                        "real_failures",
+                        "cancelled",
+                        "aborted",
+                        "diagnostics",
+                        "unsupported",
+                        "unresolved",
+                        "invalidations",
+                        "accepted_children",
+                        "canonical_children",
+                    )
+                },
+                **{
+                    name: "$." + name
+                    for name in (
+                        "native_starts",
+                        "native_ends",
+                        "assigned_run_count",
+                        "recorder_pauses",
+                    )
+                },
+            }
+            metrics = {}
+            for name, path in fields.items():
+                # Only a typed, nonnegative integer is a known owner count. Missing,
+                # archival and malformed projection fields never turn into zero.
+                known = (
+                    "CASE WHEN json_type(c.summary,?)='integer' "
+                    "AND json_extract(c.summary,?)>=0 THEN json_extract(c.summary,?) END"
+                )
+                row = db.execute(
+                    "SELECT COUNT(" + known + "),SUM(" + known + ")" + joined,
+                    (path, path, path, path, path, path, *values),
+                ).fetchone()
+                metrics[name] = {
+                    "value": row[1],
+                    "known": row[0],
+                    "unknown": total - row[0],
+                    "coverage_unit": "upload_occurrences",
+                    "partial": row[0] < total,
+                }
+            facets = {}
+            for name, expression in {
+                "device": "u.device",
+                "status": "u.status",
+                "campaign": "json_extract(c.summary,'$.campaign_id')",
+                "format": "json_extract(c.summary,'$.format')",
+                "disposition": "json_extract(c.summary,'$.disposition_status')",
+            }.items():
+                rows = db.execute(
+                    "SELECT "
+                    + expression
+                    + " AS label,COUNT(*)"
+                    + joined
+                    + " GROUP BY label ORDER BY COUNT(*) DESC,label LIMIT 101",
+                    values,
+                ).fetchall()
+                known_count = db.execute(
+                    "SELECT COUNT(" + expression + ")" + joined, values
+                ).fetchone()[0]
+                facets[name] = {
+                    "availability": "available" if known_count else "unavailable",
+                    "known": known_count,
+                    "unknown": total - known_count,
+                    "unit": "upload_occurrences",
+                    "truncated": len(rows) > 100,
+                    "items": [
+                        {"value": row[0], "count": row[1]}
+                        for row in rows[:100]
+                        if row[0] is not None
+                    ],
+                }
+            # The current versioned Platform summary does not carry these dimensions.
+            # Do not invent them from action text, display labels or packer versions.
+            for name in (
+                "action_family",
+                "decision_kind",
+                "character",
+                "difficulty",
+                "game_version",
+            ):
+                facets[name] = {
+                    "availability": "unavailable",
+                    "reason": "not_in_owner_summary_contract",
+                    "known": 0,
+                    "unknown": total,
+                    "unit": "upload_occurrences",
+                    "items": [],
+                    "truncated": False,
+                }
+            artifacts = dict(
+                db.execute("SELECT kind,COUNT(*) FROM console_artifacts GROUP BY kind").fetchall()
+            )
+        from .statistics import profile_summary
+
+        return {
+            "collection_profiles": profile_summary(self, principal, "collection"),
+            "dataset_profiles": profile_summary(self, principal, "dataset"),
+            "schema": "stpd/project-statistics-v1",
+            "observed_at": timestamp(),
+            "scope": "project" if project_member(principal) else "authorized_devices",
+            "device_filter": getattr(principal, "data_device", None),
+            "uploads": total,
+            "unique_content_ids": unique,
+            "duplicate_content_uploads": total - unique,
+            "metrics": metrics,
+            "facets": facets,
+            "artifacts": {
+                "counts": artifacts,
+                "scope": "owner_publication_and_explicit_refresh",
+                "inventory_complete": None,
+            },
+            "non_claims": [
+                "unique Human decisions",
+                "unique complete runs",
+                "research admission",
+                "exhaustive artifact inventory",
+                "model quality",
+            ],
+        }
+
     def artifacts(
         self,
         principal: ConsolePrincipal,
@@ -315,9 +476,17 @@ class ConsoleIndex:
         offset: int,
         artifact_id: str | None = None,
     ) -> dict[str, Any]:
-        if kind == "datasets" and not principal.research:
+        if kind in {"datasets", "training"} and not (
+            principal.research or project_member(principal)
+        ):
             return {**envelope([], 0, limit, offset), "availability": "not_authorized"}
-        kinds = ("dataset",) if kind == "datasets" else tuple(sorted(RESULT_KINDS))
+        kinds = {
+            "datasets": ("dataset",),
+            "training": ("training_input", "experiment", "run", "run_result", "checkpoint"),
+            "evaluations": ("offline_evaluation", "live_evaluation", "performance"),
+            "analyses": ("analysis",),
+            "models": tuple(sorted(RESULT_KINDS)),
+        }[kind]
         marks = ",".join("?" for _ in kinds)
         where = "kind IN (" + marks + ")"
         values = kinds
@@ -338,7 +507,11 @@ class ConsoleIndex:
             for row in rows:
                 item = json.loads(row["summary"])
                 # Lineage IDs are useful only under the same metadata permission as their node.
-                permitted_kinds = ARTIFACT_KINDS if principal.research else RESULT_KINDS
+                permitted_kinds = (
+                    ARTIFACT_KINDS
+                    if principal.research or project_member(principal)
+                    else RESULT_KINDS
+                )
                 parents = []
                 for parent in item["parents"]:
                     found = db.execute(
