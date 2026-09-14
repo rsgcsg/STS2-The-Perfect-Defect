@@ -1,4 +1,4 @@
-"""Read-only Hub deployment checks. Never builds, starts, writes or prints credentials."""
+"""Read-only Hub deployment checks. Never starts services or changes application data."""
 
 from __future__ import annotations
 
@@ -128,7 +128,10 @@ def check_compute(
 
 
 def check_console(secrets: dict[str, str], state: Path) -> dict[str, str]:
-    names = ("STPD_ACCESS_ISSUER", "STPD_ACCESS_AUDIENCE", "STPD_ACCESS_ALLOWLIST")
+    # Recognize the retired key only to explain the required explicit migration.
+    if "STPD_ACCESS_ALLOWLIST" in secrets:
+        raise PreflightError("legacy_runtime_allowlist_membership_migration_required")
+    names = ("STPD_ACCESS_ISSUER", "STPD_ACCESS_AUDIENCE")
     if not any(key in secrets for key in names):
         return {"browser_console": "disabled"}
     if not all(secrets.get(key) for key in names):
@@ -137,21 +140,68 @@ def check_console(secrets: dict[str, str], state: Path) -> dict[str, str]:
         raise PreflightError("invalid_access_issuer")
     if re.fullmatch(r"[a-f0-9]{64}", secrets[names[1]]) is None:
         raise PreflightError("invalid_access_audience")
-    container = Path(secrets[names[2]])
-    mount = Path("/var/lib/stpd")
-    if not container.is_relative_to(mount) or ".." in container.parts:
-        raise PreflightError("access_allowlist_must_be_inside_mounted_state")
-    path = state / container.relative_to(mount)
+    path = state / "operations.sqlite"
     if any(part.is_symlink() for part in (path, *path.parents)):
-        raise PreflightError("access_allowlist_symlinks_forbidden")
-    info = path.stat()
-    if (not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_size > 65536
-            or owner_uid(path) != 10001):
-        raise PreflightError("access_allowlist_requires_bounded_private_uid_10001_file")
-    value = json.loads(path.read_bytes())
-    if not isinstance(value, dict) or value.get("schema") != "stpd/console-access-v1":
-        raise PreflightError("invalid_access_allowlist")
-    return {"browser_console": "configured_not_live_qualified"}
+        raise PreflightError("membership_database_symlinks_forbidden")
+    if not path.is_file():
+        raise PreflightError("membership_database_explicit_bootstrap_required")
+    for candidate in (path, Path(str(path) + "-wal"), Path(str(path) + "-shm")):
+        if candidate.is_symlink():
+            raise PreflightError("membership_database_symlinks_forbidden")
+        if candidate.exists():
+            info = candidate.stat()
+            if (not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077
+                    or owner_uid(candidate) != 10001):
+                raise PreflightError("membership_database_requires_private_uid_10001_file")
+    try:
+        # Do not instantiate Operations: it owns migrations and writes. A read transaction
+        # includes committed WAL state; immutable=1 would silently ignore current members.
+        with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True,
+                                     timeout=2)) as db:
+            db.execute("PRAGMA query_only=ON")
+            db.execute("BEGIN")
+            if db.execute("PRAGMA user_version").fetchone() != (4,):
+                raise PreflightError("membership_schema4_migration_required")
+            initialized = db.execute(
+                "SELECT value FROM settings WHERE key='membership_initialized'",
+            ).fetchone()
+            if initialized != ("1",):
+                raise PreflightError("membership_explicit_bootstrap_required")
+            admins = db.execute(
+                "SELECT id,email,issuer,subject,access_subject FROM identity_members "
+                "WHERE role='admin' AND status='active'",
+            ).fetchall()
+            if any(row[2] == secrets[names[0]] and row[3] and row[4] for row in admins):
+                return {"browser_console": "configured_not_live_qualified",
+                        "membership": "hub_operations_active_admin"}
+            pending = db.execute(
+                "SELECT value FROM settings WHERE key='membership_bootstrap_pending_admin'",
+            ).fetchone()
+            invited = db.execute(
+                "SELECT id,email,issuer,subject,access_subject FROM identity_members "
+                "WHERE role='admin' AND status='invited'",
+            ).fetchall()
+            if (not admins and pending and len(invited) == 1
+                    and pending == (invited[0][0],)
+                    and invited[0][2] == secrets[names[0]]
+                    and isinstance(invited[0][1], str)
+                    and re.fullmatch(r"[^\s@]+@[^\s@]+", invited[0][1])
+                    and len(invited[0][1]) <= 254
+                    and invited[0][3] is None and invited[0][4] is None
+                    and not db.execute(
+                        "SELECT 1 FROM identity_members WHERE status='active'",
+                    ).fetchone()
+                    and not db.execute("SELECT 1 FROM identity_users").fetchone()
+                    and not db.execute(
+                        "SELECT 1 FROM devices WHERE owner_subject IS NOT NULL",
+                    ).fetchone()
+                    and not db.execute("SELECT 1 FROM identity_sessions").fetchone()):
+                return {"browser_console": "bootstrap_pending",
+                        "membership": "hub_operations_first_admin_invited",
+                        "warning": "FIRST_ADMIN_LOGIN_REQUIRED"}
+            raise PreflightError("membership_active_admin_required")
+    except sqlite3.Error:
+        raise PreflightError("membership_database_unreadable_or_incompatible") from None
 
 
 def check_configuration(config: Path, *, allow_compute: bool = False) -> dict[str, Any]:

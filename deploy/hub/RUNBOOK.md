@@ -48,8 +48,11 @@ dc config -q
 ```
 
 `config -q` is deliberately silent; plain `config` can expose runtime env values. Preflight is
-read-only. Missing Docker, credentials, DNS or image identity remains a real external blocker.
-Do not treat a source test as permission to skip it.
+read-only with respect to application data; SQLite may maintain WAL reader bookkeeping.
+Missing Docker, credentials, DNS or image identity remains a real external blocker. Before
+enabling browser configuration on a new or schema-3 database, perform the explicit membership
+bootstrap below; preflight never initializes or migrates Operations. Do not treat a source test
+as permission to skip it.
 
 ## First load and verification
 
@@ -139,35 +142,28 @@ The Hub validates the JWT at the origin; a spoofed email header or direct-IP req
 bypass login. JWT key discovery uses only the configured Cloudflare team origin and is bounded.
 
 The account owner supplies the team domain and application AUD after creating the application.
-An operator prepares `/var/lib/stpd/console-access.json` in mounted private Hub state, owned
-by uid 10001 and mode 0600, using this format with real explicitly allowed devices:
+The runtime env has `STPD_ACCESS_ISSUER` and `STPD_ACCESS_AUDIENCE`. Hub Operations schema 4 is
+now the sole project-membership authority. Administrators invite and manage `member`/`admin`
+accounts through the authenticated console; Cloudflare establishes signed identity, not a
+project role. Existing per-email edge restrictions must also admit the intended login identity,
+but do not maintain a second project-role/permission list there. Keep operator credentials out
+of the console and collectors. Device tokens remain independent background-upload credentials.
 
-```json
-{"schema":"stpd/console-access-v1","principals":[
-  {"email":"collector@example.org","role":"collector","devices":["developer-device-01"]},
-  {"email":"new-collector@example.org","role":"collector","devices":[],"enroll_devices":true},
-  {"email":"reviewer@example.org","role":"reviewer","devices":["developer-device-01"]}
-]}
-```
-
-The new-collector entry explicitly permits first-device enrollment; omit it for people who
-must only view existing devices. Enrollment defaults to false, including for operators.
-The earlier CLI registration path remains available for a pre-provisioned device; claiming it
-requires its existing device credential and explicit device scope. Follow the
-[account protocol](../../docs/IDENTITY_PROTOCOL.md) and
+`STPD_ACCESS_ALLOWLIST` is retired as runtime configuration, even when set to an empty value.
+Preflight rejects it with `legacy_runtime_allowlist_membership_migration_required`; the old
+private JSON is only explicit one-time migration input. It must never be a fallback after a
+member is disabled. Follow the migration below before replacing an existing identity-enabled
+Hub. Missing issuer and audience disable the browser console; partial or malformed values
+fail closed. Neither login, membership nor device binding grants Human/upload/sharing consent.
+Follow the [account protocol](../../docs/IDENTITY_PROTOCOL.md) and
 [local first-login steps](../../docs/PROJECT_CONSOLE.md#download-sign-in-bind-once).
-Neither enrollment nor login grants recording/upload consent.
 
-The optional `subject` pins the exact validated Access subject in addition to email. Roles:
-`collector` sees listed or personally owned devices' collections and shared result metadata;
-`reviewer` additionally sees project Dataset metadata; `operator` also sees private operational
-status. No role gets raw/Dataset payload download or research/job writes through the console.
-Identity approval/denial is the separately guarded exception; see the account protocol guide.
-Research metadata roles are project-wide permissions, independent of the explicit device list.
-Use `STPD_ACCESS_ISSUER`, `STPD_ACCESS_AUDIENCE`, `STPD_ACCESS_ALLOWLIST` from the runtime env
-example, run preflight, then replace only the exact Hub candidate. Missing configuration keeps
-`/app` disabled. Partial or malformed configuration fails startup. Allowlist changes require a
-Hub restart; device revoke continues to affect Bearer access independently.
+Preflight opens the existing private uid-10001 `operations.sqlite` read-only, including committed
+WAL state. It requires schema 4, explicit initialized membership and a bound active administrator
+for the configured issuer. It reports `configured_not_live_qualified`, not successful browser
+qualification. The sole exception is a fresh, explicitly marked first-admin bootstrap, reported
+as `bootstrap_pending` with `FIRST_ADMIN_LOGIN_REQUIRED`; this is not an existing-site recovery
+or a way to bypass a missing administrator. No database repair or role grant happens in preflight.
 
 After a candidate changes owner summary support, explicitly rebuild its **derived index** once:
 
@@ -198,11 +194,105 @@ remain unqualified until their own exact evidence exists.
 
 Before real browser qualification, exercise missing/expired/wrong-audience/tampered JWT,
 plain email-header spoofing, direct-origin bypass, collector cross-device access, and preserved
-raw/Dataset restrictions. Then an allowlisted Human starts local login, compares the computer
+raw/Dataset restrictions. Then an invited project member starts local login, compares the computer
 name and pairing code, approves enrollment or connection of the intended existing device,
 and checks the same receipt and device scope locally and in the cloud. Local logout must clear
 personal views while retaining the device upload grant; reconnect must preserve that device ID.
 This is a login/UI gate, not GPU or new Human recording evidence.
+
+## Migrate schema 3 identities to Hub membership schema 4
+
+This is an explicit, paused service migration. Select the new exact source/lock/image and keep
+the previous schema-3 source/image/config plus private allowlist and identity master key as a
+paired recovery point. The import preserves matching existing account subjects, device owners,
+credentials, uploads and receipts; it does not rewrite Human evidence. Only the explicitly chosen
+bootstrap account becomes `admin`; former allowlist roles do not confer administrator authority.
+Ambiguous/mismatched account identity must be investigated, not remapped or silently re-created.
+
+1. Under the **old** deployment, pause dispatch and stop the backup timer. Wait for any backup
+   service/container to finish, then stop both proxy and Hub so there are no API writers. Stopping
+   the Hub does not stop external compute: reconcile any actual provider attempts first. Keep the
+   compute budget at zero and optional Modal configuration absent throughout this migration.
+
+   ```bash
+   hubctl pause
+   sudo systemctl stop stpd-backup.timer
+   sudo systemctl status stpd-backup.service --no-pager
+   sudo docker ps --filter name=stpd-backup-
+   dc stop caddy hub
+   ```
+
+2. Use the [backup helper](#consistent-private-off-host-backup) with the **old exact image** to
+   create and retrieve a closed, paused schema-3 snapshot. Do this before invoking any schema-4
+   command: construction of the new `Operations` may migrate its schema even if a later membership
+   import fails. Retain the receipt, old image/config identities and private recovery material.
+   Never copy the live main SQLite file alone or overwrite an existing retrieval destination.
+
+   ```bash
+   backupctl backup
+   backupctl restore-check --receipt EXACT_SCHEMA3_BACKUP_RECEIPT_SHA256 --destination /var/lib/stpd/backups/pre-membership-verified.sqlite
+   ```
+
+3. Select the reviewed schema-4 image in the external deployment env and pull it. Keep the Hub
+   stopped. Review the old allowlist file against retained subjects and devices; its path below
+   is container-relative mounted private state, not a new runtime env setting. Inject the chosen
+   existing administrator's email into the operator environment as `STPD_BOOTSTRAP_ADMIN_EMAIL`
+   through the secure operator facility. Its value never appears in command arguments or logs.
+   Run the explicit bootstrap with the new image:
+
+   ```bash
+   dc pull hub
+   sudo --preserve-env=STPD_BOOTSTRAP_ADMIN_EMAIL docker compose --env-file /etc/stpd/deployment.env -f "$STPD_HUB_COMPOSE_FILE" run --rm --no-deps -e STPD_BOOTSTRAP_ADMIN_EMAIL hub members-bootstrap --state /var/lib/stpd --legacy-allowlist /var/lib/stpd/console-access.json
+   unset STPD_BOOTSTRAP_ADMIN_EMAIL
+   ```
+
+   The command opens no cloud store, starts no API and uses no GPU. It reads `STPD_ACCESS_ISSUER`
+   from the existing runtime env. It is intentionally one-time: an initialized membership DB
+   is not imported again on restart. Inspect its sanitized result and verify retained account
+   subjects, device IDs/owners and upload/receipt identities against the pre-migration inventory.
+   Use an existing verified account as admin for a populated installation; otherwise preflight
+   correctly blocks an admin-less migration. Resolve the import/identity cause before proceeding.
+
+4. Remove `STPD_ACCESS_ALLOWLIST` entirely from the runtime env through the secure editor. Retain
+   its old bytes privately with the old-image recovery material; changing that file no longer
+   changes access. Keep issuer/audience and the existing identity master/admin key unchanged.
+   Run the schema-4 preflight and start only the exact reviewed candidate:
+
+   ```bash
+   sudo python3 deploy/hub/preflight.py --config /etc/stpd/deployment.env --host
+   dc config -q
+   dc up -d
+   hubctl status
+   ```
+
+   Verify actual source/lock/OCI identity, health/TLS, missing/forged authentication rejection,
+   administrator login, retained device connection and exact existing receipts. Verify disabling
+   a member immediately denies cached personal access without relying on a Hub restart. These
+   are service/identity gates, not new Human recording, Dataset admission or training evidence.
+   Produce and retrieve a **new schema-4** backup with the new exact image before restarting the
+   backup timer. Keep dispatch paused until recovery/unknown-attempt checks permit unpausing.
+
+### Fresh installation and rollback boundary
+
+For a genuinely empty installation, run the same explicit `members-bootstrap` command without
+`--legacy-allowlist`; do not invent historical account/device bindings. The sole administrator
+starts as invited, with an owning `membership_bootstrap_pending_admin` marker. Preflight permits
+only that marker's one invited administrator, matching issuer and a valid email, with no active
+members, existing user identities, owned devices or personal sessions. Its
+`FIRST_ADMIN_LOGIN_REQUIRED` warning means the named person must log in through verified Access.
+Activation clears the marker in the same owning transaction. Rerun preflight to establish the
+active-admin state before claiming account setup complete. Never edit SQLite to simulate login,
+re-create the marker for recovery, or disable browser authorization to bypass it.
+
+A schema-4 DB cannot be downgraded by starting the schema-3 image, deleting new tables, changing
+`user_version`, or reintroducing the runtime allowlist. Rollback pairs the exact old image with
+its pre-migration paused backup and compatible private configuration, including the old allowlist
+only when that old image requires it. Use [paused restore](#restore-into-paused-state) into a fresh
+state directory, leaving migrated state intact for audit. Newer uploads, grants, revocations and
+attempts are not present in the older recovery point; account for those differences and reconcile
+external objects/provider work before opening access. No restore may silently revive a revoked
+credential or treat a missing receipt as permission to resubmit an unknown operation. Prefer a
+forward repair when discarding post-migration operational state would lose authoritative facts.
 
 ## Normal operations and incident handling
 
@@ -398,8 +488,8 @@ sudo docker ps --filter name=stpd-backup-
 Confirm no backup container remains before proceeding; stopping a service/client alone does
 not prove container termination. Select the exact image/config paired with the recovery point
 before invoking `backupctl restore-check`: it checks the backup schema against that image's
-schema. In particular, a schema-3 to schema-2 rollback uses the predecessor image and its
-pre-migration backup, never the migrated live database. Preserve the matching identity
+schema. In particular, schema-4 to schema-3 (or historical schema-3 to schema-2) rollback uses the
+predecessor image and its pre-migration backup, never the migrated live database. Preserve the matching identity
 master/admin key in external private recovery configuration; SQLite does not contain it.
 Then stop the Hub and retrieve the selected recovery point:
 
@@ -413,14 +503,14 @@ sudo install -d -m 0700 -o 10001 -g 10001 /srv/stpd/hub /srv/stpd/hub/work /srv/
 sudo install -m 0600 -o 10001 -g 10001 "$STPD_RETIRED_STATE/backups/recovery-verified.sqlite" /srv/stpd/hub/operations.sqlite
 ```
 
-If Access is configured, restore the reviewed private allowlist before preflight. The following
-uses the retained file only after reviewing its current membership and compatibility with the
-recovery image; whole-host recovery instead retrieves its separately retained private copy.
-Use the actual host path corresponding to `STPD_ACCESS_ALLOWLIST` if it differs:
-
-```bash
-sudo install -m 0600 -o 10001 -g 10001 "$STPD_RETIRED_STATE/console-access.json" /srv/stpd/hub/console-access.json
-```
+For a schema-4 recovery image, membership, roles, bindings and the initialized marker come from
+the compatible Operations backup; do not bootstrap it again or restore a runtime allowlist.
+Restore issuer/audience and the matching external identity master/admin key, then check a current
+active administrator and reconcile revocations since the backup before opening access. A missing
+administrator is an identity-recovery failure, not a reason to change role rows manually. Only
+when deliberately restoring the paired **old schema-3 image and schema-3 backup** should its
+reviewed old allowlist and `STPD_ACCESS_ALLOWLIST` runtime configuration be restored from private
+recovery material. Use that image's matching preflight; the schema-4 preflight correctly rejects it.
 
 Do not copy prior maintenance status, WAL/shm or scratch files. Missing Access configuration
 must remain fail-closed; disabling login checks is not a recovery step. Then validate and start:
