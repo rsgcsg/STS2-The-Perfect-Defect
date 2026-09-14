@@ -85,6 +85,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--selection", help="reviewed local policy registry selection")
     parser.add_argument(
+        "--runtime-archive",
+        type=Path,
+        help="explicit local pinned Runtime archive; close workbench first",
+    )
+    parser.add_argument(
         "--action",
         default="catalog",
         choices=(
@@ -92,6 +97,7 @@ def main(argv: list[str] | None = None) -> int:
             "status",
             "readiness",
             "download",
+            "install-runtime",
             "start",
             "human",
             "shadow",
@@ -130,7 +136,11 @@ def main(argv: list[str] | None = None) -> int:
                 from .local_model_cli import model_command
 
                 result = model_command(
-                    config, args.action, selection=args.selection, artifact=args.artifact
+                    config,
+                    args.action,
+                    selection=args.selection,
+                    artifact=args.artifact,
+                    runtime_archive=args.runtime_archive,
                 )
             elif args.command == "credential":
                 if args.credential_file is None:

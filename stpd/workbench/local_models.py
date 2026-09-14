@@ -30,9 +30,10 @@ from uuid import uuid4
 from ..artifact_contracts import Manifest
 from ..canonical import canonical_json
 from ..json_boundary import BoundaryError, decode_json, digest, object_fields
-from ..package_identity import PackageIdentityError, file_sha256, validate_installed_package
+from ..package_identity import PackageIdentityError, file_sha256
 from .developer import ROOT, ProjectConfig, atomic_json, endpoint
 from .hub_client import HubClient, NoRedirect
+from .runtime_install import install_runtime, validate_runtime_install
 
 SCHEMA = "stpd/local-models-v1"
 RUNTIME_PACKAGE = "@rsgcsg/sts2-policy-runtime"
@@ -206,7 +207,11 @@ class LocalModelService:
             object_fields(
                 entry, {"id", "label", "adapter", "manifest", "config"}, "local_model.policy"
             )
-            if entry["adapter"] != "s1-v1" or not re.fullmatch(r"[a-z0-9-]{1,80}", entry["id"]):
+            if (
+                entry["adapter"] != "s1-v1"
+                or not isinstance(entry["id"], str)
+                or not re.fullmatch(r"[a-z0-9-]{1,80}", entry["id"])
+            ):
                 raise BoundaryError("local_model", "unsupported_trusted_adapter")
             if entry["id"] in seen:
                 raise BoundaryError("local_model", "duplicate_policy_selection")
@@ -225,31 +230,36 @@ class LocalModelService:
         pin = self.registry()["runtime_package"]
         if not isinstance(pin, dict) or pin.get("package") != RUNTIME_PACKAGE:
             raise BoundaryError("local_model", "runtime_package_not_pinned")
-        package = self.root / "node_modules" / RUNTIME_PACKAGE
-        if package.is_symlink():
-            raise BoundaryError("local_model", "sibling_runtime_package_forbidden")
         try:
-            observed = validate_installed_package(
-                package, pin, required_paths=("dist/cli.js", "bin/policy-runtime.mjs")
-            )
-            connector_name = "@rsgcsg/sts2-connector-client"
-            connector_pin = next(
-                p
-                for p in self.config.combination["node_packages"]
-                if p.get("package") == connector_name
-            )
-            connector_root = self.root / "node_modules" / connector_name
-            if connector_root.is_symlink():
-                raise PackageIdentityError("sibling Connector package is unsupported")
-            validate_installed_package(
-                connector_root, connector_pin, required_paths=("package.json",)
-            )
+            return validate_runtime_install(self._node_modules(), pin, self._connector_pin())
         except (OSError, ValueError, StopIteration, PackageIdentityError):
             raise BoundaryError("local_model", "runtime_package_missing_or_drifted") from None
-        checksum = hashlib.sha256()
-        for path in sorted((package / "dist").glob("*.js")):
-            checksum.update(path.name.encode() + b"\0" + path.read_bytes() + b"\0")
-        return {**observed, "code_sha256": checksum.hexdigest()}
+
+    def _connector_pin(self) -> dict[str, Any]:
+        return next(
+            p
+            for p in self.config.combination["node_packages"]
+            if p.get("package") == "@rsgcsg/sts2-connector-client"
+        )
+
+    def _node_modules(self) -> Path:
+        private = self.directory / "runtime"
+        if private.is_symlink():
+            raise BoundaryError("local_model", "runtime_install_path_unsafe")
+        return private / "node_modules" if private.exists() else self.root / "node_modules"
+
+    def install_runtime(self) -> dict[str, Any]:
+        if self.client is not None or (self.process is not None and self.process.poll() is None):
+            raise BoundaryError("local_model", "stop_runtime_before_install")
+
+        def install() -> None:
+            report = install_runtime(
+                self.directory, self.registry()["runtime_package"], self._connector_pin()
+            )
+            with self.lock:
+                self.state.update(status="idle", last_runtime_install=report)
+
+        return self._begin("install-runtime", install)
 
     def catalog(self) -> dict[str, Any]:
         entries = []
@@ -487,7 +497,7 @@ class LocalModelService:
         connector = _loopback(self.config.platform_url or "http://127.0.0.1:15526")
         command = [
             "node",
-            str(self.root / "node_modules" / RUNTIME_PACKAGE / "dist/cli.js"),
+            str(self._node_modules() / RUNTIME_PACKAGE / "dist/cli.js"),
             "--manifest",
             str(manifest_path),
             "--adapter-command",
@@ -520,16 +530,18 @@ class LocalModelService:
             }:
                 environment.pop(name, None)
         self.directory.mkdir(parents=True, exist_ok=True)
-        with (self.directory / "runtime.log").open("ab") as log:
-            process = subprocess.Popen(
-                command,
-                cwd=self.root,
-                env=environment,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=log,
-            )
         with self.lock:
+            if self.closed:
+                raise BoundaryError("local_model", "service_closed")
+            with (self.directory / "runtime.log").open("ab") as log:
+                process = subprocess.Popen(
+                    command,
+                    cwd=self.root,
+                    env=environment,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=log,
+                )
             self.process = process
             self.state.update(status="loading", loaded=False)
             self._save()
@@ -563,6 +575,8 @@ class LocalModelService:
             client = RuntimeClient(startup["address"], startup)
             runtime = client.request("/status")["status"]
             with self.lock:
+                if self.closed:
+                    raise BoundaryError("local_model", "service_closed")
                 self.client = client
                 self.state.update(
                     status="loaded", loaded=True, startup=startup, runtime=runtime, error_code=None

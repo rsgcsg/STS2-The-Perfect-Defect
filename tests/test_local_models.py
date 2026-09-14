@@ -225,6 +225,27 @@ def test_restarted_service_does_not_guess_pid_or_activate(service):
         replacement.start("s1-human-combat-v3")
 
 
+def test_shutdown_during_readiness_cannot_launch_a_late_runtime(service, monkeypatch):
+    checking, release = threading.Event(), threading.Event()
+    calls = []
+
+    def readiness(_):
+        checking.set()
+        assert release.wait(timeout=3)
+        return {"status": "ready_to_load"}
+
+    monkeypatch.setattr(service, "readiness", readiness)
+    monkeypatch.setattr(service, "_runtime_package", lambda: {"version": "fixture"})
+    monkeypatch.setattr(local_models.subprocess, "Popen", lambda *a, **k: calls.append(a))
+    service.start("s1-human-combat-v3")
+    assert checking.wait(timeout=2)
+    service.close()
+    release.set()
+    finished(service)
+    assert calls == []
+    assert service.state["loaded"] is False
+
+
 def test_start_uses_fixed_command_human_and_rejects_foreign_attestation(service, monkeypatch):
     monkeypatch.setattr(service, "readiness", lambda _: {"status": "ready_to_load"})
     monkeypatch.setattr(
