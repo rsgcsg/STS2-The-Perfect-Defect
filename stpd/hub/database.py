@@ -5,11 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import secrets
 import sqlite3
 import time
 from collections.abc import Iterator
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, suppress
 from pathlib import Path
 from typing import Any, cast
 
@@ -22,12 +23,30 @@ def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def create_private_database(path: Path) -> None:
+    """Own the new inode before SQLite writes private state or creates WAL sidecars.
+
+    Exclusive creation never adjusts an existing database or a symlink target.
+    Existing deployment permissions remain an explicit operator/preflight contract.
+    """
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
+        else:
+            path.chmod(0o600)
+    finally:
+        os.close(descriptor)
+
+
 class Operations:
     """One authoritative operational DB; do not delete it like a Registry cache."""
 
     def __init__(self, path: Path) -> None:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
+        with suppress(FileExistsError):
+            create_private_database(path)
         with self.transaction() as db:
             version = db.execute("PRAGMA user_version").fetchone()[0]
             if version not in {0, 1, 2, 3, CURRENT_SCHEMA}:
@@ -107,7 +126,12 @@ class Operations:
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
-        db = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        db = sqlite3.connect(
+            self.path.resolve().as_uri() + "?mode=rw",
+            uri=True,
+            timeout=30,
+            isolation_level=None,
+        )
         db.row_factory = sqlite3.Row
         try:
             db.execute("PRAGMA journal_mode=WAL")
@@ -600,12 +624,16 @@ class Operations:
             )
 
     def backup(self, destination: Path) -> None:
-        if destination.exists():
-            raise BoundaryError("hub", "backup_exists")
         destination.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            create_private_database(destination)
+        except FileExistsError:
+            raise BoundaryError("hub", "backup_exists") from None
         with (
-            closing(sqlite3.connect(self.path)) as source,
-            closing(sqlite3.connect(destination)) as target,
+            closing(sqlite3.connect(self.path.resolve().as_uri() + "?mode=ro", uri=True)) as source,
+            closing(
+                sqlite3.connect(destination.resolve().as_uri() + "?mode=rw", uri=True)
+            ) as target,
         ):
             source.backup(target)
             target.execute("UPDATE settings SET value='1' WHERE key='paused'")

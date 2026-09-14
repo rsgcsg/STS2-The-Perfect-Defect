@@ -241,7 +241,17 @@ Ambiguous/mismatched account identity must be investigated, not remapped or sile
    backupctl restore-check --receipt EXACT_SCHEMA3_BACKUP_RECEIPT_SHA256 --destination /var/lib/stpd/backups/pre-membership-verified.sqlite
    ```
 
-3. Select the reviewed schema-4 image in the external deployment env and pull it. Keep the Hub
+3. Keep all API, verifier and backup writers stopped. Inspect the exact `operations.sqlite`
+   and any existing `-wal`/`-shm` files in the configured private state directory: each must be
+   a regular non-symlink file owned by UID 10001, beneath the UID-10001 directory with mode 0700.
+   Older SQLite creation under umask 022 may have left mode 0644. Record each file's identity,
+   mode, size and SHA256; explicitly apply mode 0600 **as UID 10001 to only those verified files**,
+   then verify the same identity/size/hash and the new mode. Do not use recursive chmod, change
+   ownership, remove sidecars or checkpoint the database as part of this permission repair.
+   New Operations databases and snapshots are created privately before data is written; existing
+   files are never silently chmodded by startup or preflight.
+
+   Select the reviewed schema-4 image in the external deployment env and pull it. Keep the Hub
    stopped. Review the old allowlist file against retained subjects and devices; its path below
    is container-relative mounted private state, not a new runtime env setting. Inject the chosen
    existing administrator's email into the operator environment as `STPD_BOOTSTRAP_ADMIN_EMAIL`
