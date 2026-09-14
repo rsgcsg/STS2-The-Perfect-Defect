@@ -13,7 +13,8 @@ import shutil
 import sqlite3
 import stat
 import subprocess
-from contextlib import closing
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -161,6 +162,42 @@ def check_compute(
             "compute": "configured_budget_zero" if not budget else "explicitly_enabled"}
 
 
+@contextmanager
+def membership_reader_owner(path: Path) -> Iterator[None]:
+    """Scope the single-threaded Linux host reader to the verified database owner.
+
+    SQLite's read-only WAL connection can create -wal/-shm. Those files must belong
+    to the Hub, and closing the connection must happen before operator identity returns.
+    This host-only context must not be used by a threaded server or library worker.
+    """
+    if platform.system() != "Linux":
+        yield
+        return
+    if owner_uid(path) != 10001:
+        raise PreflightError("membership_database_requires_private_uid_10001_file")
+    original_uid = os.geteuid()
+    if original_uid == 10001:
+        yield
+        return
+    if original_uid != 0:
+        raise PreflightError("membership_reader_requires_root_or_database_owner")
+    import threading
+
+    if threading.active_count() != 1:
+        raise PreflightError("membership_reader_requires_single_threaded_host")
+    original_gid, original_groups = os.getegid(), os.getgroups()
+    try:
+        os.setgroups([])
+        os.setegid(path.stat().st_gid)
+        os.seteuid(10001)
+        yield
+    finally:
+        # This finally starts before the first switch: partial failures restore too.
+        os.seteuid(original_uid)
+        os.setegid(original_gid)
+        os.setgroups(original_groups)
+
+
 def check_console(secrets: dict[str, str], state: Path) -> dict[str, str]:
     # Recognize the retired key only to explain the required explicit migration.
     if "STPD_ACCESS_ALLOWLIST" in secrets:
@@ -190,8 +227,9 @@ def check_console(secrets: dict[str, str], state: Path) -> dict[str, str]:
     try:
         # Do not instantiate Operations: it owns migrations and writes. A read transaction
         # includes committed WAL state; immutable=1 would silently ignore current members.
-        with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True,
-                                     timeout=2)) as db:
+        with membership_reader_owner(path), closing(
+            sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=2),
+        ) as db:
             db.execute("PRAGMA query_only=ON")
             db.execute("BEGIN")
             if db.execute("PRAGMA user_version").fetchone() != (4,):

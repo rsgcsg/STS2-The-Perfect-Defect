@@ -17,6 +17,14 @@ from test_support import PosixPermissionFixture
 
 
 class PreflightTests(PosixPermissionFixture):
+    def setUp(self) -> None:
+        super().setUp()
+        # Existing portable membership fixtures mock file UID10001; exercise the
+        # already-running-as-owner branch without requiring privileged CI.
+        uid = patch.object(preflight.os, "geteuid", return_value=10001, create=True)
+        uid.start()
+        self.addCleanup(uid.stop)
+
     @staticmethod
     def membership_database(root: Path, *, schema: int = 4, active: bool = True) -> Path:
         path = root / "operations.sqlite"
