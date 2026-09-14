@@ -14,9 +14,15 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 from stpd.artifact_contracts import Manifest, Parent, Producer
 from stpd.hub.application import HubApplication
-from stpd.hub.console_auth import AccessVerifier, ConsolePrincipal, configured_access
+from stpd.hub.console_auth import (
+    AccessVerifier,
+    ConsolePrincipal,
+    configured_access,
+    load_legacy_allowlist,
+)
 from stpd.hub.console_index import ConsoleIndex, pagination
 from stpd.hub.database import Operations
+from stpd.hub.membership import MembershipService
 from stpd.hub.uploads import LocalStaging, UploadService
 from stpd.json_boundary import BoundaryError, FrozenObject
 from stpd.storage.local import LocalBlobStore
@@ -37,20 +43,7 @@ def signed() -> Any:
         calls.append(1)
         return {"keys": [public]}
 
-    verifier = AccessVerifier(
-        ISSUER,
-        AUDIENCE,
-        [
-            {
-                "email": "owner@example.org",
-                "subject": "known-subject",
-                "role": "operator",
-                "devices": ["one", "two"],
-            },
-            {"email": "collector@example.org", "role": "collector", "devices": ["one"]},
-        ],
-        fetch_keys=fetch,
-    )
+    verifier = AccessVerifier(ISSUER, AUDIENCE, fetch_keys=fetch)
 
     def token(**overrides: Any) -> str:
         claims = {
@@ -72,6 +65,25 @@ def service(tmp_path: Path) -> UploadService:
     ops = Operations(tmp_path / "operations.sqlite")
     ops.register("one", "one" * 16)
     ops.register("two", "two" * 16)
+    MembershipService(ops).bootstrap(
+        issuer=ISSUER,
+        admin_email="owner@example.org",
+        legacy_principals=[
+            {
+                "email": "owner@example.org",
+                "subject": "known-subject",
+                "role": "operator",
+                "devices": ["one", "two"],
+                "enroll_devices": True,
+            },
+            {
+                "email": "collector@example.org",
+                "role": "collector",
+                "devices": ["one"],
+                "enroll_devices": False,
+            },
+        ],
+    )
     return UploadService(
         ops,
         LocalStaging(tmp_path / "stage", "http://127.0.0.1:8765"),
@@ -113,16 +125,19 @@ def call(
 
 def test_access_verifies_signature_claims_subject_and_negative_cache(signed: Any) -> None:
     verifier, token, calls = signed
-    assert verifier.authenticate(token()).role == "operator"
-    assert verifier.authenticate(token(email="COLLECTOR@example.org")).devices == ("one",)
+    assert verifier.authenticate(token()).role == "authenticated"
+    assert verifier.authenticate(token(email="COLLECTOR@example.org")).devices == ()
+    assert (
+        verifier.authenticate(token(email="other@example.org", sub="other")).role == "authenticated"
+    )
     for overrides in (
         {"exp": 1},
         {"iss": "https://evil.invalid"},
         {"aud": "b" * 64},
         {"iat": int(time.time()) + 500},
         {"nbf": int(time.time()) + 500},
-        {"email": "other@example.org"},
-        {"sub": "other"},
+        {"email": "invalid-address"},
+        {"sub": ""},
         {"type": "org"},
     ):
         with pytest.raises(BoundaryError, match="unauthorized"):
@@ -273,7 +288,7 @@ def test_private_config_absence_partial_issuer_and_permissions(tmp_path: Path) -
         ISSUER + "/",
     ):
         with pytest.raises(BoundaryError, match="invalid_access_issuer"):
-            AccessVerifier(issuer, AUDIENCE, [])
+            AccessVerifier(issuer, AUDIENCE)
     allowlist = tmp_path / "allowlist.json"
     allowlist.write_text(
         json.dumps(
@@ -291,11 +306,15 @@ def test_private_config_absence_partial_issuer_and_permissions(tmp_path: Path) -
         "STPD_ACCESS_ALLOWLIST": str(allowlist),
     }
     allowlist.chmod(0o600)
+    with pytest.raises(BoundaryError, match="explicit_membership_import"):
+        configured_access(env)
+    assert load_legacy_allowlist(allowlist)[0]["role"] == "operator"
+    env.pop("STPD_ACCESS_ALLOWLIST")
     assert configured_access(env) is not None
     if __import__("os").name != "nt":
         allowlist.chmod(0o644)
         with pytest.raises(BoundaryError, match="private_bounded"):
-            configured_access(env)
+            load_legacy_allowlist(allowlist)
     for query in (
         "limit=0",
         "limit=101",
@@ -481,7 +500,7 @@ def test_public_landing_links_public_source_without_private_scope(tmp_path: Path
 
 def test_jwks_outage_is_bounded_and_never_reuses_expired_cache(signed: Any) -> None:
     verifier, token, _ = signed
-    assert verifier.authenticate(token()).role == "operator"
+    assert verifier.authenticate(token()).role == "authenticated"
     calls = []
 
     def failed() -> None:

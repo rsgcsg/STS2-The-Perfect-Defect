@@ -18,9 +18,10 @@ from typing import Any, cast
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from ..json_boundary import BoundaryError
-from .console_auth import AccessVerifier, ConsolePrincipal
+from .console_auth import AccessVerifier, ConsolePrincipal, verified_identity
 from .console_index import timestamp
 from .database import Operations, token_hash
+from .membership import MembershipService
 
 PERSONAL_PREFIX = "stpd_personal_"
 FLOW_SECONDS = 600
@@ -63,6 +64,7 @@ class IdentityService:
         public_origin: str = "",
     ) -> None:
         self.ops, self.access, self.key = operations, access, key
+        self.membership = MembershipService(operations)
         self.key_id = self.mac("key-id")
         self.origin = ""
         if public_origin:
@@ -111,18 +113,20 @@ class IdentityService:
 
     def principal(self, principal: ConsolePrincipal) -> ConsolePrincipal:
         with self.ops.transaction() as db:
-            owned = [
-                row[0]
-                for row in db.execute(
-                    "SELECT id FROM devices WHERE owner_subject=? ORDER BY id", (principal.subject,)
-                )
-            ]
-        return replace(principal, devices=tuple(sorted(set(principal.devices) | set(owned))))
+            return self.membership.authorize(
+                db, principal, activate=bool(principal.session_binding)
+            )
 
     def devices(self, principal: ConsolePrincipal) -> list[dict[str, Any]]:
         result = []
         with self.ops.transaction() as db:
-            for identity in principal.devices:
+            principal = self.membership.authorize(db, principal)
+            identities = (
+                [row[0] for row in db.execute("SELECT id FROM devices ORDER BY id")]
+                if principal.project_shared
+                else principal.devices
+            )
+            for identity in identities:
                 row = db.execute("SELECT * FROM devices WHERE id=?", (identity,)).fetchone()
                 result.append(
                     {
@@ -133,6 +137,14 @@ class IdentityService:
                         if row and row["last_seen"]
                         else None,
                         "presence": "not_observed",
+                        "can_revoke": bool(
+                            row
+                            and row["active"]
+                            and (
+                                principal.role == "admin"
+                                or row["owner_subject"] == principal.subject
+                            )
+                        ),
                         "ownership": (
                             "owned_by_you"
                             if row["owner_subject"] == principal.subject
@@ -161,6 +173,8 @@ class IdentityService:
         return result
 
     def check_browser_write(self, principal: ConsolePrincipal, origin: str, csrf: Any) -> None:
+        if not principal.session_binding or principal.expires_at <= time.time():
+            raise BoundaryError("identity", "browser_identity_required")
         if not self.origin or origin != self.origin:
             raise BoundaryError("identity", "identity_origin_rejected")
         try:
@@ -182,11 +196,7 @@ class IdentityService:
         if token.startswith(PERSONAL_PREFIX):
             raise BoundaryError("identity", "unauthorized")
         with self.ops.transaction() as db:
-            row = db.execute(
-                "SELECT * FROM devices WHERE token_hash=? AND active=1", (token_hash(token),)
-            ).fetchone()
-            if row is None:
-                raise BoundaryError("identity", "unauthorized")
+            row = self.ops.authenticated_device(db, token)
             seen = time.time() if heartbeat else row["last_seen"]
             if heartbeat:
                 db.execute("UPDATE devices SET last_seen=? WHERE id=?", (seen, row["id"]))
@@ -250,6 +260,7 @@ class IdentityService:
 
     def flow_view(self, identity: str, principal: ConsolePrincipal) -> dict[str, Any]:
         with self.ops.transaction() as db:
+            principal = self.membership.authorize(db, principal)
             row = self.flow(db, identity)
             state = "expired" if row["expires_at"] <= time.time() else row["status"]
             return {
@@ -270,15 +281,24 @@ class IdentityService:
 
     @staticmethod
     def eligible(db: sqlite3.Connection, row: sqlite3.Row, principal: ConsolePrincipal) -> bool:
+        active_owned = db.execute(
+            "SELECT COUNT(*) FROM devices WHERE owner_subject=? AND active=1", (principal.subject,)
+        ).fetchone()[0]
         if row["device_proof_hash"] is None:
-            return principal.enroll_devices
+            return principal.enroll_devices and active_owned < principal.device_quota
         device = db.execute("SELECT * FROM devices WHERE id=?", (row["device_id"],)).fetchone()
         return bool(
             device
-            and device["active"]
+            and Operations.device_authorized(db, device["id"])
             and device["token_hash"] == row["device_proof_hash"]
             and device["owner_subject"] in {None, principal.subject}
-            and (device["id"] in principal.devices or device["owner_subject"] == principal.subject)
+            and (
+                device["owner_subject"] == principal.subject
+                or (
+                    device["id"] in principal.claim_devices
+                    and active_owned < principal.device_quota
+                )
+            )
         )
 
     def token(self, purpose: str, row: sqlite3.Row) -> str:
@@ -289,6 +309,7 @@ class IdentityService:
         code = text(body["user_code"], 8)
         now = time.time()
         with self.ops.transaction() as db:
+            principal = self.membership.authorize(db, principal)
             row = self.flow(db, identity)
             if (
                 row["status"] != "pending"
@@ -315,21 +336,9 @@ class IdentityService:
                 >= 32
             ):
                 raise BoundaryError("identity", "identity_session_capacity")
-            db.execute(
-                "INSERT INTO identity_users VALUES(?,?,?,?) ON CONFLICT(subject) "
-                "DO UPDATE SET email=excluded.email",
-                (principal.subject, principal.issuer, principal.access_subject, principal.email),
-            )
             device_id = row["device_id"]
             new_device = device_id is None
             if new_device:
-                if (
-                    db.execute(
-                        "SELECT COUNT(*) FROM devices WHERE owner_subject=?", (principal.subject,)
-                    ).fetchone()[0]
-                    >= 128
-                ):
-                    raise BoundaryError("identity", "identity_device_capacity")
                 device_id = "device-" + secrets.token_hex(16)
                 db.execute(
                     "INSERT INTO devices(id,token_hash,name,owner_subject) VALUES(?,?,?,?)",
@@ -372,7 +381,7 @@ class IdentityService:
         return {"status": "approved"}
 
     def personal(self, token: str) -> ConsolePrincipal:
-        access = self.required_access()
+        self.required_access()
         if re.fullmatch(PERSONAL_PREFIX + r"[a-f0-9]{64}", token) is None:
             raise BoundaryError("identity", "unauthorized")
         with self.ops.transaction() as db:
@@ -381,10 +390,10 @@ class IdentityService:
                 "ON u.subject=s.subject WHERE s.token_hash=? AND s.expires_at>?",
                 (token_hash(token), time.time()),
             ).fetchone()
-        if row is None:
-            raise BoundaryError("identity", "unauthorized")
-        principal = access.member(row["issuer"], row["access_subject"], row["email"])
-        return self.principal(replace(principal, expires_at=row["expires_at"]))
+            if row is None:
+                raise BoundaryError("identity", "unauthorized")
+            principal = verified_identity(row["issuer"], row["access_subject"], row["email"])
+            return self.membership.authorize(db, replace(principal, expires_at=row["expires_at"]))
 
     def poll(self, identity: str, value: Any, *, acknowledge: bool = False) -> dict[str, Any]:
         body = fields(value, {"client_secret"})
@@ -448,14 +457,22 @@ class IdentityService:
                 self.ops._event(db, row["subject"], "personal_session_logged_out", "self", {})
         return {"status": "logged_out"}
 
-    @staticmethod
-    def scoped_query(principal: ConsolePrincipal, query: str) -> tuple[ConsolePrincipal, str]:
+    def scoped_query(self, principal: ConsolePrincipal, query: str) -> tuple[ConsolePrincipal, str]:
         try:
             values = parse_qsl(query, strict_parsing=True, keep_blank_values=True, max_num_fields=4)
             devices = [value for name, value in values if name == "device"]
-            if len(devices) > 1 or (devices and devices[0] not in principal.devices):
+            if len(devices) > 1:
                 raise ValueError
+            if devices:
+                with self.ops.transaction() as db:
+                    principal = self.membership.authorize(db, principal)
+                    if (
+                        not principal.project_shared
+                        or db.execute("SELECT 1 FROM devices WHERE id=?", (devices[0],)).fetchone()
+                        is None
+                    ):
+                        raise ValueError
         except ValueError:
             raise BoundaryError("identity", "identity_device_not_authorized") from None
-        scoped = replace(principal, devices=(devices[0],)) if devices else principal
+        scoped = replace(principal, data_device=devices[0]) if devices else principal
         return scoped, urlencode([(name, value) for name, value in values if name != "device"])

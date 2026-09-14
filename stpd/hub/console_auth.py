@@ -31,10 +31,20 @@ class ConsolePrincipal:
     expires_at: float = 0
     session_binding: str = ""
     enroll_devices: bool = False
+    device_quota: int = 0
+    owned_devices: tuple[str, ...] = ()
+    claim_devices: tuple[str, ...] = ()
+    member_id: str = ""
+    membership_status: str = ""
+    data_device: str | None = None
+
+    @property
+    def project_shared(self) -> bool:
+        return self.role in {"member", "admin"}
 
     @property
     def research(self) -> bool:
-        return self.role in {"reviewer", "operator"}
+        return self.role in {"member", "admin"}
 
     def public(self) -> dict[str, Any]:
         return {
@@ -45,6 +55,11 @@ class ConsolePrincipal:
             "subject": self.subject,
             "email": self.email,
             "enroll_devices": self.enroll_devices,
+            "device_quota": self.device_quota,
+            "owned_device_ids": list(self.owned_devices),
+            "member_id": self.member_id,
+            "membership_status": self.membership_status,
+            "project_shared": self.project_shared,
         }
 
 
@@ -55,7 +70,6 @@ class AccessVerifier:
         self,
         issuer: str,
         audience: str,
-        principals: list[dict[str, Any]],
         *,
         fetch_keys: Callable[[], Any] | None = None,
     ) -> None:
@@ -63,44 +77,6 @@ class AccessVerifier:
             raise BoundaryError("console", "invalid_access_issuer")
         if re.fullmatch(r"[a-f0-9]{64}", audience) is None:
             raise BoundaryError("console", "invalid_access_audience")
-        if not isinstance(principals, list) or not 1 <= len(principals) <= 50:
-            raise BoundaryError("console", "invalid_access_allowlist")
-        self.principals: dict[str, tuple[str | None, ConsolePrincipal]] = {}
-        for item in principals:
-            if not isinstance(item, dict) or set(item) - {
-                "email",
-                "subject",
-                "role",
-                "devices",
-                "enroll_devices",
-            }:
-                raise BoundaryError("console", "invalid_access_allowlist")
-            email, subject = item.get("email"), item.get("subject")
-            devices, role = item.get("devices"), item.get("role")
-            if (
-                not isinstance(email, str)
-                or re.fullmatch(r"[^\s@]+@[^\s@]+", email) is None
-                or len(email) > 254
-                or email.casefold() in self.principals
-                or (subject is not None and (not isinstance(subject, str) or not subject))
-                or not isinstance(role, str)
-                or role not in {"collector", "reviewer", "operator"}
-                or not isinstance(devices, list)
-                or not 0 <= len(devices) <= 128
-                or any(not isinstance(d, str) or not d or len(d) > 128 or d == "*" for d in devices)
-                or len(set(devices)) != len(devices)
-                or type(item.get("enroll_devices", False)) is not bool
-            ):
-                raise BoundaryError("console", "invalid_access_allowlist")
-            self.principals[email.casefold()] = (
-                subject,
-                ConsolePrincipal(
-                    role,
-                    tuple(devices),
-                    email=email.casefold(),
-                    enroll_devices=item.get("enroll_devices", False),
-                ),
-            )
         self.issuer, self.audience = issuer, audience
         self.fetch_keys = fetch_keys or self._fetch_keys
         self._keys: dict[str, Any] = {}
@@ -160,7 +136,7 @@ class AccessVerifier:
             ):
                 raise ValueError("invalid application token")
             return replace(
-                self.member(self.issuer, claims["sub"], claims["email"]),
+                verified_identity(self.issuer, claims["sub"], claims["email"]),
                 expires_at=float(claims["exp"]),
                 session_binding=hashlib.sha256(token.encode()).hexdigest(),
             )
@@ -168,28 +144,78 @@ class AccessVerifier:
             # Token, email and provider response must never enter error bodies/logs.
             raise BoundaryError("console", "unauthorized") from None
 
-    def member(self, issuer: str, subject: str, email: str) -> ConsolePrincipal:
-        """Reevaluate current membership on every personal-session read."""
-        try:
-            required_subject, principal = self.principals[email.casefold()]
-            if issuer != self.issuer or (
-                required_subject is not None and subject != required_subject
-            ):
-                raise ValueError
-            stable = hashlib.sha256(json.dumps([issuer, subject]).encode()).hexdigest()
-            return replace(principal, subject=stable, issuer=issuer, access_subject=subject)
-        except (KeyError, ValueError):
-            raise BoundaryError("console", "unauthorized") from None
+
+def verified_identity(issuer: str, subject: str, email: str) -> ConsolePrincipal:
+    """A verified identity is not membership. Only Hub Operations may grant a role."""
+    if (
+        not isinstance(email, str)
+        or re.fullmatch(r"[^\s@]+@[^\s@]+", email) is None
+        or len(email) > 254
+    ):
+        raise BoundaryError("console", "unauthorized")
+    stable = hashlib.sha256(json.dumps([issuer, subject]).encode()).hexdigest()
+    return ConsolePrincipal(
+        "authenticated",
+        (),
+        subject=stable,
+        issuer=issuer,
+        access_subject=subject,
+        email=email.casefold(),
+    )
 
 
 def configured_access(environment: Mapping[str, str]) -> AccessVerifier | None:
-    names = ("STPD_ACCESS_ISSUER", "STPD_ACCESS_AUDIENCE", "STPD_ACCESS_ALLOWLIST")
-    values = tuple(environment.get(name, "") for name in names)
-    if not any(values):
+    # The former file is migration input only, never a live fallback authority.
+    if environment.get("STPD_ACCESS_ALLOWLIST"):
+        raise BoundaryError("console", "legacy_allowlist_requires_explicit_membership_import")
+    issuer = environment.get("STPD_ACCESS_ISSUER", "")
+    audience = environment.get("STPD_ACCESS_AUDIENCE", "")
+    if not issuer and not audience:
         return None
-    if not all(values):
+    if not issuer or not audience:
         raise BoundaryError("console", "access_configuration_incomplete")
-    path = Path(values[2])
+    return AccessVerifier(issuer, audience)
+
+
+def validate_legacy_principals(principals: Any) -> list[dict[str, Any]]:
+    """Strict, bounded one-time migration codec; old roles confer no administrator grant."""
+    if not isinstance(principals, list) or not 1 <= len(principals) <= 50:
+        raise BoundaryError("console", "invalid_access_allowlist")
+    seen: set[str] = set()
+    for item in principals:
+        if not isinstance(item, dict) or set(item) - {
+            "email",
+            "subject",
+            "role",
+            "devices",
+            "enroll_devices",
+        }:
+            raise BoundaryError("console", "invalid_access_allowlist")
+        email, subject = item.get("email"), item.get("subject")
+        devices, role = item.get("devices"), item.get("role")
+        if (
+            not isinstance(email, str)
+            or re.fullmatch(r"[^\s@]+@[^\s@]+", email) is None
+            or len(email) > 254
+            or email.casefold() in seen
+            or (
+                subject is not None
+                and (not isinstance(subject, str) or not 1 <= len(subject) <= 512)
+            )
+            or not isinstance(role, str)
+            or role not in {"collector", "reviewer", "operator"}
+            or not isinstance(devices, list)
+            or not 0 <= len(devices) <= 128
+            or any(not isinstance(d, str) or not d or len(d) > 128 or d == "*" for d in devices)
+            or len(set(devices)) != len(devices)
+            or type(item.get("enroll_devices", False)) is not bool
+        ):
+            raise BoundaryError("console", "invalid_access_allowlist")
+        seen.add(email.casefold())
+    return principals
+
+
+def load_legacy_allowlist(path: Path) -> list[dict[str, Any]]:
     info = path.lstat()
     if (
         not stat.S_ISREG(info.st_mode)
@@ -202,4 +228,4 @@ def configured_access(environment: Mapping[str, str]) -> AccessVerifier | None:
         raise BoundaryError("console", "invalid_access_allowlist")
     if payload["schema"] != "stpd/console-access-v1":
         raise BoundaryError("console", "invalid_access_allowlist")
-    return AccessVerifier(values[0], values[1], payload["principals"])
+    return validate_legacy_principals(payload["principals"])
