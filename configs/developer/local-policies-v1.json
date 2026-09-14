@@ -4,10 +4,10 @@
     "package": "@rsgcsg/sts2-policy-runtime",
     "version": "0.1.0-rc.2",
     "release_url": "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/policy-runtime%2Fv0.1.0-rc.2/rsgcsg-sts2-policy-runtime-0.1.0-rc.2.tgz",
-    "source_revision": "87fd6efbc157c77f6c1887d6a41765cef105b8d1",
-    "component_tree_revision": "0812ad584502161f08a86856de44835cce267842",
-    "release_asset_sha256": "affe81802ddca54b6093afeebd9bd158b80c5ec917cbfc42c81fe86d4b28840d",
-    "package_content_sha256": "6d393e1791848fcc89b143b78cee007bcae3c3119c568436924fcc95a0cdbd25",
+    "source_revision": "2792012835c72435869dc4ff729b66c4965bd7fe",
+    "component_tree_revision": "3ed00fa7a0bd0316086255f274c06e2810438d7b",
+    "release_asset_sha256": "811bc56ea954585d430e15a3ca6d8bf650826efef5c145cf9513f2300553e298",
+    "package_content_sha256": "aee8d322f83ff0f88db1b4746bb3273626b7d56206b22f7f73b6e6f808561c19",
     "dependency_content_sha256": {
       "zod": "5ef21d43720938cb893b5232d83fb47b5091053fd8ebbffd8cfb24eccb51a617"
     }

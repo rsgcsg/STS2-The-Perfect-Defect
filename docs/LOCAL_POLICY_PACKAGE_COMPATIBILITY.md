@@ -10,6 +10,19 @@ npm credentials, and validates the installed Runtime and dependency bytes before
 promoting the private directory. Readiness repeats the content checks and calls
 the installed public `validatePolicyManifest` decoder without loading a model.
 
+The final rc.2 recipe was packaged from Platform workspace
+`517d675985972c715ea0207588180f9dbf03501e`, with Policy Runtime component source
+`2792012835c72435869dc4ff729b66c4965bd7fe`. Its archive SHA-256 is
+`811bc56ea954585d430e15a3ca6d8bf650826efef5c145cf9513f2300553e298`;
+its installed Runtime code digest is
+`00c18933d6f6333f5f69da4bca5c888859455aa40d3e1600333353d82cac712c`.
+The Runtime package includes loopback Host/Origin and JSON mutation guards
+and stop cleanup after response disconnect. The matching Platform Workbench
+source fixes command-uncertainty handling and its HTTP forwarding boundary.
+Earlier unpublished rc.2 candidate bytes are superseded and do not
+match the current registry. Package provenance does not qualify any installed
+Game Mod or transfer native/runtime evidence.
+
 The current S1 selection is `s1-human-combat-v4`. Its v4 manifest corrects a G2
 STPD-owned public contract mismatch: historical v2/v3 placed `code_digest_scope`
 inside the strict Platform adapter identity. The public manifest, NDJSON startup
