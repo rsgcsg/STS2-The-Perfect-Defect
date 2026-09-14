@@ -142,6 +142,7 @@ class ConsoleIndex:
                 if key in parameters and isinstance(parameters[key], (str, int))
             },
             "payload_bytes": sum(payload.size for payload in manifest.payloads),
+            "payloads": [payload.to_dict() for payload in manifest.payloads],
             "metrics": {"status": "not_exposed"},
         }
         with self.operations.transaction() as db:

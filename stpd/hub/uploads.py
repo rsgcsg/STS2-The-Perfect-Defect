@@ -334,7 +334,33 @@ class UploadService:
                     # A derived presentation failure never rewrites immutable verification.
                     # Its explicit missing state is repaired by the owner console-refresh CLI.
                     self._index_collection_status(row["id"], intent["archive_bytes"], "unavailable")
+                try:
+                    self.associate_verified_bundle(row["id"], verification.require_value())
+                except Exception as error:
+                    # Sharing remains closed. A failed optional association cannot rewrite
+                    # successful transfer verification or masquerade as a Human failure.
+                    with suppress(Exception), self.operations.transaction() as db:
+                        self.operations._event(
+                            db,
+                            "verifier",
+                            "collection_sharing_unavailable",
+                            row["id"],
+                            {
+                                "reason": error.code
+                                if isinstance(error, BoundaryError)
+                                else "association_unavailable"
+                            },
+                        )
             return receipt
+
+    def associate_verified_bundle(
+        self,
+        upload_id: str,
+        bundle: VerifiedHumanSessionBundle,
+    ) -> dict[str, Any]:
+        from .exports import ExportService
+
+        return ExportService(self).associate_verified_collection(upload_id, bundle)
 
     def _index_collection_status(self, upload_id: str, size: int, status: str) -> None:
         # Even the failure marker is optional: never mask durable owner outcome.
@@ -390,6 +416,7 @@ class UploadService:
                     if bundle.bundle_content_id != row["content_id"]:
                         raise BoundaryError("console", "bundle_content_identity_mismatch")
                     self.index_verified_bundle(row, bundle)
+                    self.associate_verified_bundle(row["id"], bundle)
                     indexed += 1
             if upload_id or len(rows) < 100:
                 break

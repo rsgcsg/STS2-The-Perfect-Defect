@@ -16,6 +16,7 @@ from contextlib import closing
 from typing import Any
 
 from ..artifact_contracts import Manifest
+from ..collection_activity import ENROLLMENT_SCHEMA, validate_enrollment
 from ..json_boundary import BoundaryError, digest, json_bytes, object_fields
 from .access import POLICY_VERSION, lineage, project_member, require_artifact_access
 from .console_auth import ConsolePrincipal
@@ -94,6 +95,95 @@ class ExportService:
                 identity,
                 {"approved": approved, "evidence_ref": evidence_ref},
             )
+
+    def associate_verified_collection(self, upload_id: str, bundle: object) -> dict[str, Any]:
+        """Receiver-only seam using the fresh successful verifier value, never a UI summary.
+
+        Existing explicit denials/revocations win over automatic enrollment association.
+        A declaration is authorization, not proof that actions were Human or scientific.
+        """
+        from sts2_platform_evidence import HumanSessionBundleV3
+
+        self._upload_id(upload_id)
+        if not isinstance(bundle, HumanSessionBundleV3):
+            return {"availability": "not_granted", "reason": "current_verified_bundle_required"}
+        campaign = re.fullmatch(r"campaign-([a-f0-9]{32})", bundle.campaign_id)
+        if campaign is None:
+            return {"availability": "not_granted", "reason": "no_enrollment_identity"}
+        with self.service.operations.transaction() as db:
+            row = db.execute("SELECT * FROM uploads WHERE id=?", (upload_id,)).fetchone()
+            if row is None or row["status"] != "verified" or not row["receipt"]:
+                raise BoundaryError("sharing", "collection_not_verified")
+            receipt = json.loads(row["receipt"])
+            if (
+                row["content_id"] != bundle.bundle_content_id
+                or receipt.get("content_id") != bundle.bundle_content_id
+                or receipt.get("status") != "verified"
+                or row["device"] != bundle.worker_id
+            ):
+                raise BoundaryError("sharing", "verified_bundle_identity_mismatch")
+            old = db.execute(
+                "SELECT approved FROM collection_sharing WHERE upload_id=?", (upload_id,)
+            ).fetchone()
+            if old is not None:
+                return {
+                    "availability": "available" if old[0] == 1 else "not_granted",
+                    "reason": "existing_owner_decision_preserved",
+                }
+            enrollment = db.execute(
+                "SELECT e.*,a.template,d.owner_subject,d.active,m.status AS membership_status "
+                "FROM collection_enrollments e JOIN collection_activities a ON a.id=e.template_id "
+                "JOIN devices d ON d.id=e.device_id "
+                "LEFT JOIN identity_members m ON m.subject=e.subject "
+                "WHERE e.id=?",
+                (campaign[1],),
+            ).fetchone()
+            if enrollment is None:
+                return {"availability": "not_granted", "reason": "enrollment_not_found"}
+            if (
+                enrollment["device_id"] != row["device"]
+                or enrollment["owner_subject"] != enrollment["subject"]
+                or enrollment["active"] != 1
+                or enrollment["membership_status"] != "active"
+            ):
+                raise BoundaryError("sharing", "active_enrolled_device_owner_required")
+            declaration = validate_enrollment(
+                {
+                    "schema": ENROLLMENT_SCHEMA,
+                    "enrollment_id": enrollment["id"],
+                    "template_id": enrollment["template_id"],
+                    "template": json.loads(enrollment["template"]),
+                    "device_id": enrollment["device_id"],
+                    "campaign_id": bundle.campaign_id,
+                    "consent": json.loads(enrollment["consent"]),
+                    "declared_at": enrollment["created_at"],
+                    "human_origin_verified": False,
+                }
+            )
+            binding = {
+                "schema": "stpd/enrolled-bundle-sharing-v1",
+                "enrollment_sha256": hashlib.sha256(json_bytes(declaration)).hexdigest(),
+                "enrollment_id": enrollment["id"],
+                "template_id": enrollment["template_id"],
+                "upload_id": upload_id,
+                "device_id": row["device"],
+                "bundle_content_id": bundle.bundle_content_id,
+                "bundle_checksums_sha256": bundle.bundle_sha256,
+                "received_artifact_id": digest(receipt.get("evidence_id"), "sharing.received_id"),
+            }
+            evidence_ref = hashlib.sha256(json_bytes(binding)).hexdigest()
+            db.execute(
+                "INSERT INTO collection_sharing VALUES(?,?,?,?)",
+                (upload_id, 1, evidence_ref, time.time()),
+            )
+            self.service.operations._event(
+                db,
+                enrollment["subject"],
+                "collection_sharing_associated",
+                upload_id,
+                {"evidence_ref": evidence_ref, "binding": binding, "human_origin_verified": False},
+            )
+        return {"availability": "available", "scope": "project_members"}
 
     def collection_access(self, upload_ids: list[str]) -> dict[str, dict[str, Any]]:
         """Safe page-sized availability only. Download rechecks actual immutable bytes."""
