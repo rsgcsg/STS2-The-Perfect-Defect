@@ -1,0 +1,52 @@
+{
+  "schema": "spireagent/bounded-engineering-closeout-v1",
+  "repositories": [
+    {
+      "repository": "rsgcsg/STS2-AI-PLATFORM",
+      "main": "c698569893a1a87493230edd915697d49211f674",
+      "develop": "487455cc4025ac29aae27ad8084cac6aa8dba66d",
+      "main_ci": 34925432897,
+      "main_develop_same_tree": true,
+      "local_remote_only_main_develop": true,
+      "primary_worktree_clean": true,
+      "main_ci_conclusion": "success"
+    },
+    {
+      "repository": "rsgcsg/STS2-The-Perfect-Defect",
+      "main": "6db30387baef2e414ea85645961ea9ccf36a0c7d",
+      "develop": "4c2233bd31759fe406acab9a170a395d0d8f4cba",
+      "main_ci": 34925884117,
+      "main_develop_same_tree": true,
+      "local_remote_only_main_develop": true,
+      "primary_worktree_clean": true,
+      "main_ci_conclusion": "success"
+    }
+  ],
+  "scope": "owner_authorized_engineering_integration",
+  "continuous_full_run": "NOT_CLAIMED",
+  "data_policy": "preserve source and failure dispositions; separate versioned partial-decision admission is follow-up, current Full-Run gate unchanged",
+  "deployment": "existing tested artifacts retained; no restart or relabelling",
+  "public_binary_release": "NOT_PUBLISHED; existing fixed tool build provenance includes local workstation paths; separate distribution-safe package required",
+  "gpu_compute_started": false,
+  "status": "ENGINEERING_MERGED_VERIFIED",
+  "completed_at": "2026-09-15T03:52:12.367123+00:00",
+  "tested_artifacts": {
+    "platform_workspace": "3da01ecbd3b4da3c2651868f7de1ce6cad54510f",
+    "stpd_source": "675309814691e5331dd8f4ba7874c2e8107d9fd6",
+    "mod_sha256": "1a8072e02d2c0721bab9f33794302c49181853befdb931881407217af780a001",
+    "tool_release_id": "80d37fd70f7eb51353870bdbc6032c85084e1e5f7384a56c41341b7058d68481",
+    "hub_oci": "sha256:18c5d8bbbf0388d4551e6b780db3852497f3ab02e72b6e4bd6d8d08402f8ca1d"
+  },
+  "human_recording": {
+    "accepted": 546,
+    "canonical": 545,
+    "native_cancelled": 1,
+    "real_failures": 0,
+    "unresolved": 0,
+    "canonical_children": 119,
+    "native_starts": 0,
+    "native_ends": 1,
+    "upload": "verified",
+    "member_read": "pass"
+  }
+}
