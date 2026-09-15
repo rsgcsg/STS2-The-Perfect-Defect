@@ -1,5 +1,12 @@
 # STS2: The Perfect Defect
 
+> **Historical repository — development has moved.** Use
+> [STS2-The-Pefect-Defect-Project](https://github.com/rsgcsg/STS2-The-Pefect-Defect-Project)
+> for development, installation, deployment, collection, data tools and maintenance.
+> Both source histories are preserved there. This repository retains original
+> tags/releases/evidence for reproducibility; the material below describes its historical scope.
+> Do not deploy new services or open new feature branches from this repository.
+
 > **Status: pre-alpha research project.** The code currently in this repository is a
 > real Headless/Connector integration and learning smoke, not the final STPD v0 model.
 > It is intentionally retained as a reusable qualification baseline rather than treated
