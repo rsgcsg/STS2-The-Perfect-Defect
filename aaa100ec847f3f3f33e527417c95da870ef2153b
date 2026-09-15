@@ -1,0 +1,93 @@
+{
+  "schema": "spireagent/decision-dataset-release-qualification-v1",
+  "release": "workbench-b/v1.1.0",
+  "status": "MERGED_DEPLOYED_VERIFIED",
+  "stpd": {
+    "main": "aaa100ec847f3f3f33e527417c95da870ef2153b",
+    "develop": "4dd9232350cf37c15cad1284f430216c6bb87944",
+    "same_tree": true,
+    "main_ci": 34938356306,
+    "release_pr": 14,
+    "feature_pr": 12,
+    "evidence_pr": 13,
+    "main_ci_conclusion": "success",
+    "only_main_develop": true
+  },
+  "platform": {
+    "main": "c698569893a1a87493230edd915697d49211f674",
+    "develop": "487455cc4025ac29aae27ad8084cac6aa8dba66d",
+    "modified": false,
+    "evidence_pin": "e26b7c76a3c007c63f7ae9eee285e6dc3d78cd73",
+    "only_main_develop": true
+  },
+  "uv_lock_sha256": "7f760f8be6f7f9f7ac150f5d02f81f9b0190775753cc3215f14630153eec3dca",
+  "hub": {
+    "source": "aaa100ec847f3f3f33e527417c95da870ef2153b",
+    "image": "ghcr.io/rsgcsg/stpd-worker@sha256:ab3dc706f6adf55eaa2e43840e82d2a07e0f53b08033add2f6b37c37d6f77a2c",
+    "tls_health": "PASS",
+    "backup_receipt": "990d5778a56fb2b75c2e82b8f3e657e6b5e56d02dc11199f84ed29786e91eccc",
+    "restore_check": "PASS",
+    "gpu_compute_started": false,
+    "restored_db_sha256": "e952a5ea3d402efbd4c24b358ff80c00b4c5cb44830c0d46a7043695fc57d452",
+    "backup_timer": "active"
+  },
+  "local_workbench": {
+    "source": "aaa100ec847f3f3f33e527417c95da870ef2153b",
+    "workbench_sha256": "f60d64586298718f4f29d1084955346c28b65b6d4413ea746d3e369c3dee874f",
+    "clean_detached_checkout": true,
+    "cold_start": "PASS",
+    "member_export_read": "PASS",
+    "current_upload_queue": "verified"
+  },
+  "source_gates": {
+    "main_local_closeout": "PASS",
+    "pytest_passed": 761,
+    "pytest_skipped": 3,
+    "subtests_passed": 21,
+    "cpu_e2e": "both PASS",
+    "candidate_ci": 34935862157,
+    "docs_ci": 34936789482,
+    "develop_ci": 34937641513,
+    "release_pr_ci": 34937684780,
+    "release_branch_ci": 34937645217
+  },
+  "bounded_data": {
+    "dataset_id": "ebba631f1aef4aa64a02ab1ac1cd245b0781034595587581118cefbb6af22974",
+    "actual_dataset_producer": "d19814759a71d285d2d21e96d5a7e7061962a7a3",
+    "logical_id": "3304593228791e0929fc465108784231cbab9912c8755cfe2b1efa8c08862090",
+    "records": 814,
+    "incomplete_fragments": 2,
+    "complete_runs": 0,
+    "excluded_unresolved": 1,
+    "excluded_normal_cancel": 1,
+    "r2_source_reprojection": "PASS",
+    "member_download_files": 3,
+    "member_download_bytes": 1858016,
+    "member_download_hashes": "PASS",
+    "human_fixed_inventory_ui": "PASS",
+    "training_admitted": false
+  },
+  "distribution": {
+    "public_scope": "STPD source and wheel; existing native tool unchanged",
+    "wheel_sha256": "68360627bf7772b35244e9ff92c1b0df8694867375f7a94281724f3452d64de3",
+    "wheel_bytes": 463538,
+    "local_kit_sha256": "134817e506bb1d9037fb10747b0b869925ff1c410b0d1da0c9207259e546f814",
+    "local_kit_bytes": 3132131,
+    "local_kit_publication": "NOT_PUBLISHED: preserve historical owner provenance containing workstation paths",
+    "tool_release_id": "80d37fd70f7eb51353870bdbc6032c85084e1e5f7384a56c41341b7058d68481",
+    "final_kit_identity": "PASS"
+  },
+  "rollback": {
+    "hub_image": "ghcr.io/rsgcsg/stpd-worker@sha256:238338e7992c2f11d430ff90319e544b696d0251b088287d1a898fd92116f251",
+    "preserve": "original recordings, fixed tools, upload queues and immutable artifacts"
+  },
+  "non_claims": [
+    "continuous native Full Run",
+    "training readiness",
+    "model quality",
+    "GPU execution",
+    "standalone player installer",
+    "whole-host disaster recovery"
+  ],
+  "completed_at": "2026-09-15T06:55:08.853714+00:00"
+}
